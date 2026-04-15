@@ -1,0 +1,378 @@
+@import "tailwindcss";
+
+/* ── Design tokens matching the iOS app ── */
+:root {
+  --accent: #6C63FF;
+  --accent-glow: rgba(108, 99, 255, 0.35);
+  --purchased: #30D158;
+  --destructive: #FF453A;
+
+  --bg: #0D0D0F;
+  --bg-top: #17162C;
+  --bg-bottom: #0C0C11;
+  --surface: #1C1C1E;
+  --surface-elevated: #2C2C2E;
+  --surface-border: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-tertiary: rgba(255, 255, 255, 0.35);
+
+  --radius-card: 20px;
+  --radius-sheet: 28px;
+  --radius-button: 14px;
+  --radius-badge: 8px;
+  --radius-image: 12px;
+}
+
+/* ── Base ── */
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 40%, var(--bg-bottom) 100%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+/* ── Scrollbar (thin, subtle) ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Staggered item delays */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.30s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.40s; }
+
+/* ── Share page (dark, unified with landing design language) ── */
+.share-page {
+  --s-bg: #0C0C0F;
+  --s-surface: #18181B;
+  --s-border: rgba(255, 255, 255, 0.06);
+  --s-text: #FFFFFF;
+  --s-muted: rgba(255, 255, 255, 0.40);
+  --s-accent: #8B83F0;
+  --s-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+/* ── Share page card (Doppelrand dark) ── */
+.s-card-outer {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 5px;
+  border-radius: 1.5rem;
+  transition: all 0.7s var(--s-ease, cubic-bezier(0.32, 0.72, 0, 1));
+}
+.s-card-outer:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.s-card-inner {
+  background: var(--s-surface, #18181B);
+  border-radius: calc(1.5rem - 5px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+/* ── Share page download CTA ── */
+.s-download-cta {
+  background: var(--s-text, white);
+  color: var(--s-bg, #0C0C0F);
+  transition: all 0.7s var(--s-ease, cubic-bezier(0.32, 0.72, 0, 1));
+  box-shadow: 0 4px 24px rgba(255, 255, 255, 0.08);
+}
+.s-download-cta:hover {
+  box-shadow: 0 8px 40px rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+.s-download-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+.s-download-cta .s-cta-arrow {
+  transition: transform 0.7s var(--s-ease, cubic-bezier(0.32, 0.72, 0, 1));
+}
+.s-download-cta:hover .s-cta-arrow {
+  transform: translate(2px, -1px) scale(1.05);
+}
+
+/* ── Backdrop overlay ── */
+.overlay-backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Claim modal (Doppelrand) ── */
+.s-modal-outer {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 5px;
+}
+.s-modal-inner {
+  background: #18181B;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 32px 80px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Safely hide items until animated ── */
+.will-animate {
+  opacity: 0;
+}
+
+/* ── Landing page (Editorial Luxury theme) ── */
+.landing {
+  --l-bg: #FDFBF7;
+  --l-surface: #F5F2EC;
+  --l-text: #18181B;
+  --l-muted: #71717A;
+  --l-border: rgba(24, 24, 27, 0.06);
+  --l-accent: #3D3580;
+  --l-accent-soft: rgba(61, 53, 128, 0.06);
+  --l-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  background: var(--l-bg) !important;
+  color: var(--l-text);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+/* Override body dark bg when landing page is active */
+body:has(.landing) {
+  background: #FDFBF7 !important;
+}
+
+/* ── Film grain overlay (editorial texture) ── */
+.landing::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Scrollbar (landing) ── */
+.landing::-webkit-scrollbar { width: 4px; }
+.landing::-webkit-scrollbar-track { background: transparent; }
+.landing::-webkit-scrollbar-thumb { background: rgba(24,24,27,0.08); border-radius: 4px; }
+
+/* ── Premium entry animations ── */
+@keyframes l-rise {
+  from { opacity: 0; transform: translateY(28px) blur(8px); }
+  to { opacity: 1; transform: translateY(0) blur(0); }
+}
+.l-anim {
+  opacity: 0;
+  animation: l-rise 0.9s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.l-d1 { animation-delay: 0.08s; }
+.l-d2 { animation-delay: 0.16s; }
+.l-d3 { animation-delay: 0.24s; }
+.l-d4 { animation-delay: 0.32s; }
+.l-d5 { animation-delay: 0.40s; }
+.l-d6 { animation-delay: 0.48s; }
+.l-d7 { animation-delay: 0.56s; }
+.l-d8 { animation-delay: 0.64s; }
+
+/* ── Floating shapes ── */
+@keyframes l-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-16px) rotate(2deg); }
+}
+@keyframes l-float-alt {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-1.5deg); }
+}
+.l-float { animation: l-float 9s ease-in-out infinite; }
+.l-float-alt { animation: l-float-alt 13s ease-in-out infinite; }
+
+/* ── Confetti burst particles ── */
+@keyframes confetti-burst {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--cx, 0px), var(--cy, -56px)) scale(0.2) rotate(var(--cr, 30deg)); opacity: 0; }
+}
+.confetti-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: confetti-burst 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Checkmark path draw ── */
+@keyframes draw-check {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0; }
+}
+.animate-draw-check {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw-check 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+}
+
+/* ── Claimed card ring pulse ── */
+@keyframes ring-pulse {
+  0%   { box-shadow: 0 0 0   0px var(--ring-c, rgba(52,196,138,0.4)); }
+  35%  { box-shadow: 0 0 32px 6px var(--ring-c, rgba(52,196,138,0.4)); }
+  100% { box-shadow: 0 0 12px 2px var(--ring-c, rgba(52,196,138,0.12)); }
+}
+.s-claimed-ring {
+  animation: ring-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Empty state subtle float ── */
+@keyframes s-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+.s-float { animation: s-float 4s ease-in-out infinite; }
+
+/* ── Scale pop (post-claim badge) ── */
+@keyframes scale-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.animate-scale-pop {
+  animation: scale-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Double-Bezel (Doppelrand) card architecture ── */
+.doppel-outer {
+  background: rgba(24, 24, 27, 0.025);
+  border: 1px solid rgba(24, 24, 27, 0.04);
+  padding: 6px;
+  border-radius: 2rem;
+}
+.doppel-inner {
+  background: var(--l-bg);
+  border-radius: calc(2rem - 6px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 1px 3px rgba(24, 24, 27, 0.04);
+}
+
+/* ── Dark double-bezel (for mockup cards) ── */
+.doppel-outer-dark {
+  background: rgba(24, 24, 27, 0.06);
+  border: 1px solid rgba(24, 24, 27, 0.04);
+  padding: 6px;
+  border-radius: 2rem;
+}
+.doppel-inner-dark {
+  background: #18181B;
+  color: white;
+  border-radius: calc(2rem - 6px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 20px 60px rgba(24, 24, 27, 0.15);
+}
+
+/* ── Premium CTA — Button-in-Button architecture ── */
+.l-cta {
+  background: var(--l-text);
+  color: var(--l-bg);
+  transition: all 0.7s var(--l-ease);
+  box-shadow: 0 4px 24px rgba(24, 24, 27, 0.12);
+}
+.l-cta:hover {
+  box-shadow: 0 8px 40px rgba(24, 24, 27, 0.2);
+  transform: translateY(-2px);
+}
+.l-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+.l-cta .l-cta-arrow {
+  transition: transform 0.7s var(--l-ease);
+}
+.l-cta:hover .l-cta-arrow {
+  transform: translate(2px, -1px) scale(1.05);
+}
+
+/* ── Eyebrow pill badge ── */
+.l-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--l-accent);
+  background: var(--l-accent-soft);
+  border: 1px solid rgba(61, 53, 128, 0.08);
+}
+
+/* ── Bento grid ── */
+.l-bento {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+  .l-bento {
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1rem;
+  }
+  .l-bento-8 { grid-column: span 8; }
+  .l-bento-4 { grid-column: span 4; }
+  .l-bento-6 { grid-column: span 6; }
+  .l-bento-5 { grid-column: span 5; }
+  .l-bento-7 { grid-column: span 7; }
+}

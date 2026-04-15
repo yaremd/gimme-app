@@ -1,0 +1,41 @@
+# Xcode
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Build
+build/
+*.o
+*.d
+
+# CocoaPods
+Pods/
+
+# Swift Package Manager
+.build/
+*.resolved
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Claude
+.claude/
+
+# Misc docs & planning files (keep code clean)
+compass_artifact_*.md
+
+# Secrets / keys (never commit)
+*.pem
+*.p8
+Secrets.swift

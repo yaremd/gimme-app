@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 4 — List Detail</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .screen-content {
+    background: linear-gradient(180deg, #F5F0E8 0%, #EDE6D8 100%);
+    display: flex;
+    flex-direction: column;
+  }
+  .detail-nav {
+    display: flex;
+    align-items: center;
+    padding: 16px var(--grid);
+    gap: 16px;
+  }
+  .back-arrow {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .detail-list-name {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    flex: 1;
+  }
+  .items-list {
+    padding: 0 var(--grid);
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+  }
+  .item-row {
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .item-img {
+    width: 100px; height: 100px;
+    border-radius: var(--radius-image);
+    background: #F0EDE6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px;
+    flex-shrink: 0;
+  }
+  .item-mid { flex: 1; min-width: 0; }
+  .item-name {
+    font-size: 28px; font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .item-price-line {
+    font-size: 26px; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .item-source {
+    font-size: 22px; color: var(--text-tertiary); font-weight: 500;
+  }
+  .sort-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px var(--grid) 12px;
+  }
+  .sort-label {
+    font-size: 24px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-emerald">
+
+  <div class="caption">Track prices,<br>priority & status</div>
+  <div class="sub-caption">Filter, sort, and organize your way</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#000"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#000"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#000"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#000" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#000" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#000" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#000" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#000"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Nav -->
+          <div class="detail-nav">
+            <div class="back-arrow">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </div>
+            <div class="detail-list-name">Tech Gear &#128187;</div>
+            <div class="nav-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="filter-row">
+            <div class="filter-chip active">All</div>
+            <div class="filter-chip inactive">Wanted</div>
+            <div class="filter-chip inactive">Purchased</div>
+          </div>
+
+          <div class="sort-row">
+            <span class="sort-label">5 items &middot; $1,299 total</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M6 12h12M9 18h6"/></svg>
+          </div>
+
+          <!-- Items -->
+          <div class="items-list">
+            <!-- AirPods Max - High priority -->
+            <div class="item-row">
+              <div class="item-img">&#127911;</div>
+              <div class="item-mid">
+                <div class="item-name">AirPods Max</div>
+                <div class="item-price-line" style="color: var(--ocean);">$549.00</div>
+                <span class="priority-badge priority-high">&#8593; High</span>
+              </div>
+              <div class="status-circle"></div>
+            </div>
+
+            <!-- MacBook Stand - Purchased -->
+            <div class="item-row" style="opacity: 0.55;">
+              <div class="item-img">&#128421;</div>
+              <div class="item-mid">
+                <div class="item-name" style="text-decoration:line-through;">MacBook Stand</div>
+                <div class="item-price-line" style="color: var(--ocean); text-decoration:line-through;">$89.99</div>
+                <span class="priority-badge priority-medium">&#8596; Medium</span>
+              </div>
+              <div class="status-circle purchased"></div>
+            </div>
+
+            <!-- USB-C Hub - Low priority -->
+            <div class="item-row">
+              <div class="item-img">&#128268;</div>
+              <div class="item-mid">
+                <div class="item-name">USB-C Hub 7-in-1</div>
+                <div class="item-price-line" style="color: var(--ocean);">$45.00</div>
+                <span class="priority-badge priority-low">&#8595; Low</span>
+              </div>
+              <div class="status-circle"></div>
+            </div>
+
+            <!-- Keyboard - Reserved -->
+            <div class="item-row">
+              <div class="item-img">&#9000;</div>
+              <div class="item-mid">
+                <div class="item-name">Keychron K2 Pro</div>
+                <div class="item-price-line" style="color: var(--ocean);">$199.00</div>
+                <span class="reserved-badge">&#127873; Reserved</span>
+              </div>
+              <div class="status-circle"></div>
+            </div>
+
+            <!-- Mouse - High priority -->
+            <div class="item-row">
+              <div class="item-img">&#128433;</div>
+              <div class="item-mid">
+                <div class="item-name">Logitech MX Master</div>
+                <div class="item-price-line" style="color: var(--ocean);">$99.99</div>
+                <span class="priority-badge priority-high">&#8593; High</span>
+              </div>
+              <div class="status-circle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

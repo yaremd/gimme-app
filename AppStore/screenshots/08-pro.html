@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 8 — Gimme Pro</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .device-screen {
+    background: linear-gradient(180deg, #1A1A1E 0%, #0E0E12 100%) !important;
+  }
+  .screen-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--grid);
+    gap: 24px;
+    padding-top: 20px;
+  }
+
+  /* Pro header */
+  .pro-header {
+    text-align: center;
+    padding: 8px 0 16px;
+  }
+  .pro-crown {
+    font-size: 72px;
+    margin-bottom: 12px;
+  }
+  .pro-title {
+    font-size: 44px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .pro-subtitle {
+    font-size: 26px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+  }
+
+  /* Feature list */
+  .pro-features {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .pro-feature {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 28px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 28px;
+  }
+  .pro-feature-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 30px;
+  }
+  .pro-feature-info {
+    flex: 1;
+  }
+  .pro-feature-name {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .pro-feature-desc {
+    font-size: 20px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 500;
+  }
+  .pro-feature-check {
+    flex-shrink: 0;
+  }
+
+  /* Purchase card */
+  .purchase-card {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(108,99,255,0.05));
+    border: 2px solid rgba(108,99,255,0.4);
+    border-radius: 36px;
+    padding: 32px;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .purchase-label {
+    font-size: 22px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .purchase-price {
+    font-size: 56px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .purchase-note {
+    font-size: 24px;
+    color: rgba(255,255,255,0.4);
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+  .purchase-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 80px;
+    background: var(--accent);
+    border-radius: 50px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    border: none;
+    box-shadow: 0 8px 32px rgba(108,99,255,0.4);
+  }
+
+  /* Footer links */
+  .pro-footer {
+    display: flex;
+    gap: 32px;
+    padding-top: 8px;
+  }
+  .pro-footer-link {
+    font-size: 20px;
+    color: rgba(255,255,255,0.3);
+    font-weight: 500;
+  }
+
+  /* Floating orbs decoration */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.15;
+    z-index: 0;
+  }
+  .screen-content > * {
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-ocean-indigo">
+
+  <div class="caption">One price.<br>Everything. Forever.</div>
+  <div class="sub-caption">No subscriptions. No recurring fees.</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar dark">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#fff"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#fff"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#fff"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#fff" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#fff" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#fff" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#fff"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Decorative orbs -->
+          <div class="orb" style="width:300px;height:300px;background:#7C6FFD;top:100px;left:-80px;"></div>
+          <div class="orb" style="width:250px;height:250px;background:#FF7043;top:400px;right:-60px;"></div>
+          <div class="orb" style="width:200px;height:200px;background:#34C4A0;bottom:200px;left:40px;"></div>
+
+          <!-- Header -->
+          <div class="pro-header">
+            <div class="pro-crown">&#10024;</div>
+            <div class="pro-title">Gimme Pro</div>
+            <div class="pro-subtitle">Unlock everything, forever</div>
+          </div>
+
+          <!-- Features -->
+          <div class="pro-features">
+            <div class="pro-feature">
+              <div class="pro-feature-icon" style="background: rgba(124,111,253,0.15);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7C6FFD" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </div>
+              <div class="pro-feature-info">
+                <div class="pro-feature-name">Unlimited Sharing</div>
+                <div class="pro-feature-desc">Share all your lists — free includes 2</div>
+              </div>
+              <div class="pro-feature-check">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--purchased)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+
+            <div class="pro-feature">
+              <div class="pro-feature-icon" style="background: rgba(63,169,245,0.15);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3FA9F5" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              </div>
+              <div class="pro-feature-info">
+                <div class="pro-feature-name">Stats & Insights</div>
+                <div class="pro-feature-desc">Charts, totals &amp; currency conversion</div>
+              </div>
+              <div class="pro-feature-check">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--purchased)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+
+            <div class="pro-feature">
+              <div class="pro-feature-icon" style="background: rgba(52,196,160,0.15);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#34C4A0" stroke-width="2" stroke-linecap="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+              </div>
+              <div class="pro-feature-info">
+                <div class="pro-feature-name">Gifting Alerts</div>
+                <div class="pro-feature-desc">Know when someone reserves a gift</div>
+              </div>
+              <div class="pro-feature-check">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--purchased)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+
+            <div class="pro-feature">
+              <div class="pro-feature-icon" style="background: rgba(255,112,67,0.15);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF7043" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              </div>
+              <div class="pro-feature-info">
+                <div class="pro-feature-name">All Widget Sizes</div>
+                <div class="pro-feature-desc">Medium &amp; Lock Screen widgets unlocked</div>
+              </div>
+              <div class="pro-feature-check">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--purchased)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Purchase Card -->
+          <div class="purchase-card">
+            <div class="purchase-label">Lifetime Access</div>
+            <div class="purchase-price">$4.99</div>
+            <div class="purchase-note">One-time purchase. No subscription.</div>
+            <button class="purchase-btn">Get Gimme Pro</button>
+          </div>
+
+          <!-- Footer -->
+          <div class="pro-footer">
+            <span class="pro-footer-link">Restore Purchases</span>
+            <span class="pro-footer-link">Privacy Policy</span>
+            <span class="pro-footer-link">Terms</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

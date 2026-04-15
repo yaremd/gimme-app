@@ -1,0 +1,116 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-gray:1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.56896,0.53021,1.08431,1.00000",
+              "display-p3:0.42739,0.38434,1.00000,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.6004090981743191,
+                "y" : 0.19413502591336407
+              },
+              "stop" : {
+                "x" : 0.039836799626628734,
+                "y" : 2.216193080849209
+              }
+            }
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "hand.svg",
+          "name" : "hand",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              10.9140625,
+              110.203125
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "hand outline.svg",
+          "name" : "hand outline",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              10.9140625,
+              110.203125
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.56896,0.53021,1.08431,1.00000",
+              "display-p3:0.42739,0.38434,1.00000,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.7546431057133928,
+                "y" : 0.1767316182067719
+              },
+              "stop" : {
+                "x" : 0.5,
+                "y" : 0.7
+              }
+            }
+          },
+          "glass" : true,
+          "image-name" : "circke.svg",
+          "name" : "circke"
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:1.00000,0.63587,0.40373,1.00000",
+              "display-p3:0.96783,0.44245,0.35548,1.00000"
+            ],
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 0
+              },
+              "stop" : {
+                "x" : 0.5,
+                "y" : 0.7
+              }
+            }
+          },
+          "glass" : true,
+          "image-name" : "sparkle.svg",
+          "name" : "sparkle",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              53.37637356749906,
+              -222.52952780821306
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

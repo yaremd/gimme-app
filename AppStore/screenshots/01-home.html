@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 1 — Home</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .screen-content {
+    background: linear-gradient(180deg, #F5F0E8 0%, #EDE6D8 100%);
+    display: flex;
+    flex-direction: column;
+    padding-top: 12px;
+  }
+  .list-stack {
+    padding: 0 var(--grid);
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+  }
+  .emoji-circle { transition: none; }
+</style>
+</head>
+<body>
+<div class="screenshot bg-indigo">
+
+  <div class="caption">All your wishes,<br>one beautiful place</div>
+  <div class="sub-caption">Save, organize & share wishlists</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <!-- Dynamic Island -->
+        <div class="dynamic-island"></div>
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#000"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#000"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#000"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#000" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#000" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#000" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#000" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#000"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Nav -->
+          <div class="nav-bar">
+            <div class="nav-title">Gimme</div>
+            <div class="nav-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6C63FF" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            </div>
+          </div>
+
+          <!-- Cards -->
+          <div class="list-stack">
+            <!-- Birthday -->
+            <div class="wish-card">
+              <div class="emoji-circle" style="background: rgba(232,88,109,0.15);">
+                <span>&#127874;</span>
+              </div>
+              <div class="card-info">
+                <div class="card-title">Birthday Wishes</div>
+                <div class="card-subtitle">5 of 8 remaining</div>
+              </div>
+              <div style="text-align:right">
+                <div class="card-price" style="color: var(--rose);">$245</div>
+                <div class="card-count">8 items</div>
+              </div>
+            </div>
+
+            <!-- Tech Gear -->
+            <div class="wish-card">
+              <div class="emoji-circle" style="background: rgba(59,141,212,0.15);">
+                <span>&#128187;</span>
+              </div>
+              <div class="card-info">
+                <div class="card-title">Tech Gear</div>
+                <div class="card-subtitle">5 of 5 remaining</div>
+              </div>
+              <div style="text-align:right">
+                <div class="card-price" style="color: var(--ocean);">$1,299</div>
+                <div class="card-count">5 items</div>
+              </div>
+            </div>
+
+            <!-- Books -->
+            <div class="wish-card">
+              <div class="emoji-circle" style="background: rgba(212,160,23,0.15);">
+                <span>&#128218;</span>
+              </div>
+              <div class="card-info">
+                <div class="card-title">Books to Read</div>
+                <div class="card-subtitle" style="color: var(--purchased);">All purchased!</div>
+              </div>
+              <div style="text-align:right">
+                <div class="card-price" style="color: var(--honey);">$89</div>
+                <div class="card-count">3 items</div>
+              </div>
+            </div>
+
+            <!-- Holiday Ideas -->
+            <div class="wish-card">
+              <div class="emoji-circle" style="background: rgba(46,170,95,0.15);">
+                <span>&#127876;</span>
+              </div>
+              <div class="card-info">
+                <div class="card-title">Holiday Ideas</div>
+                <div class="card-subtitle">12 of 15 remaining</div>
+              </div>
+              <div style="text-align:right">
+                <div class="card-price" style="color: var(--emerald);">$430</div>
+                <div class="card-count">15 items</div>
+              </div>
+            </div>
+
+            <!-- Home Decor -->
+            <div class="wish-card">
+              <div class="emoji-circle" style="background: rgba(139,92,246,0.15);">
+                <span>&#127968;</span>
+              </div>
+              <div class="card-info">
+                <div class="card-title">Home Decor</div>
+                <div class="card-subtitle">2 of 4 remaining</div>
+              </div>
+              <div style="text-align:right">
+                <div class="card-price" style="color: var(--violet);">$175</div>
+                <div class="card-count">4 items</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FAB -->
+          <div class="fab">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

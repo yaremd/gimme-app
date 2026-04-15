@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 6 — Stats</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .screen-content {
+    background: linear-gradient(180deg, #F5F0E8 0%, #EDE6D8 100%);
+    display: flex;
+    flex-direction: column;
+    padding-top: 12px;
+  }
+
+  /* Donut chart */
+  .donut-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 0 16px;
+    position: relative;
+  }
+  .donut-ring {
+    width: 280px;
+    height: 280px;
+    position: relative;
+  }
+  .donut-ring svg {
+    transform: rotate(-90deg);
+    width: 280px;
+    height: 280px;
+  }
+  .donut-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .donut-value {
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+  .donut-label {
+    font-size: 22px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  /* Overview strip */
+  .overview-strip {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px var(--grid);
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    margin: 0 var(--grid) 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .overview-item {
+    text-align: center;
+  }
+  .overview-number {
+    font-size: 34px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .overview-label {
+    font-size: 20px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+
+  /* Stat cards row */
+  .stat-cards {
+    display: flex;
+    gap: 16px;
+    padding: 0 var(--grid);
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border-radius: var(--radius-card);
+    padding: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .stat-card-label {
+    font-size: 20px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .stat-card-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  /* Breakdown bars */
+  .breakdown {
+    padding: 0 var(--grid);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .breakdown-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .breakdown-emoji {
+    font-size: 28px;
+    width: 44px;
+    text-align: center;
+  }
+  .breakdown-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .breakdown-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .breakdown-name {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .breakdown-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  .breakdown-bar-bg {
+    width: 100%;
+    height: 14px;
+    background: rgba(0,0,0,0.06);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .breakdown-bar-fill {
+    height: 100%;
+    border-radius: 7px;
+  }
+
+  /* Chip filters */
+  .stats-chips {
+    display: flex;
+    gap: 12px;
+    padding: 0 var(--grid);
+    margin-bottom: 16px;
+  }
+  .stats-chip {
+    font-size: 22px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 50px;
+  }
+  .stats-chip.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .stats-chip.inactive {
+    background: rgba(108,99,255,0.08);
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-rose">
+
+  <div class="caption">See where your<br>money goes</div>
+  <div class="sub-caption">Stats & insights across all wishlists</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#000"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#000"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#000"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#000" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#000" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#000" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#000" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#000"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <div class="nav-bar">
+            <div class="nav-title">Stats</div>
+          </div>
+
+          <!-- Filter chips -->
+          <div class="stats-chips">
+            <div class="stats-chip active">By List</div>
+            <div class="stats-chip inactive">By Priority</div>
+          </div>
+
+          <!-- Donut Chart -->
+          <div class="donut-container">
+            <div class="donut-ring">
+              <svg viewBox="0 0 280 280">
+                <!-- Background ring -->
+                <circle cx="140" cy="140" r="110" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="32"/>
+                <!-- Segments -->
+                <circle cx="140" cy="140" r="110" fill="none" stroke="#E8586D" stroke-width="32"
+                  stroke-dasharray="207 484" stroke-dashoffset="0" stroke-linecap="round"/>
+                <circle cx="140" cy="140" r="110" fill="none" stroke="#3B8DD4" stroke-width="32"
+                  stroke-dasharray="276 415" stroke-dashoffset="-207" stroke-linecap="round"/>
+                <circle cx="140" cy="140" r="110" fill="none" stroke="#D4A017" stroke-width="32"
+                  stroke-dasharray="69 622" stroke-dashoffset="-483" stroke-linecap="round"/>
+                <circle cx="140" cy="140" r="110" fill="none" stroke="#2EAA5F" stroke-width="32"
+                  stroke-dasharray="104 588" stroke-dashoffset="-552" stroke-linecap="round"/>
+              </svg>
+              <div class="donut-center">
+                <div class="donut-value">$2,238</div>
+                <div class="donut-label">Total value</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overview Strip -->
+          <div class="overview-strip">
+            <div class="overview-item">
+              <div class="overview-number">5</div>
+              <div class="overview-label">Lists</div>
+            </div>
+            <div class="overview-item">
+              <div class="overview-number">35</div>
+              <div class="overview-label">Items</div>
+            </div>
+            <div class="overview-item">
+              <div class="overview-number" style="color: var(--purchased);">12</div>
+              <div class="overview-label">Bought</div>
+            </div>
+            <div class="overview-item">
+              <div class="overview-number" style="color: var(--accent);">23</div>
+              <div class="overview-label">Wanted</div>
+            </div>
+          </div>
+
+          <!-- Stat cards -->
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-card-label">Purchased</div>
+              <div class="stat-card-value" style="color: var(--purchased);">$846</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card-label">Remaining</div>
+              <div class="stat-card-value" style="color: var(--accent);">$1,392</div>
+            </div>
+          </div>
+
+          <!-- Breakdown -->
+          <div class="breakdown">
+            <div class="breakdown-title">By List</div>
+
+            <div class="breakdown-row">
+              <div class="breakdown-emoji">&#128187;</div>
+              <div class="breakdown-info">
+                <div class="breakdown-top">
+                  <span class="breakdown-name">Tech Gear</span>
+                  <span class="breakdown-amount">$1,299</span>
+                </div>
+                <div class="breakdown-bar-bg">
+                  <div class="breakdown-bar-fill" style="width: 58%; background: var(--ocean);"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="breakdown-row">
+              <div class="breakdown-emoji">&#127876;</div>
+              <div class="breakdown-info">
+                <div class="breakdown-top">
+                  <span class="breakdown-name">Holiday Ideas</span>
+                  <span class="breakdown-amount">$430</span>
+                </div>
+                <div class="breakdown-bar-bg">
+                  <div class="breakdown-bar-fill" style="width: 19%; background: var(--emerald);"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="breakdown-row">
+              <div class="breakdown-emoji">&#127874;</div>
+              <div class="breakdown-info">
+                <div class="breakdown-top">
+                  <span class="breakdown-name">Birthday</span>
+                  <span class="breakdown-amount">$245</span>
+                </div>
+                <div class="breakdown-bar-bg">
+                  <div class="breakdown-bar-fill" style="width: 11%; background: var(--rose);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

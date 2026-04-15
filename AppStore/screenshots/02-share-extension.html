@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 2 — Share Extension</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .device-screen {
+    background: #F2F2F7 !important;
+  }
+  .safari-chrome {
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    padding: 16px var(--grid);
+  }
+  .safari-url-bar {
+    background: #E8E8ED;
+    border-radius: 20px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    font-size: 26px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .product-area {
+    flex: 1;
+    padding: var(--grid);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .product-image {
+    width: 100%;
+    height: 380px;
+    background: linear-gradient(135deg, #F0EDE6, #E8E4DA);
+    border-radius: var(--radius-image);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 120px;
+  }
+  .product-title {
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .product-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .product-price-row .big {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .product-price-row .old {
+    font-size: 26px;
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+
+  /* Share sheet overlay */
+  .share-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 640px;
+    background: rgba(255,255,255,0.97);
+    backdrop-filter: blur(30px);
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+  }
+  .share-sheet-handle {
+    width: 72px;
+    height: 8px;
+    background: #D1D1D6;
+    border-radius: 4px;
+    margin: 16px auto 20px;
+  }
+  .share-sheet-header {
+    padding: 0 var(--grid);
+    margin-bottom: 24px;
+  }
+  .share-sheet-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .share-sheet-url {
+    font-size: 22px;
+    color: var(--text-tertiary);
+  }
+  .share-apps {
+    display: flex;
+    gap: 24px;
+    padding: 0 var(--grid) 28px;
+    overflow: hidden;
+  }
+  .share-app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-width: 100px;
+  }
+  .share-app-icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .share-app-label {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .share-actions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .share-action {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px var(--grid);
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+  .share-action-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .share-action-text {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .gimme-highlight {
+    background: rgba(108, 99, 255, 0.06);
+    border-radius: 20px;
+    margin: 0 12px;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  .gimme-highlight .share-action-text {
+    color: var(--accent);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-rose">
+
+  <div class="caption">Save from any app<br>in one tap</div>
+  <div class="sub-caption">Auto-detects name, image & price</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#000"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#000"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#000"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#000" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#000" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#000" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#000" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#000"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content" style="padding-top:0;">
+          <!-- Safari URL bar -->
+          <div class="safari-chrome">
+            <div class="safari-url-bar">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" stroke-width="2" style="margin-right:12px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+              amazon.com/dp/B0CS5P1...
+            </div>
+          </div>
+
+          <!-- Product preview behind -->
+          <div class="product-area">
+            <div class="product-image">&#127911;</div>
+            <div class="product-title">Sony WH-1000XM5 Wireless<br>Noise Cancelling Headphones</div>
+            <div class="product-price-row">
+              <span class="big">$278.00</span>
+              <span class="old">$399.99</span>
+            </div>
+          </div>
+
+          <!-- Share Sheet -->
+          <div class="share-sheet">
+            <div class="share-sheet-handle"></div>
+            <div class="share-sheet-header">
+              <div class="share-sheet-title">amazon.com</div>
+              <div class="share-sheet-url">Sony WH-1000XM5 Wireless Noise Cancel...</div>
+            </div>
+
+            <!-- App row -->
+            <div class="share-apps">
+              <div class="share-app">
+                <div class="share-app-icon" style="background:#34C759;"><svg width="44" height="44" viewBox="0 0 24 24" fill="white"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/></svg></div>
+                <div class="share-app-label">Messages</div>
+              </div>
+              <div class="share-app">
+                <div class="share-app-icon" style="background:#007AFF;"><svg width="44" height="44" viewBox="0 0 24 24" fill="white"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6" fill="none" stroke="white" stroke-width="2"/></svg></div>
+                <div class="share-app-label">Mail</div>
+              </div>
+              <div class="share-app">
+                <div class="share-app-icon" style="background:#FF9500;"><svg width="44" height="44" viewBox="0 0 24 24" fill="white"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div>
+                <div class="share-app-label">Notes</div>
+              </div>
+              <div class="share-app">
+                <div class="share-app-icon" style="background:#5856D6;"><svg width="44" height="44" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/></svg></div>
+                <div class="share-app-label">Reminders</div>
+              </div>
+            </div>
+
+            <!-- Action rows -->
+            <div class="share-actions">
+              <div class="share-action">
+                <div class="share-action-icon" style="background:#007AFF;">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8" stroke="white" stroke-width="2"/></svg>
+                </div>
+                <span class="share-action-text">Add to Reading List</span>
+              </div>
+
+              <!-- GIMME - highlighted -->
+              <div class="share-action gimme-highlight">
+                <div class="share-action-icon" style="background: var(--accent);">
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M12 2L14 8H20L15.5 12L17 18L12 14.5L7 18L8.5 12L4 8H10L12 2Z" fill="white" stroke="white" stroke-width="1"/></svg>
+                </div>
+                <span class="share-action-text">Save to Gimme</span>
+              </div>
+
+              <div class="share-action">
+                <div class="share-action-icon" style="background:#8E8E93;">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16,6 12,2 8,6" fill="none" stroke="white" stroke-width="2.5"/><line x1="12" y1="2" x2="12" y2="15" stroke="white" stroke-width="2.5"/></svg>
+                </div>
+                <span class="share-action-text">Copy Link</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

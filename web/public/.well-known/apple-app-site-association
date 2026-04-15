@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["S4M9R72TXR.com.yaremchuk.app"],
+        "components": [
+          {
+            "/": "/share/*",
+            "comment": "Matches all shared wishlist URLs"
+          }
+        ]
+      }
+    ]
+  }
+}

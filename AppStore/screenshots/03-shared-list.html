@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 3 — Shared List</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .device-screen {
+    background: linear-gradient(180deg, #17162C 0%, #0C0C11 100%) !important;
+  }
+  .screen-content {
+    padding: 0 var(--grid);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .shared-header {
+    text-align: center;
+    padding: 20px 0 12px;
+  }
+  .shared-emoji {
+    font-size: 64px;
+    margin-bottom: 12px;
+  }
+  .shared-title {
+    font-size: 40px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .shared-subtitle {
+    font-size: 24px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+  }
+  .shared-item {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-card);
+    padding: 28px;
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .shared-item-thumb {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-image);
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    flex-shrink: 0;
+  }
+  .shared-item-info { flex: 1; }
+  .shared-item-name {
+    font-size: 28px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  .shared-item-price {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .claim-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-size: 24px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+  }
+  .claim-btn.available {
+    background: var(--accent);
+    color: #fff;
+  }
+  .claim-btn.claimed {
+    background: rgba(48, 209, 88, 0.15);
+    color: var(--purchased);
+  }
+  .shared-item.claimed-item {
+    border-color: rgba(48, 209, 88, 0.2);
+  }
+  .claimed-by {
+    font-size: 22px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 8px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-ocean">
+
+  <div class="caption">Share with anyone.<br>No app needed.</div>
+  <div class="sub-caption">Friends claim gifts. No spoiled surprises.</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar dark">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#fff"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#fff"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#fff"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#fff" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#fff" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#fff" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#fff"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Header -->
+          <div class="shared-header">
+            <div class="shared-emoji">&#127874;</div>
+            <div class="shared-title">Birthday Wishes</div>
+            <div class="shared-subtitle">Shared by Dmytro &middot; 8 items</div>
+          </div>
+
+          <!-- Item 1 - Available -->
+          <div class="shared-item">
+            <div class="shared-item-thumb">&#127911;</div>
+            <div class="shared-item-info">
+              <div class="shared-item-name">Sony WH-1000XM5</div>
+              <div class="shared-item-price">$278.00</div>
+              <button class="claim-btn available">&#127873; I'll get this</button>
+            </div>
+          </div>
+
+          <!-- Item 2 - Claimed -->
+          <div class="shared-item claimed-item">
+            <div class="shared-item-thumb">&#128218;</div>
+            <div class="shared-item-info">
+              <div class="shared-item-name">Atomic Habits</div>
+              <div class="shared-item-price">$16.99</div>
+              <button class="claim-btn claimed">&#10003; Someone's getting this</button>
+            </div>
+          </div>
+
+          <!-- Item 3 - Available -->
+          <div class="shared-item">
+            <div class="shared-item-thumb">&#9749;</div>
+            <div class="shared-item-info">
+              <div class="shared-item-name">Fellow Stagg Kettle</div>
+              <div class="shared-item-price">$89.00</div>
+              <button class="claim-btn available">&#127873; I'll get this</button>
+            </div>
+          </div>
+
+          <!-- Item 4 - Available -->
+          <div class="shared-item">
+            <div class="shared-item-thumb">&#127918;</div>
+            <div class="shared-item-info">
+              <div class="shared-item-name">Nintendo eShop Card</div>
+              <div class="shared-item-price">$50.00</div>
+              <button class="claim-btn available">&#127873; I'll get this</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Screenshot 5 — Widgets</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .device-screen {
+    background: linear-gradient(160deg, #2A1B5E 0%, #1A0F3C 40%, #0D0820 100%) !important;
+  }
+  .screen-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--grid);
+    gap: 28px;
+    padding-top: 24px;
+  }
+
+  /* Wallpaper app grid simulation */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px 20px;
+    width: 100%;
+    padding: 0 8px;
+  }
+  .app-icon-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 26px;
+    opacity: 0.25;
+  }
+  .app-label {
+    font-size: 18px;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  /* Small Widget */
+  .widget-small {
+    width: 240px;
+    min-height: 240px;
+    border-radius: 40px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+  .widget-small .widget-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .widget-small .widget-app-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .widget-small .widget-app-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .widget-small .widget-value {
+    font-size: 42px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+  .widget-small .widget-label {
+    font-size: 20px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+  .widget-small .widget-progress {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .widget-small .widget-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+  }
+
+  /* Medium Widget */
+  .widget-medium {
+    width: 100%;
+    min-height: 240px;
+    border-radius: 40px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .widget-medium .widget-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .widget-medium .widget-app-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .widget-medium .widget-app-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+  }
+  .widget-med-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .widget-med-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .widget-med-emoji {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .widget-med-name {
+    flex: 1;
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .widget-med-count {
+    font-size: 22px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 500;
+  }
+  .widget-med-price {
+    font-size: 22px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* Lock Screen Widget */
+  .lock-widget-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 24px;
+    padding: 14px 24px;
+    width: 100%;
+  }
+  .lock-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lock-text {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    flex: 1;
+  }
+  .lock-count {
+    font-size: 24px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* Layout grid for widgets */
+  .widgets-row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    align-items: flex-start;
+  }
+  .widgets-col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 20px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="screenshot bg-indigo">
+
+  <div class="caption">Widgets for<br>your wishes</div>
+  <div class="sub-caption">Home Screen & Lock Screen</div>
+
+  <div class="device">
+    <div class="device-frame">
+      <div class="device-screen">
+        <div class="dynamic-island"></div>
+        <div class="status-bar dark">
+          <span class="status-time">9:41</span>
+          <div class="status-icons">
+            <svg width="32" height="22" viewBox="0 0 32 22"><rect x="0" y="2" width="6" height="18" rx="1.5" fill="#fff"/><rect x="9" y="5" width="6" height="15" rx="1.5" fill="#fff"/><rect x="18" y="9" width="6" height="11" rx="1.5" fill="#fff"/><rect x="27" y="13" width="5" height="7" rx="1.5" fill="#fff" opacity="0.3"/></svg>
+            <svg width="30" height="22" viewBox="0 0 30 22"><path d="M15 5C20 5 24 8 27 12C24 16 20 19 15 19C10 19 6 16 3 12C6 8 10 5 15 5Z" stroke="#fff" stroke-width="2" fill="none"/></svg>
+            <svg width="48" height="22" viewBox="0 0 48 22"><rect x="0" y="2" width="42" height="18" rx="4" stroke="#fff" stroke-width="2" fill="none"/><rect x="44" y="7" width="4" height="8" rx="1.5" fill="#fff" opacity="0.4"/><rect x="3" y="5" width="34" height="12" rx="2" fill="#fff"/></svg>
+          </div>
+        </div>
+
+        <div class="screen-content">
+          <!-- Top row: small widget + app icons column -->
+          <div class="section-label">Home Screen</div>
+          <div class="widgets-row">
+            <!-- Small Widget -->
+            <div class="widget-small">
+              <div class="widget-top">
+                <div class="widget-app-icon">&#10024;</div>
+                <div class="widget-app-name">Gimme</div>
+              </div>
+              <div class="widget-value">$245</div>
+              <div class="widget-label">3 of 8 remaining</div>
+              <div class="widget-progress">
+                <div class="widget-progress-fill" style="width: 62%;"></div>
+              </div>
+            </div>
+
+            <!-- App icons placeholders -->
+            <div class="widgets-col" style="flex:1;">
+              <div class="app-grid" style="grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                <div>
+                  <div class="app-icon-placeholder" style="background: linear-gradient(135deg, #FF6B6B, #FF3B30);"></div>
+                </div>
+                <div>
+                  <div class="app-icon-placeholder" style="background: linear-gradient(135deg, #30D158, #28A745);"></div>
+                </div>
+                <div>
+                  <div class="app-icon-placeholder" style="background: linear-gradient(135deg, #007AFF, #0056CC);"></div>
+                </div>
+                <div>
+                  <div class="app-icon-placeholder" style="background: linear-gradient(135deg, #FF9500, #E08600);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medium Widget -->
+          <div class="widget-medium">
+            <div class="widget-top">
+              <div class="widget-app-icon">&#10024;</div>
+              <div class="widget-app-name">Gimme</div>
+            </div>
+            <div class="widget-med-rows">
+              <div class="widget-med-row">
+                <div class="widget-med-emoji" style="background: rgba(232,88,109,0.25);">&#127874;</div>
+                <div class="widget-med-name">Birthday</div>
+                <div class="widget-med-count">5/8</div>
+                <div class="widget-med-price">$245</div>
+              </div>
+              <div class="widget-med-row">
+                <div class="widget-med-emoji" style="background: rgba(59,141,212,0.25);">&#128187;</div>
+                <div class="widget-med-name">Tech Gear</div>
+                <div class="widget-med-count">5/5</div>
+                <div class="widget-med-price">$1,299</div>
+              </div>
+              <div class="widget-med-row">
+                <div class="widget-med-emoji" style="background: rgba(46,170,95,0.25);">&#127876;</div>
+                <div class="widget-med-name">Holiday</div>
+                <div class="widget-med-count">12/15</div>
+                <div class="widget-med-price">$430</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lock Screen Section -->
+          <div class="section-label" style="margin-top: 16px;">Lock Screen</div>
+          <div class="lock-widget-row">
+            <div class="lock-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2L14 8H20L15.5 12L17 18L12 14.5L7 18L8.5 12L4 8H10L12 2Z"/></svg>
+            </div>
+            <div class="lock-text">Birthday Wishes</div>
+            <div class="lock-count">5 left</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
