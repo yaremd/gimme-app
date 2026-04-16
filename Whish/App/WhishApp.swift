@@ -7,9 +7,11 @@ import UserNotifications
 // MARK: - AppDelegate (push notification token handling)
 
 @MainActor
-final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Temporarily holds the APNs token until auth is ready to upload it.
     var deviceToken: Data?
+    /// Set by WhishApp once auth is bootstrapped.
+    var currentUserID: String?
 
     func application(
         _ application: UIApplication,
@@ -24,7 +26,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         self.deviceToken = deviceToken
-        // If the user is already signed in, upload immediately.
         Task { @MainActor in
             guard let userID = currentUserID else { return }
             await PushNotificationService.shared.uploadToken(deviceToken, userID: userID)
@@ -37,11 +38,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) {
         print("[Push] Registration failed: \(error.localizedDescription)")
     }
+}
 
-    // MARK: - UNUserNotificationCenterDelegate
+// MARK: - UNUserNotificationCenterDelegate
+// Separated so the system can call these from a non-isolated context (Swift 6 requirement).
 
-    /// Show banner + play sound even when the app is in the foreground.
-    func userNotificationCenter(
+extension AppDelegate: UNUserNotificationCenterDelegate {
+
+    /// Show banner + sound even when the app is in the foreground.
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
@@ -50,7 +55,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     /// Navigate to the relevant list when the user taps the notification.
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
@@ -63,9 +68,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             DeepLinkRouter.shared.pendingAction = .openList(listID)
         }
     }
-
-    /// Set by WhishApp once auth is bootstrapped.
-    @MainActor var currentUserID: String?
 }
 
 // MARK: - App
