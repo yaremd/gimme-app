@@ -2,12 +2,22 @@ import AppIntents
 import SwiftUI
 import SwiftData
 import UIKit
+import UserNotifications
 
 // MARK: - AppDelegate (push notification token handling)
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+@MainActor
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     /// Temporarily holds the APNs token until auth is ready to upload it.
     var deviceToken: Data?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
 
     func application(
         _ application: UIApplication,
@@ -26,6 +36,32 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("[Push] Registration failed: \(error.localizedDescription)")
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    /// Show banner + play sound even when the app is in the foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    /// Navigate to the relevant list when the user taps the notification.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
+        let userInfo = response.notification.request.content.userInfo
+        guard let listIDString = userInfo["list_id"] as? String,
+              let listID = UUID(uuidString: listIDString) else { return }
+        Task { @MainActor in
+            DeepLinkRouter.shared.pendingAction = .openList(listID)
+        }
     }
 
     /// Set by WhishApp once auth is bootstrapped.
