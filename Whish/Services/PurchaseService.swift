@@ -12,10 +12,9 @@ final class PurchaseService {
     private(set) var product: Product?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
-    /// True when the last isPro→false change came from a StoreKit revocation (refund),
-    /// as opposed to a logout reset. WhishApp reads this to decide whether to sync
-    /// the revocation to Supabase.
-    private(set) var lastChangeWasRevocation = false
+    /// Set by WhishApp on sign-in/out so purchase() and handle() can sync to Supabase
+    /// without needing a coordinator observer.
+    var currentUserID: String?
 
     // MARK: - Constants
 
@@ -46,6 +45,10 @@ final class PurchaseService {
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
                 setPro(true)
+                if let uid = currentUserID {
+                    claimPro(for: uid)
+                    await syncProToSupabase(userID: uid, value: true)
+                }
             case .userCancelled:
                 break
             case .pending:
@@ -118,8 +121,12 @@ final class PurchaseService {
         await tx.finish()
         if tx.productID == Self.productID {
             let newValue = tx.revocationDate == nil
-            lastChangeWasRevocation = !newValue
-            if !newValue { clearClaim() }
+            if !newValue {
+                clearClaim()
+                if let uid = currentUserID {
+                    await syncProToSupabase(userID: uid, value: false)
+                }
+            }
             setPro(newValue)
         }
     }
@@ -137,7 +144,6 @@ final class PurchaseService {
     }
 
     func resetProStatus() {
-        lastChangeWasRevocation = false
         setPro(false)
     }
 

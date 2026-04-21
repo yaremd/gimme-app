@@ -183,50 +183,42 @@ struct WhishApp: App {
                         if isSignedIn, let userID = authService.userID {
                             // Upload device token on sign-in
                             appDelegate.currentUserID = userID
+                            purchaseService.currentUserID = userID
                             if let token = appDelegate.deviceToken {
                                 await PushNotificationService.shared.uploadToken(token, userID: userID)
                             }
 
                             // Pro is Supabase-account-level.
-                            // Check both StoreKit and Supabase; whichever says Pro wins.
-                            await purchaseService.refreshEntitlement()
-                            let storeKitPro = purchaseService.isPro
+                            // Fetch Supabase first — before touching StoreKit — so no intermediate
+                            // isPro changes can be misread by concurrent observers.
                             let supabasePro = await purchaseService.fetchProFromSupabase(userID: userID)
 
                             if supabasePro {
-                                // This account is Pro in Supabase → grant locally and record claim
+                                // This account already paid — grant locally and stamp claim on this device
                                 purchaseService.grantPro()
                                 purchaseService.claimPro(for: userID)
-                            } else if storeKitPro {
-                                // StoreKit says Pro but Supabase has no record for this account
-                                let claimedBy = purchaseService.claimedByUserID()
-                                if claimedBy == nil || claimedBy == userID {
-                                    // Unclaimed anonymous purchase, or same user on a new device → claim + sync
-                                    purchaseService.claimPro(for: userID)
-                                    await purchaseService.syncProToSupabase(userID: userID, value: true)
-                                } else {
-                                    // Claimed by a different account — override the StoreKit grant
-                                    purchaseService.resetProStatus()
+                            } else {
+                                // No Supabase record — check StoreKit for an unclaimed device purchase
+                                await purchaseService.refreshEntitlement()
+                                if purchaseService.isPro {
+                                    let claimedBy = purchaseService.claimedByUserID()
+                                    if claimedBy == nil || claimedBy == userID {
+                                        // Unclaimed anonymous purchase or same user — claim + sync
+                                        purchaseService.claimPro(for: userID)
+                                        await purchaseService.syncProToSupabase(userID: userID, value: true)
+                                    } else {
+                                        // Another account owns this device purchase — stay free
+                                        purchaseService.resetProStatus()
+                                    }
                                 }
                             }
                         } else {
-                            // Clean up on sign-out — Pro resets so Account B starts free
+                            // Sign-out — clear user context so purchase() won't sync to stale ID
                             appDelegate.currentUserID = nil
+                            purchaseService.currentUserID = nil
                             purchaseService.resetProStatus()
                         }
                     }
-                }
-                .onChange(of: purchaseService.isPro) { _, isPro in
-                    guard let userID = authService.userID else { return }
-                    if isPro {
-                        // Purchase or restore succeeded while logged in — claim + persist to Supabase
-                        purchaseService.claimPro(for: userID)
-                        Task { await purchaseService.syncProToSupabase(userID: userID, value: true) }
-                    } else if purchaseService.lastChangeWasRevocation {
-                        // Refund/revocation — sync the revocation to Supabase
-                        Task { await purchaseService.syncProToSupabase(userID: userID, value: false) }
-                    }
-                    // If !isPro && !lastChangeWasRevocation → logout reset → don't touch Supabase
                 }
         }
         .modelContainer(container)
