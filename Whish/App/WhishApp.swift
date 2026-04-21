@@ -198,8 +198,13 @@ struct WhishApp: App {
                                 purchaseService.grantPro()
                             }
                             if storeKitPro && !supabasePro {
-                                // Anonymous purchase before this login — write it to Supabase now
-                                await purchaseService.syncProToSupabase(userID: userID, value: true)
+                                let claimedBy = purchaseService.claimedByUserID()
+                                if claimedBy == nil || claimedBy == userID {
+                                    // Unclaimed anonymous purchase, or same user on a new device → claim + sync
+                                    purchaseService.claimPro(for: userID)
+                                    await purchaseService.syncProToSupabase(userID: userID, value: true)
+                                }
+                                // else: claimed by a different account on this device → stay free
                             }
                         } else {
                             // Clean up on sign-out — Pro resets so Account B starts free
@@ -211,7 +216,8 @@ struct WhishApp: App {
                 .onChange(of: purchaseService.isPro) { _, isPro in
                     guard let userID = authService.userID else { return }
                     if isPro {
-                        // Purchase or restore succeeded while logged in — persist to Supabase
+                        // Purchase or restore succeeded while logged in — claim + persist to Supabase
+                        purchaseService.claimPro(for: userID)
                         Task { await purchaseService.syncProToSupabase(userID: userID, value: true) }
                     } else if purchaseService.lastChangeWasRevocation {
                         // Refund/revocation — sync the revocation to Supabase

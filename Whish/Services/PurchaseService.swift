@@ -119,6 +119,7 @@ final class PurchaseService {
         if tx.productID == Self.productID {
             let newValue = tx.revocationDate == nil
             lastChangeWasRevocation = !newValue
+            if !newValue { clearClaim() }
             setPro(newValue)
         }
     }
@@ -144,6 +145,25 @@ final class PurchaseService {
     /// has no entitlement on this device (e.g. purchased on a different device).
     func grantPro() {
         setPro(true)
+    }
+
+    // MARK: - Claim lock (anonymous purchase ownership)
+
+    private static let claimKey = "proClaimedByUserID"
+
+    /// Stamps this device's anonymous purchase as belonging to `userID`.
+    func claimPro(for userID: String) {
+        UserDefaults.standard.set(userID, forKey: Self.claimKey)
+    }
+
+    /// Returns the Supabase user ID that has claimed the local StoreKit entitlement,
+    /// or nil if the purchase was made anonymously and not yet claimed.
+    func claimedByUserID() -> String? {
+        UserDefaults.standard.string(forKey: Self.claimKey)
+    }
+
+    private func clearClaim() {
+        UserDefaults.standard.removeObject(forKey: Self.claimKey)
     }
 
     // MARK: - Supabase Pro sync
