@@ -94,14 +94,7 @@ final class PurchaseService {
 
     func verifyEntitlement() async {
         let found = await Self.checkEntitlementExists()
-
-        #if DEBUG
-        // In debug builds, only upgrade — never downgrade via entitlement check.
-        // This preserves the debug toggle. Use resetProStatus() for explicit reset.
-        if found { setPro(true) }
-        #else
         setPro(found)
-        #endif
     }
 
     /// Iterates StoreKit entitlements off @MainActor to avoid blocking UI.

@@ -140,28 +140,43 @@ struct WhishApp: App {
                 .environment(authService)
                 .environment(syncService)
                 .environment(purchaseService)
+                .overlay {
+                    if authService.isPasswordRecovery || authService.isPendingPasswordReset {
+                        ResetPasswordView()
+                            .environment(authService)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(Theme.quickSpring, value: authService.isPasswordRecovery || authService.isPendingPasswordReset)
                 .task {
+                    let sp = Perf.begin("cold-launch-task")
+
+                    // Haptics must stay on MainActor — fast, fine here.
                     Haptics.prepare()
-                    await CurrencyRateService.refreshIfNeeded()
-                    GimmeShortcuts.updateAppShortcutParameters()
 
-                    // Register for push notifications
-                    await PushNotificationService.shared.registerForPush()
-
-                    // If already signed in, sync the device token
-                    if let userID = authService.userID {
-                        appDelegate.currentUserID = userID
-                        if let token = appDelegate.deviceToken {
-                            await PushNotificationService.shared.uploadToken(token, userID: userID)
+                    // Everything else deferred to background so the first frame renders immediately.
+                    Task.detached(priority: .utility) {
+                        await CurrencyRateService.refreshIfNeeded()
+                    }
+                    Task.detached(priority: .background) {
+                        await MainActor.run { GimmeShortcuts.updateAppShortcutParameters() }
+                    }
+                    Task.detached(priority: .utility) { [appDelegate] in
+                        await PushNotificationService.shared.registerForPush()
+                        // Sync device token if already signed in.
+                        let userID = await MainActor.run { authService.userID }
+                        if let userID {
+                            await MainActor.run { appDelegate.currentUserID = userID }
+                            let token = await MainActor.run { appDelegate.deviceToken }
+                            if let token {
+                                await PushNotificationService.shared.uploadToken(token, userID: userID)
+                            }
                         }
                     }
 
-                    // Prewarm UIActivityViewController so first share doesn't freeze.
-                    // iOS caches the extension enumeration after the first init.
-                    try? await Task.sleep(for: .seconds(2))
-                    _ = await MainActor.run {
-                        UIActivityViewController(activityItems: [""], applicationActivities: nil)
-                    }
+                    Perf.end("cold-launch-task", sp)
+                    // Note: UIActivityViewController prewarm removed.
+                    // On iOS 17+ the share sheet is fast enough on first presentation.
                 }
                 .onChange(of: authService.isSignedIn) { _, isSignedIn in
                     Task {
@@ -171,9 +186,11 @@ struct WhishApp: App {
                             if let token = appDelegate.deviceToken {
                                 await PushNotificationService.shared.uploadToken(token, userID: userID)
                             }
+                            await purchaseService.refreshEntitlement()
                         } else {
                             // Clean up on sign-out
                             appDelegate.currentUserID = nil
+                            purchaseService.resetProStatus()
                         }
                     }
                 }

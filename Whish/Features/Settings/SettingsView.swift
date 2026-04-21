@@ -320,9 +320,7 @@ struct SettingsView: View {
                                         if newValue {
                                             Task {
                                                 let granted = await NotificationService.shared.requestPermission()
-                                                await MainActor.run {
-                                                    if !granted { notificationsOn = false }
-                                                }
+                                                if !granted { notificationsOn = false }
                                             }
                                         }
                                     }
@@ -463,6 +461,9 @@ struct SettingsView: View {
                     URL(string: "https://gimmelist.com")!
                 ])
                 .pageSheet()
+            }
+            .onChange(of: auth.isSignedIn) { _, isSignedIn in
+                if isSignedIn { dismiss() }
             }
             .alert("Sign Out?", isPresented: $isShowingSignOutConfirm) {
                 Button("Sign Out", role: .destructive) {

@@ -19,6 +19,7 @@ final class WishList {
     var endDate: Date?
     /// JSON-encoded `[String]` of `ReminderOption` raw values.
     var remindersRaw: String = "[]"
+    var anonymousReservations: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \WishItem.list)
     var items: [WishItem] = []
@@ -44,7 +45,8 @@ final class WishList {
         ownerID: String? = nil,
         updatedAt: Date? = nil,
         endDate: Date? = nil,
-        reminders: Set<ReminderOption> = []
+        reminders: Set<ReminderOption> = [],
+        anonymousReservations: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -59,5 +61,6 @@ final class WishList {
         self.updatedAt = updatedAt
         self.endDate = endDate
         self.remindersRaw = ReminderOption.encoded(reminders)
+        self.anonymousReservations = anonymousReservations
     }
 }

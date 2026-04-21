@@ -236,11 +236,9 @@ struct AddItemView: View {
                 Task {
                     if let data = try? await newItem?.loadTransferable(type: Data.self) {
                         let compressed = ImageCompressor.compress(data) ?? data
-                        await MainActor.run {
-                            withAnimation(Theme.spring) {
-                                localImageData = compressed
-                                imageURL = ""
-                            }
+                        withAnimation(Theme.spring) {
+                            localImageData = compressed
+                            imageURL = ""
                         }
                     }
                 }
@@ -595,43 +593,39 @@ struct AddItemView: View {
         Task {
             do {
                 let metadata = try await metadataService.fetch(url: url)
-                await MainActor.run {
-                    // Only fill empty fields — don't overwrite user edits
-                    if title.trimmingCharacters(in: .whitespaces).isEmpty {
-                        title = metadata.title
-                    }
-                    if let imgURL = metadata.imageURL?.absoluteString {
-                        withAnimation(Theme.spring) {
-                            imageURL = imgURL
-                            localImageData = nil
-                        }
-                    }
-                    alternativeImages = metadata.alternativeImageURLs
-                    if priceText.isEmpty, let price = metadata.price {
-                        priceText = "\(price)"
-                    }
-                    if let cur = metadata.currency { currency = cur }
-
-                    // Store variant info for display
-                    fetchedBrand = metadata.brand
-                    fetchedColor = metadata.color
-                    fetchedSize = metadata.size
-
-                    // Append variant info to notes if found
-                    var variantParts: [String] = []
-                    if let c = metadata.color { variantParts.append("Color: \(c)") }
-                    if let s = metadata.size { variantParts.append("Size: \(s)") }
-                    if !variantParts.isEmpty && notes.isEmpty {
-                        notes = variantParts.joined(separator: " · ")
+                // Only fill empty fields — don't overwrite user edits
+                if title.trimmingCharacters(in: .whitespaces).isEmpty {
+                    title = metadata.title
+                }
+                if let imgURL = metadata.imageURL?.absoluteString {
+                    withAnimation(Theme.spring) {
+                        imageURL = imgURL
+                        localImageData = nil
                     }
                 }
+                alternativeImages = metadata.alternativeImageURLs
+                if priceText.isEmpty, let price = metadata.price {
+                    priceText = "\(price)"
+                }
+                if let cur = metadata.currency { currency = cur }
+
+                // Store variant info for display
+                fetchedBrand = metadata.brand
+                fetchedColor = metadata.color
+                fetchedSize = metadata.size
+
+                // Append variant info to notes if found
+                var variantParts: [String] = []
+                if let c = metadata.color { variantParts.append("Color: \(c)") }
+                if let s = metadata.size { variantParts.append("Size: \(s)") }
+                if !variantParts.isEmpty && notes.isEmpty {
+                    notes = variantParts.joined(separator: " · ")
+                }
             } catch {
-                await MainActor.run { fetchError = error.localizedDescription }
+                fetchError = error.localizedDescription
             }
-            await MainActor.run {
-                isFetchingMetadata = false
-                metadataWasFetched = true
-            }
+            isFetchingMetadata = false
+            metadataWasFetched = true
         }
     }
 
@@ -1077,9 +1071,7 @@ struct RemindersPickerSheet: View {
                             } else {
                                 Task {
                                     let granted = await NotificationService.shared.requestPermission()
-                                    await MainActor.run {
-                                        if granted { reminders.insert(option) }
-                                    }
+                                    if granted { reminders.insert(option) }
                                 }
                             }
                         } label: {

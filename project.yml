@@ -91,6 +91,8 @@ targets:
     entitlements:
       path: Whish/Gimme.entitlements
       properties:
+        com.apple.developer.applesignin:
+          - Default
         com.apple.security.application-groups:
           - group.com.yaremchuk.app
         aps-environment: development
@@ -106,6 +108,18 @@ targets:
         DEVELOPMENT_TEAM: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: YES
+        Release:
+          ENABLE_TESTABILITY: NO
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+          GCC_OPTIMIZATION_LEVEL: s
+          LLVM_LTO: YES_THIN
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          STRIP_STYLE: all
 
     dependencies:
       - package: Supabase
@@ -150,6 +164,18 @@ targets:
         SWIFT_STRICT_CONCURRENCY: minimal
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: YES
+        Release:
+          ENABLE_TESTABILITY: NO
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+          GCC_OPTIMIZATION_LEVEL: s
+          LLVM_LTO: YES_THIN
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          STRIP_STYLE: all
 
   GimmeWidget:
     type: app-extension
@@ -184,6 +210,18 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
         GENERATE_INFOPLIST_FILE: true
+      configs:
+        Debug:
+          ENABLE_TESTABILITY: YES
+        Release:
+          ENABLE_TESTABILITY: NO
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+          GCC_OPTIMIZATION_LEVEL: s
+          LLVM_LTO: YES_THIN
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          STRIP_STYLE: all
 
   WhishTests:
     type: bundle.unit-test

@@ -103,13 +103,24 @@ private let fxRatesFallback: [String: Double] = [
     "UAH": 38.5,
 ]
 
-/// Current FX rates: live rates cached in UserDefaults, or built-in fallback.
+private nonisolated(unsafe) var _fxRatesCache: [String: Double]?
+
+/// Invalidate the in-memory FX cache (call after saving fresh rates).
+func invalidateFXCache() { _fxRatesCache = nil }
+
+/// Current FX rates: in-memory cache → UserDefaults → built-in fallback.
+/// Avoids JSON decode on every price render; invalidated by CurrencyRateService after refresh.
 var fxRates: [String: Double] {
+    if let cached = _fxRatesCache { return cached }
     guard
         let data = UserDefaults.standard.data(forKey: "cachedFxRates"),
         let decoded = try? JSONDecoder().decode([String: Double].self, from: data),
         !decoded.isEmpty
-    else { return fxRatesFallback }
+    else {
+        _fxRatesCache = fxRatesFallback
+        return fxRatesFallback
+    }
+    _fxRatesCache = decoded
     return decoded
 }
 

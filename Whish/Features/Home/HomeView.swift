@@ -15,9 +15,10 @@ struct HomeView: View {
     @State private var listToEdit: WishList?
     @State private var isShowingStats = false
     @State private var isShowingSettings = false
-    @State private var isSearchActive = false
+    private var isSearchActive: Bool {
+        isSearchFocused || !viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
     @AppStorage("defaultCurrency") private var displayCurrency = "USD"
-    @State private var isShowingCurrencyPicker = false
     @State private var listShareURL: URL?
 
     // Share Extension hand-off
@@ -45,14 +46,37 @@ struct HomeView: View {
     @AppStorage("wasSignedIn") private var wasSignedIn = false
 
     @FocusState private var isSearchFocused: Bool
+    @State private var isScrolled = false
+    @State private var listTopY: CGFloat? = nil
+
+    @State private var isShowingNotifications = false
+    @State private var notificationsViewModel = NotificationsViewModel()
+    @State private var pendingNotificationItemID: UUID?
+
+    // Cached aggregates — recomputed once per items change, not on every render.
+    @State private var cachedTotalRemaining: Decimal = 0
+    @State private var cachedSortedCurrencies: [String] = ["USD"]
+    @State private var cachedHasMultipleCurrencies: Bool = false
+    @State private var cachedHeroIsEmpty: Bool = true
+    @State private var cachedHeroAllDone: Bool = false
+    /// Pre-formatted total-value strings keyed by list UUID — avoids per-card O(n) loops on every scroll frame.
+    @State private var listTotals: [UUID: String] = [:]
+
+    // Debounce task — coalesces rapid item-count changes into a single Spotlight reindex.
+    @State private var spotlightDebouncer: Task<Void, Never>?
 
     var body: some View {
         NavigationStack(path: $navPath) {
             ZStack(alignment: .bottom) {
                 Theme.backgroundGradient.ignoresSafeArea()
 
-                // Main content
-                mainContent
+                // Main content or search results
+                if isSearchActive {
+                    searchResultsContent
+                        .transition(.opacity)
+                } else {
+                    mainContent
+                }
 
                 // FABs — hidden during search and on empty state
                 if !isSearchActive && !lists.isEmpty {
@@ -64,12 +88,10 @@ struct HomeView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(10)
                 }
-
-                // Full-screen search overlay
-                if isSearchActive {
-                    searchOverlay
-                        .zIndex(20)
-                        .transition(.opacity)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if !lists.isEmpty {
+                    searchBarView
                 }
             }
             .animation(Theme.spring, value: isSearchActive)
@@ -91,15 +113,17 @@ struct HomeView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        viewModel.searchText = ""
-                        withAnimation(Theme.spring) { isSearchActive = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            isSearchFocused = true
-                        }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
+                    Button { isShowingNotifications = true } label: {
+                        Image(systemName: "bell")
                             .foregroundStyle(Theme.Colors.textSecondary)
+                            .overlay(alignment: .topTrailing) {
+                                if notificationsViewModel.unreadCount > 0 {
+                                    Circle()
+                                        .fill(Theme.Colors.accent)
+                                        .frame(width: 8, height: 8)
+                                        .offset(x: 4, y: -4)
+                                }
+                            }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -117,15 +141,6 @@ struct HomeView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
                 }
-            }
-            .confirmationDialog("Display Currency", isPresented: $isShowingCurrencyPicker) {
-                ForEach(sortedAvailableCurrencies, id: \.self) { currency in
-                    Button(currency) {
-                        withAnimation(Theme.spring) { displayCurrency = currency }
-                    }
-                }
-            } message: {
-                Text("Amounts are converted using approximate exchange rates.")
             }
             .sheet(isPresented: $viewModel.isShowingNewList, onDismiss: {
                 if let id = pendingNavigationListID {
@@ -175,6 +190,18 @@ struct HomeView: View {
                     .presentationCornerRadius(Theme.Radius.sheet)
                     .pageSheet()
             }
+            .sheet(isPresented: $isShowingNotifications, onDismiss: {
+                if let itemID = pendingNotificationItemID {
+                    pendingNotificationItemID = nil
+                    if let item = allItems.first(where: { $0.id == itemID }) {
+                        navPath.append(item)
+                    }
+                }
+            }) {
+                NotificationsView(viewModel: notificationsViewModel) { itemID in
+                    pendingNotificationItemID = itemID
+                }
+            }
             .sheet(item: $listToChangeColor) { ColorPickerSheet(list: $0) }
             .sheet(item: $listToEdit) { NewListView(listToEdit: $0) }
             .sheet(item: $listShareURL) { url in
@@ -210,9 +237,18 @@ struct HomeView: View {
                 WidgetDataService.scheduleUpdate(context: modelContext)
                 SpotlightIndexService.reindex(container: modelContainer)
             }
+            .task(id: auth.userID) {
+                guard let uid = auth.userID else { return }
+                await notificationsViewModel.load(ownerID: uid)
+            }
             .onChange(of: allItems.count) { _, _ in
                 WidgetDataService.scheduleUpdate(context: modelContext)
-                Task { SpotlightIndexService.reindex(container: modelContainer) }
+                spotlightDebouncer?.cancel()
+                spotlightDebouncer = Task {
+                    try? await Task.sleep(for: .milliseconds(750))
+                    guard !Task.isCancelled else { return }
+                    SpotlightIndexService.reindex(container: modelContainer)
+                }
             }
             .onChange(of: router.pendingAction) { _, action in
                 guard let action else { return }
@@ -241,17 +277,23 @@ struct HomeView: View {
             }
             .onChange(of: auth.isSignedIn) { _, signedIn in
                 guard signedIn, let uid = auth.userID else {
-                    // Sign out: clear all local data, reset Pro status and flags
-                    let ls = (try? modelContext.fetch(FetchDescriptor<WishList>())) ?? []
-                    ls.forEach { modelContext.delete($0) }
-                    let it = (try? modelContext.fetch(FetchDescriptor<WishItem>())) ?? []
-                    it.forEach { modelContext.delete($0) }
-                    try? modelContext.save()
-                    #if !DEBUG
+                    // Sign out: reset UI state immediately on main thread.
                     purchase.resetProStatus()
-                    #endif
                     wasSignedIn = false
                     WidgetDataService.updateSnapshot(context: modelContext)
+
+                    // Delete all local data on a background context so the main thread
+                    // doesn't freeze on large datasets (500+ items = multi-second stall).
+                    let container = modelContext.container
+                    Task.detached {
+                        let ctx = ModelContext(container)
+                        ctx.autosaveEnabled = false
+                        let ls = (try? ctx.fetch(FetchDescriptor<WishList>())) ?? []
+                        ls.forEach { ctx.delete($0) }
+                        let it = (try? ctx.fetch(FetchDescriptor<WishItem>())) ?? []
+                        it.forEach { ctx.delete($0) }
+                        try? ctx.save()
+                    }
                     return
                 }
 
@@ -307,6 +349,9 @@ struct HomeView: View {
                 }
                 .pageSheet()
             }
+            // Recompute hero totals and currency lists only when items actually change.
+            .onChange(of: itemsSignature, initial: true) { _, _ in recomputeAggregates() }
+            .onChange(of: displayCurrency) { _, _ in recomputeAggregates() }
         }
     }
 
@@ -388,9 +433,20 @@ struct HomeView: View {
             let archivedCount = viewModel.archivedLists(lists).count
 
             List {
+                // ── Scroll position sensor (zero height) ──────────
+                Color.clear.frame(height: 0)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(
+                            key: ScrollSensorKey.self,
+                            value: geo.frame(in: .global).minY
+                        )
+                    })
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
                 // ── Hero ──────────────────────────────────────────
                 heroSection
-                    .padding(.top, 8)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -432,7 +488,7 @@ struct HomeView: View {
                     ZStack {
                         NavigationLink(value: list.persistentModelID) { EmptyView() }
                             .opacity(0)
-                        WishListCard(list: list)
+                        WishListCard(list: list, totalText: listTotals[list.id])
                             .opacity(viewModel.showArchivedLists ? 0.6 : 1.0)
                     }
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
@@ -546,108 +602,115 @@ struct HomeView: View {
             }
             .scrollContentBackground(.hidden)
             .contentMargins(.bottom, 100, for: .scrollContent)
+            .onPreferenceChange(ScrollSensorKey.self) { y in
+                if listTopY == nil { listTopY = y }
+                isScrolled = y < (listTopY ?? y) - 10
+            }
         }
     }
 
-    // MARK: - Search overlay
+    // MARK: - Search bar (pinned below navbar via safeAreaInset)
 
-    private var searchOverlay: some View {
-        ZStack(alignment: .top) {
-            Theme.backgroundGradient
-                .ignoresSafeArea()
+    private var searchBarView: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .font(.system(.callout, weight: .medium))
+                TextField("Search lists & items…", text: $viewModel.searchText)
+                    .focused($isSearchFocused)
+                    .foregroundStyle(.primary)
+                    .font(.system(.body))
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .glassCapsuleBackground()
 
-            VStack(spacing: 0) {
-                // Search bar row
-                HStack(spacing: Theme.Spacing.md) {
-                    // Pill search field
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                            .font(.system(.body))
-
-                        TextField("Search lists & items…", text: $viewModel.searchText)
-                            .focused($isSearchFocused)
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .autocorrectionDisabled()
-                            .submitLabel(.search)
-                    }
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.vertical, 12)
-                    .background(Theme.Colors.surfaceElevated, in: Capsule())
-
-                    // Close button — glass circle, right of search field
-                    Button {
-                        isSearchFocused = false
-                        viewModel.searchText = ""
-                        withAnimation(Theme.spring) { isSearchActive = false }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .frame(width: 44, height: 44)
-                            .glassCircleBackground()
-                    }
+            if isSearchActive {
+                Button {
+                    isSearchFocused = false
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .frame(width: 40, height: 40)
+                        .glassCircleBackground()
                 }
-                .padding(.horizontal, Theme.Spacing.gridPadding)
-                .padding(.top, Theme.Spacing.md)
-                .padding(.bottom, Theme.Spacing.md)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .animation(Theme.spring, value: isSearchActive)
+        .padding(.horizontal, Theme.Spacing.gridPadding)
+        .padding(.top, 4)
+        .padding(.bottom, 2)
+        .background {
+            Rectangle()
+                .fill(.regularMaterial)
+                .opacity(isScrolled ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isScrolled)
+                .ignoresSafeArea()
+        }
+    }
 
-                // Results / empty state
-                if viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty {
-                    searchIdleState
-                } else {
-                    let filteredL = viewModel.filteredLists(lists)
-                    let filteredI = viewModel.filteredItems(allItems)
-                    if filteredL.isEmpty && filteredI.isEmpty {
-                        searchNoResults
-                    } else {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                if !filteredL.isEmpty {
-                                    searchSectionLabel("Lists")
-                                    VStack(spacing: Theme.Spacing.cardGap) {
-                                        ForEach(filteredL) { list in
-                                            NavigationLink(value: list.persistentModelID) {
-                                                WishListCard(list: list)
-                                                    .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            .simultaneousGesture(TapGesture().onEnded {
-                                                isSearchFocused = false
-                                                viewModel.searchText = ""
-                                                withAnimation(Theme.spring) { isSearchActive = false }
-                                            })
-                                        }
-                                    }
-                                    .padding(.horizontal, Theme.Spacing.gridPadding)
-                                }
+    // MARK: - Search results content
 
-                                if !filteredI.isEmpty {
-                                    searchSectionLabel("Items")
-                                    VStack(spacing: Theme.Spacing.cardGap) {
-                                        ForEach(filteredI) { item in
-                                            NavigationLink(value: item) {
-                                                searchItemRow(item)
-                                                    .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
-                                            .simultaneousGesture(TapGesture().onEnded {
-                                                isSearchFocused = false
-                                                viewModel.searchText = ""
-                                                withAnimation(Theme.spring) { isSearchActive = false }
-                                            })
-                                        }
+    @ViewBuilder
+    private var searchResultsContent: some View {
+        if viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+            searchIdleState
+        } else {
+            let filteredL = viewModel.filteredLists(lists)
+            let filteredI = viewModel.filteredItems(allItems)
+            if filteredL.isEmpty && filteredI.isEmpty {
+                searchNoResults
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !filteredL.isEmpty {
+                            searchSectionLabel("Lists")
+                            VStack(spacing: Theme.Spacing.cardGap) {
+                                ForEach(filteredL) { list in
+                                    NavigationLink(value: list.persistentModelID) {
+                                        WishListCard(list: list, totalText: listTotals[list.id])
+                                            .contentShape(Rectangle())
                                     }
-                                    .padding(.horizontal, Theme.Spacing.gridPadding)
+                                    .buttonStyle(.plain)
+                                    .simultaneousGesture(TapGesture().onEnded {
+                                        isSearchFocused = false
+                                        viewModel.searchText = ""
+                                    })
                                 }
                             }
-                            .padding(.top, Theme.Spacing.sm)
-                            .padding(.bottom, 32)
+                            .padding(.horizontal, Theme.Spacing.gridPadding)
                         }
-                        .scrollContentBackground(.hidden)
-                        .scrollDismissesKeyboard(.interactively)
+
+                        if !filteredI.isEmpty {
+                            searchSectionLabel("Items")
+                            VStack(spacing: Theme.Spacing.cardGap) {
+                                ForEach(filteredI) { item in
+                                    NavigationLink(value: item) {
+                                        searchItemRow(item)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .simultaneousGesture(TapGesture().onEnded {
+                                        isSearchFocused = false
+                                        viewModel.searchText = ""
+                                    })
+                                }
+                            }
+                            .padding(.horizontal, Theme.Spacing.gridPadding)
+                        }
                     }
+                    .padding(.top, Theme.Spacing.sm)
+                    .padding(.bottom, 32)
                 }
+                .scrollContentBackground(.hidden)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
     }
@@ -767,33 +830,44 @@ struct HomeView: View {
             heroValueDisplay
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, Theme.Spacing.xl)
+        .padding(.top, 0)
+        .padding(.bottom, Theme.Spacing.xl)
         .padding(.horizontal, Theme.Spacing.gridPadding)
     }
 
     @ViewBuilder
     private var heroValueDisplay: some View {
-        let activeItems = allItems.filter { $0.list?.isArchived != true }
-        let unpricedItems = activeItems.filter { !$0.isPurchased && $0.price != nil }
-
-        if activeItems.isEmpty {
+        if cachedHeroIsEmpty {
             Text("Add your first item")
                 .font(.system(size: 46, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.Colors.textTertiary)
-        } else if unpricedItems.isEmpty && activeItems.allSatisfy({ $0.isPurchased }) {
+        } else if cachedHeroAllDone {
             Text("All done 🎉")
                 .font(.system(size: 46, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.Colors.purchased.opacity(0.7))
         } else {
-            Button { isShowingCurrencyPicker = true } label: {
-                Text(totalRemaining.formatted(currency: displayCurrency))
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
-                    .foregroundStyle(Theme.Colors.textPrimary.opacity(0.70))
-                    .contentTransition(.numericText())
-            }
-            .buttonStyle(.plain)
-            .animation(Theme.spring, value: totalRemaining)
-            .animation(Theme.spring, value: displayCurrency)
+            Text(cachedTotalRemaining.formatted(currency: displayCurrency))
+                .font(.system(size: 46, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.Colors.textPrimary.opacity(0.70))
+                .contentTransition(.numericText())
+                .animation(.smooth(duration: 0.25), value: cachedTotalRemaining)
+                .overlay {
+                    Menu {
+                        ForEach(cachedSortedCurrencies, id: \.self) { currency in
+                            Button {
+                                withAnimation(Theme.spring) { displayCurrency = currency }
+                            } label: {
+                                if currency == displayCurrency {
+                                    Label(currency, systemImage: "checkmark")
+                                } else {
+                                    Text(currency)
+                                }
+                            }
+                        }
+                    } label: {
+                        Color.clear
+                    }
+                }
         }
     }
 
@@ -805,9 +879,7 @@ struct HomeView: View {
         case .openList(let id):
             if let list = lists.first(where: { $0.id == id }) {
                 navPath = NavigationPath()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    navPath.append(list.persistentModelID)
-                }
+                Task { try? await Task.sleep(for: .milliseconds(300)); navPath.append(list.persistentModelID) }
             }
         case .openStats:
             isShowingStats = true
@@ -932,28 +1004,58 @@ struct HomeView: View {
 
     // MARK: - Currency & FX
 
-    private var totalRemaining: Decimal {
-        allItems
-            .filter { !$0.isPurchased && $0.list?.isArchived != true }
+    /// Cheap fingerprint over the fields that affect aggregate display.
+    /// Changes only when something visually meaningful actually changes.
+    private var itemsSignature: Int {
+        var h = Hasher()
+        h.combine(allItems.count)
+        for it in allItems {
+            h.combine(it.isPurchased)
+            h.combine(it.price?.description)
+            h.combine(it.currency)
+            h.combine(it.list?.isArchived ?? false)
+        }
+        return h.finalize()
+    }
+
+    private func recomputeAggregates() {
+        let sp = Perf.begin("home-total-remaining")
+        defer { Perf.end("home-total-remaining", sp) }
+
+        let active = allItems.filter { $0.list?.isArchived != true }
+        let withPrice = active.filter { !$0.isPurchased && $0.price != nil }
+
+        cachedHeroIsEmpty = active.isEmpty
+        cachedHeroAllDone = !active.isEmpty && withPrice.isEmpty && active.allSatisfy { $0.isPurchased }
+
+        cachedTotalRemaining = active
+            .filter { !$0.isPurchased }
             .compactMap { item -> Decimal? in
                 guard let price = item.price else { return nil }
-                return converted(price, from: item.currency ?? "USD", to: displayCurrency)
+                return convertCurrency(price, from: item.currency ?? "USD", to: displayCurrency)
             }
             .reduce(0, +)
-    }
 
-    private var hasMultipleCurrencies: Bool {
-        let currencies = Set(allItems.filter { !$0.isPurchased && $0.price != nil }
-                                     .map { $0.currency ?? "USD" })
-        return currencies.count > 1
-    }
+        var currencies = Set(allItems.compactMap { $0.currency })
+        currencies.insert(displayCurrency)
+        cachedSortedCurrencies = currencies.sorted()
 
-    private var sortedAvailableCurrencies: [String] {
-        Set(allItems.compactMap { $0.currency }).sorted()
-    }
+        cachedHasMultipleCurrencies = Set(
+            allItems.filter { !$0.isPurchased && $0.price != nil }.map { $0.currency ?? "USD" }
+        ).count > 1
 
-    private func converted(_ amount: Decimal, from: String, to: String) -> Decimal {
-        convertCurrency(amount, from: from, to: to)
+        // Pre-format per-list totals so WishListCard renders O(1) instead of iterating items.
+        var totals: [UUID: String] = [:]
+        for list in lists {
+            let priced = list.items.compactMap { item -> Decimal? in
+                guard let price = item.price else { return nil }
+                return convertCurrency(price, from: item.currency ?? "USD", to: displayCurrency)
+            }
+            if !priced.isEmpty {
+                totals[list.id] = priced.reduce(Decimal(0), +).formatted(currency: displayCurrency)
+            }
+        }
+        listTotals = totals
     }
 
     private func checkForSharedURL() {
@@ -1213,6 +1315,7 @@ struct FirstItemView: View {
     @State private var isShowingPriceInput = false
     @State private var isFetchingMetadata = false
     @State private var fetchError: String? = nil
+    @State private var metadataDebouncer: Task<Void, Never>?
     @FocusState private var isTitleFocused: Bool
 
     @State private var listName = "My Wishlist"
@@ -1255,7 +1358,8 @@ struct FirstItemView: View {
                 }
                 .onChange(of: isListNameFocused) { _, focused in
                     if focused {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(300))
                             withAnimation(Theme.spring) {
                                 proxy.scrollTo("listSetupCard", anchor: .bottom)
                             }
@@ -1306,9 +1410,7 @@ struct FirstItemView: View {
             .onChange(of: selectedPhotoItem) { _, newItem in
                 Task {
                     if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                        await MainActor.run {
-                            withAnimation(Theme.spring) { localImageData = data; imageURL = "" }
-                        }
+                        withAnimation(Theme.spring) { localImageData = data; imageURL = "" }
                     }
                 }
             }
@@ -1319,7 +1421,12 @@ struct FirstItemView: View {
                     || trimmed.hasPrefix("www.")
                 let isPaste = (newValue.count - oldValue.count) > 5
                 if !isFetchingMetadata && looksLikeURL && (wasEmpty || isPaste) {
-                    fetchMetadata()
+                    metadataDebouncer?.cancel()
+                    metadataDebouncer = Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        guard !Task.isCancelled else { return }
+                        fetchMetadata()
+                    }
                 }
             }
     }
@@ -1568,18 +1675,16 @@ struct FirstItemView: View {
         Task {
             do {
                 let metadata = try await metadataService.fetch(url: url)
-                await MainActor.run {
-                    title = metadata.title
-                    if let img = metadata.imageURL?.absoluteString {
-                        withAnimation(Theme.spring) { imageURL = img; localImageData = nil }
-                    }
-                    if let price = metadata.price { priceText = "\(price)" }
-                    if let cur = metadata.currency { currency = cur }
+                title = metadata.title
+                if let img = metadata.imageURL?.absoluteString {
+                    withAnimation(Theme.spring) { imageURL = img; localImageData = nil }
                 }
+                if let price = metadata.price { priceText = "\(price)" }
+                if let cur = metadata.currency { currency = cur }
             } catch {
-                await MainActor.run { fetchError = error.localizedDescription }
+                fetchError = error.localizedDescription
             }
-            await MainActor.run { isFetchingMetadata = false }
+            isFetchingMetadata = false
         }
     }
 
@@ -1607,4 +1712,11 @@ struct FirstItemView: View {
         dismiss()
         onCreated?(list)
     }
+}
+
+// MARK: - Scroll sensor preference key
+
+private struct ScrollSensorKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

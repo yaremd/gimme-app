@@ -13,6 +13,8 @@ final class AuthService {
     private(set) var session: Session?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
+    private(set) var isPasswordRecovery = false
+    private(set) var isPendingPasswordReset = false
     private var justCreatedAccount = false
     private var pendingNonce: String?
 
@@ -37,8 +39,12 @@ final class AuthService {
             switch event {
             case .signedIn, .tokenRefreshed, .userUpdated:
                 session = newSession
-            case .signedOut, .passwordRecovery:
+            case .passwordRecovery:
+                session = newSession
+                isPasswordRecovery = true
+            case .signedOut:
                 session = nil
+                isPasswordRecovery = false
             default:
                 break
             }
@@ -104,8 +110,41 @@ final class AuthService {
 
     func resetPassword(email: String) async {
         await run {
-            try await supabase.auth.resetPasswordForEmail(email)
+            try await supabase.auth.resetPasswordForEmail(
+                email,
+                redirectTo: URL(string: "https://gimmelist.com/auth/reset-password")!
+            )
         }
+    }
+
+    func updatePassword(_ newPassword: String) async {
+        await run {
+            try await supabase.auth.update(user: UserAttributes(password: newPassword))
+            isPasswordRecovery = false
+        }
+    }
+
+    func handleDeepLink(_ url: URL) async {
+        isPendingPasswordReset = true
+        defer { isPendingPasswordReset = false }
+        do {
+            _ = try await supabase.auth.session(from: url)
+            isPasswordRecovery = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// User cancelled without setting a password — sign out the temporary recovery session.
+    func cancelPasswordRecovery() {
+        isPasswordRecovery = false
+        session = nil
+        Task { try? await supabase.auth.signOut() }
+    }
+
+    /// Password was updated successfully — just dismiss, keep the session.
+    func dismissRecovery() {
+        isPasswordRecovery = false
     }
 
     /// Permanently deletes the account from Supabase and clears all local SwiftData.

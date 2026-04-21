@@ -141,7 +141,7 @@ export default function CaseStudy() {
             {[
               {
                 heading: "Behavioral mapping",
-                body: "70% of item discovery happens on mobile, inside another app. The gap between "I want this" and opening a dedicated app is where saves die. Context is critical — why I saved something matters as much as what.",
+                body: "70% of item discovery happens on mobile, inside another app. The gap between \u201cI want this\u201d and opening a dedicated app is where saves die. Context is critical \u2014 why I saved something matters as much as what.",
               },
               {
                 heading: "Competitive audit",

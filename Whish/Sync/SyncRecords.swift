@@ -17,6 +17,7 @@ struct WishListRecord: Codable, Sendable {
     var updatedAt: Date
     var endDate: Date?
     var reminders: String
+    var anonymousReservations: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, name, emoji, reminders
@@ -28,7 +29,8 @@ struct WishListRecord: Codable, Sendable {
         case isArchived  = "is_archived"
         case createdAt   = "created_at"
         case updatedAt   = "updated_at"
-        case endDate     = "end_date"
+        case endDate                 = "end_date"
+        case anonymousReservations   = "anonymous_reservations"
     }
 
     init(from list: WishList, ownerID: UUID) {
@@ -44,7 +46,8 @@ struct WishListRecord: Codable, Sendable {
         createdAt   = list.createdAt
         updatedAt   = list.updatedAt ?? list.createdAt
         endDate     = list.endDate
-        reminders   = ReminderOption.encoded(list.reminders)
+        reminders              = ReminderOption.encoded(list.reminders)
+        anonymousReservations  = list.anonymousReservations
     }
 }
 

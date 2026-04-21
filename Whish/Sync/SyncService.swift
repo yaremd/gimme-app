@@ -20,17 +20,40 @@ final class SyncService {
     private(set) var syncError: String?
 
     private var lastSyncAttempt: Date = .distantPast
-    private let minSyncInterval: TimeInterval = 30  // throttle: max once per 30 s
+    private let minSyncInterval: TimeInterval = 5   // throttle: max once per 5 s
+    private var pendingSyncTask: Task<Void, Never>?  // trailing-edge coalesce for throttled calls
 
     // MARK: - Full sync
 
     /// Push everything local → pull remote-only records.
     /// Safe to call frequently — internally throttled to `minSyncInterval`.
-    /// Accepts `ModelContainer` so heavy work runs on a background thread.
+    /// When called within the throttle window, schedules a single trailing-edge sync
+    /// that fires once the window expires, coalescing any subsequent calls in between.
     func syncAll(container: ModelContainer, userID: String, force: Bool = false) async {
         let now = Date()
-        guard force || now.timeIntervalSince(lastSyncAttempt) >= minSyncInterval else { return }
+        let elapsed = now.timeIntervalSince(lastSyncAttempt)
+
+        if !force && elapsed < minSyncInterval {
+            // Throttled — schedule a single trailing-edge sync if none is pending.
+            if pendingSyncTask == nil {
+                let delay = minSyncInterval - elapsed
+                pendingSyncTask = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(delay))
+                    guard let self, !Task.isCancelled else { return }
+                    self.pendingSyncTask = nil
+                    await self.syncAll(container: container, userID: userID, force: true)
+                }
+            }
+            return
+        }
+
+        pendingSyncTask?.cancel()
+        pendingSyncTask = nil
+
         guard !isSyncing else { return }
+
+        let _sp = Perf.begin("sync-all")
+        defer { Perf.end("sync-all", _sp) }
 
         lastSyncAttempt = now
         isSyncing = true
@@ -72,6 +95,9 @@ final class SyncService {
     /// so @Query properties in SwiftUI will refresh.
     private nonisolated static func performSync(container: ModelContainer, userID: String) async throws {
         guard let ownerUUID = UUID(uuidString: userID) else { return }
+
+        let sp = Perf.begin("sync-perform")
+        defer { Perf.end("sync-perform", sp) }
 
         let context = ModelContext(container)
         context.autosaveEnabled = false

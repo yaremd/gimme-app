@@ -106,12 +106,12 @@ struct PaywallView: View {
             // Close button
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(isDark ? .white : Color(hex: "#1A1A1E").opacity(0.8))
-                    .frame(width: 44, height: 44)
-                    .background(isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.08), in: Circle())
-                    .glassCircleBackground()
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, height: 40)
+                    .background(.fill, in: Circle())
             }
+            .buttonStyle(.plain)
             .padding(.top, 16)
             .padding(.leading, 20)
         }

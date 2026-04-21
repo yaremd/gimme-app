@@ -26,6 +26,7 @@ enum CurrencyRateService {
                 UserDefaults.standard.set(encoded, forKey: cacheKey)
             }
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)
+            invalidateFXCache()
         } catch {
             // Network failure — silently keep existing/fallback rates
         }

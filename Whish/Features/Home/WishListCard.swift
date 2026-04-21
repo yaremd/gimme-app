@@ -2,7 +2,8 @@ import SwiftUI
 
 struct WishListCard: View {
     let list: WishList
-    @AppStorage("defaultCurrency") private var defaultCurrency = "USD"
+    /// Pre-formatted total value string — supplied by HomeView to avoid per-card O(n) loops.
+    var totalText: String? = nil
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
@@ -30,7 +31,7 @@ struct WishListCard: View {
                             .rotationEffect(.degrees(45))
                     }
                     Spacer(minLength: 0)
-                    if let value = listTotalValue {
+                    if let value = totalText {
                         Text(value)
                             .font(.rounded(.callout, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textPrimary)
@@ -94,14 +95,6 @@ struct WishListCard: View {
         return days <= 7 ? .red : Theme.Colors.textSecondary
     }
 
-    private var listTotalValue: String? {
-        let priced = list.items.compactMap { item -> Decimal? in
-            guard let price = item.price else { return nil }
-            return convertCurrency(price, from: item.currency ?? "USD", to: defaultCurrency)
-        }
-        guard !priced.isEmpty else { return nil }
-        return priced.reduce(Decimal(0), +).formatted(currency: defaultCurrency)
-    }
 }
 
 // MARK: - Progress Pill

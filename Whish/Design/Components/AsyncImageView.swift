@@ -1,66 +1,54 @@
 import SwiftUI
 
-// MARK: - Shimmer effect
-struct ShimmerView: View {
-    @State private var phase: CGFloat = -1
-
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemFill),
-                Color(.systemBackground).opacity(0.8),
-                Color(.systemFill),
-            ],
-            startPoint: .init(x: phase, y: 0.5),
-            endPoint: .init(x: phase + 1, y: 0.5)
-        )
-        .onAppear {
-            withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
-                phase = 1.5
-            }
-        }
-    }
-}
-
-// MARK: - AsyncImageView with shimmer placeholder
+// MARK: - AsyncImageView
+// Images are decoded off the main thread via ImageLoader (ImageIO downsampling).
+// Remote images are cached in memory (NSCache 64 MB) and on disk (URLCache 128 MB).
+// Max 4 concurrent network downloads — duplicate URL requests share one in-flight Task.
+// ShimmerView removed: a static placeholder has zero GPU/animation overhead vs N infinite gradients.
 struct AsyncImageView: View {
     let urlString: String?
     var imageData: Data? = nil
     var cornerRadius: CGFloat = Theme.Radius.image
     var contentMode: ContentMode = .fill
 
+    @State private var loadedImage: UIImage?
+
     var body: some View {
-        // Color.clear fills the parent's proposed size and acts as a layout anchor.
-        // The overlay constrains all image content to that exact box — including
-        // AsyncImage, which ignores frame constraints when inside a transparent Group.
         Color.clear
             .overlay {
-                if let data = imageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
+                if let image = loadedImage {
+                    Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
-                } else if let urlString, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ShimmerView()
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: contentMode)
-                                .transition(.opacity)
-                        case .failure:
-                            placeholderView
-                        @unknown default:
-                            placeholderView
-                        }
-                    }
-                } else {
+                        .transition(.opacity)
+                } else if urlString == nil && imageData == nil {
                     placeholderView
+                } else {
+                    // Loading state — static fill, zero animation cost.
+                    Color(.secondarySystemFill)
                 }
             }
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            // Decode stored image data off-main. Task id tracks meaningful data changes.
+            .task(id: dataTaskID) {
+                guard let data = imageData else { return }
+                let img = await ImageLoader.shared.decode(data: data)
+                guard !Task.isCancelled else { return }
+                loadedImage = img
+            }
+            // Fetch remote URL. Cancelled automatically when id changes (new URL / cell reuse).
+            .task(id: urlString) {
+                guard imageData == nil else { return }   // stored data takes precedence
+                guard let str = urlString, let url = URL(string: str) else {
+                    loadedImage = nil
+                    return
+                }
+                loadedImage = nil   // clear stale image while new one loads
+                let img = await ImageLoader.shared.image(for: url)
+                guard !Task.isCancelled else { return }
+                loadedImage = img
+            }
     }
 
     private var placeholderView: some View {
@@ -70,6 +58,15 @@ struct AsyncImageView: View {
                 .font(.system(size: 28))
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    /// Cheap task identity for stored data: hashes count + first 16 bytes (O(1) effectively).
+    private var dataTaskID: Int? {
+        guard let data = imageData else { return nil }
+        var h = Hasher()
+        h.combine(data.count)
+        data.prefix(16).forEach { h.combine($0) }
+        return h.finalize()
     }
 }
 

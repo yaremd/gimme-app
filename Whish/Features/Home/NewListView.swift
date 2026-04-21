@@ -13,6 +13,7 @@ struct NewListView: View {
     @State private var endDate = Calendar.current.date(byAdding: .month, value: 3, to: .now) ?? .now
     @State private var reminders: Set<ReminderOption> = []
     @State private var isShowingRemindersPicker = false
+    @State private var anonymousReservations = false
 
     @State private var isCustomizing = false
     @FocusState private var isNameFocused: Bool
@@ -39,6 +40,8 @@ struct NewListView: View {
                         identityCard
 
                         deadlineCard
+
+                        privacyCard
                     }
                     .padding(.horizontal, Theme.Spacing.gridPadding)
                     .padding(.bottom, 120)
@@ -378,9 +381,7 @@ struct NewListView: View {
         } else {
             Task {
                 let granted = await NotificationService.shared.requestPermission()
-                await MainActor.run {
-                    if granted { reminders.insert(option) }
-                }
+                if granted { reminders.insert(option) }
             }
         }
     }
@@ -389,6 +390,31 @@ struct NewListView: View {
         if reminders.isEmpty { return "None" }
         let sorted = ReminderOption.allCases.filter { reminders.contains($0) }
         return sorted.map(\.label).joined(separator: ", ")
+    }
+
+    // MARK: - Privacy card
+
+    private var privacyCard: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "eye.slash")
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Anonymous reservations")
+                    .font(.system(.body))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Text("Hide who's buying items from everyone")
+                    .font(.system(.caption))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            Spacer()
+            Toggle("", isOn: $anonymousReservations.animation(Theme.spring))
+                .labelsHidden()
+                .tint(Theme.Colors.accent)
+        }
+        .padding(Theme.Spacing.cardInner)
+        .background(Theme.Colors.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 
     // MARK: - Participants card
@@ -491,11 +517,13 @@ struct NewListView: View {
             list.colorHex = selectedColorHex
             list.endDate = resolvedEndDate
             list.reminders = reminders
+            list.anonymousReservations = anonymousReservations
             scheduleOrCancelReminders(id: list.id, title: trimmed,
                                       endDate: resolvedEndDate, reminders: reminders)
         } else {
             let list = WishList(name: trimmed, emoji: selectedEmoji, colorHex: selectedColorHex,
-                                endDate: resolvedEndDate, reminders: reminders)
+                                endDate: resolvedEndDate, reminders: reminders,
+                                anonymousReservations: anonymousReservations)
             modelContext.insert(list)
             scheduleOrCancelReminders(id: list.id, title: trimmed,
                                       endDate: resolvedEndDate, reminders: reminders)
@@ -522,6 +550,7 @@ struct NewListView: View {
         hasEndDate = list.endDate != nil
         endDate = list.endDate ?? Calendar.current.date(byAdding: .month, value: 3, to: .now) ?? .now
         reminders = list.reminders
+        anonymousReservations = list.anonymousReservations
     }
 }
 

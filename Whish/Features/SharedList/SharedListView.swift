@@ -18,45 +18,50 @@ struct SharedListView: View {
         Color(hex: viewModel.list?.colorHex ?? "#6C63FF")
     }
 
+    private var isAnonymous: Bool {
+        viewModel.list?.anonymousReservations ?? false
+    }
+
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.backgroundGradient.ignoresSafeArea()
+        ZStack {
+            Theme.backgroundGradient.ignoresSafeArea()
 
-                LinearGradient(
-                    colors: [accentColor.opacity(0.12), .clear],
-                    startPoint: .top,
-                    endPoint: .init(x: 0.5, y: 0.3)
-                )
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-                .animation(.easeInOut, value: accentColor)
+            LinearGradient(
+                colors: [accentColor.opacity(0.12), .clear],
+                startPoint: .top,
+                endPoint: .init(x: 0.5, y: 0.3)
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .animation(.easeInOut, value: accentColor)
 
-                Group {
-                    if viewModel.isLoading {
-                        loadingView
-                    } else if let error = viewModel.loadError {
-                        errorView(message: error)
-                    } else if let list = viewModel.list {
-                        listContent(list: list)
-                    }
+            Group {
+                if viewModel.isLoading {
+                    loadingView
+                } else if let error = viewModel.loadError {
+                    errorView(message: error)
+                } else if let list = viewModel.list {
+                    listContent(list: list)
                 }
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+
+            VStack {
+                HStack {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .frame(width: 32, height: 32)
-                            .glassCircleBackground()
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, height: 40)
+                            .background(.fill, in: Circle())
                     }
+                    .buttonStyle(.plain)
+                    .padding(.top, 16)
+                    .padding(.leading, 16)
+                    Spacer()
                 }
+                Spacer()
             }
         }
         .task { await viewModel.load(shareToken: shareToken) }
@@ -81,6 +86,7 @@ struct SharedListView: View {
 
         ScrollView {
             VStack(spacing: 0) {
+                Color.clear.frame(height: 56)
 
                 // ── Header ───────────────────────────────────────
                 VStack(spacing: Theme.Spacing.md) {
@@ -119,6 +125,7 @@ struct SharedListView: View {
                                 item: item,
                                 isMyClaim: viewModel.myClaimedIDs.contains(item.id),
                                 isLoading: viewModel.claimingItemID == item.id,
+                                isAnonymous: isAnonymous,
                                 accentColor: accentColor,
                                 onClaim: {
                                     claimTarget = item
@@ -224,12 +231,14 @@ struct SharedListView: View {
             }
 
             VStack(spacing: Theme.Spacing.md) {
-                TextField("Your name *", text: $claimerName)
-                    .padding(Theme.Spacing.cardInner)
-                    .background(
-                        Theme.Colors.surface,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
-                    )
+                if !isAnonymous {
+                    TextField("Your name *", text: $claimerName)
+                        .padding(Theme.Spacing.cardInner)
+                        .background(
+                            Theme.Colors.surface,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.button, style: .continuous)
+                        )
+                }
 
                 TextField("Leave a message (optional)", text: $claimerComment)
                     .padding(Theme.Spacing.cardInner)
@@ -242,16 +251,17 @@ struct SharedListView: View {
             .padding(.top, Theme.Spacing.xl)
 
             let trimmedName = claimerName.trimmingCharacters(in: .whitespaces)
+            let canClaim = isAnonymous || !trimmedName.isEmpty
 
             Button {
-                guard !trimmedName.isEmpty else { return }
+                guard canClaim else { return }
                 let comment = claimerComment.trimmingCharacters(in: .whitespaces)
                 isClaimSheetVisible = false
                 Task {
                     await viewModel.claim(
                         itemID: item.id,
                         shareToken: shareToken,
-                        name: trimmedName,
+                        name: isAnonymous ? "" : trimmedName,
                         comment: comment
                     )
                 }
@@ -262,14 +272,14 @@ struct SharedListView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        trimmedName.isEmpty
-                            ? Theme.Colors.accent.opacity(0.4)
-                            : Theme.Colors.accent,
+                        canClaim
+                            ? Theme.Colors.accent
+                            : Theme.Colors.accent.opacity(0.4),
                         in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     )
             }
             .buttonStyle(.plain)
-            .disabled(trimmedName.isEmpty)
+            .disabled(!canClaim)
             .padding(.horizontal, Theme.Spacing.gridPadding)
             .padding(.top, Theme.Spacing.xl)
 
@@ -292,6 +302,7 @@ private struct SharedItemCard: View {
     let item: WishItemRecord
     let isMyClaim: Bool
     let isLoading: Bool
+    let isAnonymous: Bool
     let accentColor: Color
     let onClaim: () -> Void
     let onUnclaim: () -> Void
@@ -347,7 +358,7 @@ private struct SharedItemCard: View {
         } else if item.isReservedByFriend {
             if isMyClaim {
                 badge("You're getting this ✓", color: accentColor)
-            } else if let name = item.reservedByName, !name.isEmpty {
+            } else if !isAnonymous, let name = item.reservedByName, !name.isEmpty {
                 badge("Reserved by \(name)", color: Theme.Colors.textTertiary)
             } else {
                 badge("Reserved", color: Theme.Colors.textTertiary)

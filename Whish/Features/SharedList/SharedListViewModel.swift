@@ -21,7 +21,7 @@ final class SharedListViewModel {
 
     private static let claimsKey = "gimme_my_claimed_ids"
 
-    private var realtimeTask: Task<Void, Never>?
+    nonisolated(unsafe) private var realtimeTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -131,6 +131,10 @@ final class SharedListViewModel {
                 items.removeAll { $0.id == old.id }
             }
         }
+    }
+
+    deinit {
+        realtimeTask?.cancel()
     }
 
     func stopRealtime() {

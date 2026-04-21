@@ -9,6 +9,9 @@ enum SpotlightIndexService {
 
     /// Runs on a background ModelContext — safe to call from any actor.
     nonisolated static func reindex(container: ModelContainer) {
+        let sp = Perf.begin("spotlight-reindex")
+        defer { Perf.end("spotlight-reindex", sp) }
+
         let context = ModelContext(container)
 
         let lists: [WishList]

@@ -29,93 +29,94 @@ struct AuthView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.backgroundGradient.ignoresSafeArea()
+        ZStack {
+            Theme.backgroundGradient.ignoresSafeArea()
 
-                // Subtle background glow
-                RadialGradient(
-                    colors: [Theme.Colors.accent.opacity(0.18), .clear],
-                    center: .top,
-                    startRadius: 0,
-                    endRadius: 500
-                )
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            RadialGradient(
+                colors: [Theme.Colors.accent.opacity(0.18), .clear],
+                center: .top,
+                startRadius: 0,
+                endRadius: 500
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: Theme.Spacing.xl) {
-                            Spacer(minLength: 20)
-                            heroSection
-                            appleSignInButton
-                            orDivider
-                            modePickerCard
-                            fieldsCard
-                            ctaButton
-                                .id("ctaButton")
-                            if mode == .signIn { forgotPasswordButton }
-                            continueWithoutAccount
-                            Spacer(minLength: 40)
-                        }
-                        .padding(.horizontal, Theme.Spacing.gridPadding)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: Theme.Spacing.xl) {
+                        Spacer(minLength: 56)
+                        heroSection
+                        appleSignInButton
+                        orDivider
+                        modePickerCard
+                        fieldsCard
+                        ctaButton
+                            .id("ctaButton")
+                        if mode == .signIn { forgotPasswordButton }
+                        continueWithoutAccount
+                        Spacer(minLength: 40)
                     }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onChange(of: focusedField) { _, field in
-                        guard field != nil else { return }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                proxy.scrollTo("ctaButton", anchor: .bottom)
-                            }
+                    .padding(.horizontal, Theme.Spacing.gridPadding)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: focusedField) { _, field in
+                    guard field != nil else { return }
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("ctaButton", anchor: .bottom)
                         }
                     }
                 }
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+
+            // Close button — same style as system sheets
+            VStack {
+                HStack {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, height: 40)
+                            .background(.fill, in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .frame(width: 32, height: 32)
-                    .glassCircleBackground()
+                    .padding(.top, 16)
+                    .padding(.leading, 16)
+                    Spacer()
+                }
+                Spacer()
+            }
+        }
+        .alert("Reset Password", isPresented: $showForgotPassword) {
+            TextField("Email", text: $email)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.emailAddress)
+            Button("Send Link") {
+                Task {
+                    await auth.resetPassword(email: email)
+                    forgotPasswordSent = true
                 }
             }
-            .alert("Reset Password", isPresented: $showForgotPassword) {
-                TextField("Email", text: $email)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.emailAddress)
-                Button("Send Link") {
-                    Task {
-                        await auth.resetPassword(email: email)
-                        forgotPasswordSent = true
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("We'll send a password reset link to your email.")
-            }
-            .alert("Link Sent", isPresented: $forgotPasswordSent) {
-                Button("OK") {}
-            } message: {
-                Text("Check your inbox for the reset link.")
-            }
-            .onChange(of: auth.isSignedIn) { _, signedIn in
-                if signedIn { dismiss() }
-            }
-            .onChange(of: mode) { _, _ in
-                auth.clearError()
-                password = ""
-                confirmPassword = ""
-                isPasswordVisible = false
-                isConfirmVisible = false
-            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("We'll send a password reset link to your email.")
+        }
+        .alert("Link Sent", isPresented: $forgotPasswordSent) {
+            Button("OK") {}
+        } message: {
+            Text("Check your inbox for the reset link.")
+        }
+        .onChange(of: auth.isSignedIn) { _, signedIn in
+            if signedIn { dismiss() }
+        }
+        .onChange(of: mode) { _, _ in
+            auth.clearError()
+            password = ""
+            confirmPassword = ""
+            isPasswordVisible = false
+            isConfirmVisible = false
         }
         .presentationCornerRadius(Theme.Radius.sheet)
     }

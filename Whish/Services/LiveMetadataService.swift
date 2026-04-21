@@ -40,6 +40,13 @@ private final class RedirectGuardDelegate: NSObject, URLSessionTaskDelegate, @un
         }
         completionHandler(nil)
     }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    didCompleteWithError error: Error?) {
+        lock.lock()
+        converted.remove(task.taskIdentifier)
+        lock.unlock()
+    }
 }
 
 // MARK: - Service
@@ -59,7 +66,97 @@ struct LiveMetadataService: MetadataService {
         return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }()
 
+    // Pre-compiled regex cache — NSCache is thread-safe for reads/writes.
+    // Patterns are compiled once on first use and reused across all fetches.
+    private nonisolated(unsafe) static let regexCache = NSCache<NSString, NSRegularExpression>()
+
+    private static func compiledRegex(for pattern: String) -> NSRegularExpression? {
+        let key = pattern as NSString
+        if let cached = regexCache.object(forKey: key) { return cached }
+        guard let rx = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+        regexCache.setObject(rx, forKey: key)
+        return rx
+    }
+
+    // Stable patterns pre-compiled as statics — zero runtime cost after first use.
+    private static let jsonLDRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(
+            pattern: #"<script[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>([\s\S]*?)</script>"#,
+            options: .caseInsensitive
+        )
+    }()
+
     func fetch(url: URL) async throws -> ItemMetadata {
+        let sp = Perf.begin("metadata-fetch")
+        defer { Perf.end("metadata-fetch", sp) }
+        // Edge function runs server-side with full browser headers, bypassing
+        // Amazon's and other retailers' mobile/bot detection.
+        do {
+            return try await fetchViaEdgeFunction(url: url)
+        } catch {
+            // Amazon always blocks direct iOS requests — don't waste time on fallback.
+            if Self.isAmazonURL(url) { throw error }
+        }
+        return try await fetchDirectly(url: url)
+    }
+
+    // MARK: - Edge Function fetch
+
+    private static let edgeFunctionURL = URL(
+        string: "\(SupabaseConfig.projectURL.absoluteString)/functions/v1/fetch-metadata"
+    )!
+
+    private static func isAmazonURL(_ url: URL) -> Bool {
+        let host = url.host?.lowercased() ?? ""
+        return host.contains("amazon.")
+    }
+
+    private func fetchViaEdgeFunction(url: URL) async throws -> ItemMetadata {
+        var request = URLRequest(url: Self.edgeFunctionURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(SupabaseConfig.anonKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 15
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["url": url.absoluteString])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
+                ?? "HTTP \(http.statusCode)"
+            throw MetadataError.fetchFailed(msg)
+        }
+
+        let dto = try JSONDecoder().decode(MetadataDTO.self, from: data)
+        return ItemMetadata(
+            title: dto.title ?? "Unknown Item",
+            imageURL: dto.imageURL.flatMap { URL(string: $0) },
+            alternativeImageURLs: (dto.alternativeImageURLs ?? []).compactMap { URL(string: $0) },
+            price: dto.price.flatMap { parseDecimal($0) },
+            currency: dto.currency,
+            description: dto.description,
+            brand: dto.brand,
+            color: dto.color,
+            size: dto.size
+        )
+    }
+
+    private struct MetadataDTO: Decodable {
+        let title: String?
+        let imageURL: String?
+        let alternativeImageURLs: [String]?
+        let price: String?
+        let currency: String?
+        let description: String?
+        let brand: String?
+        let color: String?
+        let size: String?
+    }
+
+    // MARK: - Direct fetch (fallback for non-Amazon URLs)
+
+    private func fetchDirectly(url: URL) async throws -> ItemMetadata {
         let safeURL: URL
         if let comps = URLComponents(url: url, resolvingAgainstBaseURL: true),
            let rebuilt = comps.url {
@@ -80,8 +177,12 @@ struct LiveMetadataService: MetadataService {
             throw MetadataError.fetchFailed("Server returned HTTP \(http.statusCode).")
         }
 
-        guard let html = String(data: data, encoding: .utf8)
-                      ?? String(data: data, encoding: .isoLatin1),
+        // All metadata lives in <head> — truncate large pages rather than refusing.
+        let maxBytes = 512 * 1024
+        let slice = data.count > maxBytes ? data.prefix(maxBytes) : data
+
+        guard let html = String(data: slice, encoding: .utf8)
+                      ?? String(data: slice, encoding: .isoLatin1),
               !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw MetadataError.noDataFound
         }
@@ -190,14 +291,8 @@ struct LiveMetadataService: MetadataService {
     private func parseJSONLD(_ html: String) -> JSONLDProduct {
         var result = JSONLDProduct()
 
-        // Extract all <script type="application/ld+json">...</script> blocks
-        let pattern = #"<script[^>]*type\s*=\s*["']application/ld\+json["'][^>]*>([\s\S]*?)</script>"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
-            return result
-        }
-
         let nsHTML = html as NSString
-        let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
+        let matches = Self.jsonLDRegex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
 
         for match in matches {
             guard match.numberOfRanges > 1 else { continue }
@@ -513,8 +608,7 @@ struct LiveMetadataService: MetadataService {
     // MARK: - Regex utilities
 
     private func extractMeta(_ html: String, pattern: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern,
-                                                   options: .caseInsensitive) else { return nil }
+        guard let regex = Self.compiledRegex(for: pattern) else { return nil }
         let range = NSRange(html.startIndex..., in: html)
         guard let match = regex.firstMatch(in: html, range: range),
               match.numberOfRanges > 1,
@@ -524,8 +618,7 @@ struct LiveMetadataService: MetadataService {
     }
 
     private func extractMetaAll(_ html: String, pattern: String) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: pattern,
-                                                   options: .caseInsensitive) else { return [] }
+        guard let regex = Self.compiledRegex(for: pattern) else { return [] }
         let range = NSRange(html.startIndex..., in: html)
         let matches = regex.matches(in: html, range: range)
         var results: [String] = []
@@ -574,6 +667,12 @@ struct LiveMetadataService: MetadataService {
 
 // MARK: - HTML entity decoding
 
+// Compiled once — reused for every htmlDecoded call across the app session.
+private let numericEntityRegex: NSRegularExpression = {
+    // swiftlint:disable:next force_try
+    try! NSRegularExpression(pattern: "&#([0-9]{1,6});")
+}()
+
 private extension String {
     var trimmed: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
@@ -591,24 +690,24 @@ private extension String {
         for (entity, char) in namedEntities {
             s = s.replacingOccurrences(of: entity, with: char)
         }
-        // Numeric decimal entities &#123;
-        if let rx = try? NSRegularExpression(pattern: "&#([0-9]{1,6});") {
-            let ns = s as NSString
-            var result = ""
-            var lastEnd = 0
-            let matches = rx.matches(in: s, range: NSRange(s.startIndex..., in: s))
-            for m in matches {
-                let range = Range(m.range, in: s)!
-                result += s[s.index(s.startIndex, offsetBy: lastEnd)..<range.lowerBound]
-                if let codeRange = Range(m.range(at: 1), in: s),
-                   let code = UInt32(s[codeRange]),
-                   let scalar = Unicode.Scalar(code) {
-                    result += String(scalar)
-                } else {
-                    result += ns.substring(with: m.range)
-                }
-                lastEnd = s.distance(from: s.startIndex, to: range.upperBound)
+        // Numeric decimal entities &#123; — regex compiled once at module load.
+        let ns = s as NSString
+        var result = ""
+        var lastEnd = 0
+        let matches = numericEntityRegex.matches(in: s, range: NSRange(s.startIndex..., in: s))
+        for m in matches {
+            let range = Range(m.range, in: s)!
+            result += s[s.index(s.startIndex, offsetBy: lastEnd)..<range.lowerBound]
+            if let codeRange = Range(m.range(at: 1), in: s),
+               let code = UInt32(s[codeRange]),
+               let scalar = Unicode.Scalar(code) {
+                result += String(scalar)
+            } else {
+                result += ns.substring(with: m.range)
             }
+            lastEnd = s.distance(from: s.startIndex, to: range.upperBound)
+        }
+        if !matches.isEmpty {
             result += s[s.index(s.startIndex, offsetBy: lastEnd)...]
             s = result
         }

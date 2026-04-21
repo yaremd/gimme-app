@@ -5,6 +5,8 @@ struct ContentView: View {
     @AppStorage("colorScheme") private var colorSchemePreference = "system"
     @AppStorage("isOnboardingComplete") private var isOnboardingComplete = false
 
+    @Environment(AuthService.self) private var authService
+
     @State private var sharedListToken: String?
     @State private var isShowingSharedList = false
 
@@ -23,6 +25,11 @@ struct ContentView: View {
                     .pageSheet()
             }
             .onOpenURL { url in
+                // Password recovery: gimme://reset-password#access_token=...
+                if url.scheme == "gimme", url.host == "reset-password" {
+                    Task { await authService.handleDeepLink(url) }
+                    return
+                }
                 // Share links
                 if let token = extractShareToken(from: url) {
                     sharedListToken = token

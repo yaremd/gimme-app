@@ -139,9 +139,7 @@ struct WishListDetailView: View {
             guard let url else { return }
             pendingShareURL = nil
             // Brief delay so the Button→Menu swap settles before presenting
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                shareURL = url
-            }
+            Task { try? await Task.sleep(for: .milliseconds(150)); shareURL = url }
         }
     }
 
@@ -161,9 +159,7 @@ struct WishListDetailView: View {
                         UIPasteboard.general.url = url
                         showCopiedFeedback = true
                         Haptics.success()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            showCopiedFeedback = false
-                        }
+                        Task { try? await Task.sleep(for: .milliseconds(1500)); showCopiedFeedback = false }
                     } label: {
                         Label("Copy Link", systemImage: "doc.on.doc")
                     }
@@ -336,6 +332,7 @@ struct WishListDetailView: View {
                     }
                     .tint(.orange)
                 }
+                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                 .contextMenu {
                     Button { viewModel.showEditItem(item) } label: {
                         Label("Edit", systemImage: "pencil")
@@ -430,6 +427,7 @@ struct WishListDetailView: View {
                         }
                         .buttonStyle(.plain)
                         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                         .transition(.scale(scale: 0.95).combined(with: .opacity))
                         .contextMenu {
                             Button { viewModel.showEditItem(item) } label: {

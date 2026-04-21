@@ -202,13 +202,20 @@ struct WishItemDetailView: View {
                 Divider().background(Theme.Colors.surfaceBorder)
             }
             if item.isReservedByFriend {
-                infoRow(label: "Reserved by", value: item.reservedByName ?? "A friend") {
-                    isShowingClearReservationConfirm = true
-                }
-                Divider().background(Theme.Colors.surfaceBorder)
-                if let comment = item.reservedComment, !comment.isEmpty {
-                    infoRow(label: "Their message", value: comment)
+                if wishList.anonymousReservations {
+                    infoRow(label: "Reserved by", value: "Someone 🤫") {
+                        isShowingClearReservationConfirm = true
+                    }
                     Divider().background(Theme.Colors.surfaceBorder)
+                } else {
+                    infoRow(label: "Reserved by", value: item.reservedByName ?? "A friend") {
+                        isShowingClearReservationConfirm = true
+                    }
+                    Divider().background(Theme.Colors.surfaceBorder)
+                    if let comment = item.reservedComment, !comment.isEmpty {
+                        infoRow(label: "Their message", value: comment)
+                        Divider().background(Theme.Colors.surfaceBorder)
+                    }
                 }
             }
             infoRow(label: "List", value: "\(wishList.emoji)  \(wishList.name)")

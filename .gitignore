@@ -35,6 +35,13 @@ Pods/
 # Misc docs & planning files (keep code clean)
 compass_artifact_*.md
 
+# Next.js build output
+web/.next/
+web/node_modules/
+
+# Supabase temp
+supabase/.temp/
+
 # Secrets / keys (never commit)
 *.pem
 *.p8
