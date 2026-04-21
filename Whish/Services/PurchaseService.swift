@@ -69,6 +69,10 @@ final class PurchaseService {
         do {
             try await AppStore.sync()
             await verifyEntitlement()
+            if isPro, let uid = currentUserID {
+                claimPro(for: uid)
+                await syncProToSupabase(userID: uid, value: true)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
