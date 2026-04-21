@@ -193,18 +193,21 @@ struct WhishApp: App {
                             let storeKitPro = purchaseService.isPro
                             let supabasePro = await purchaseService.fetchProFromSupabase(userID: userID)
 
-                            if supabasePro && !storeKitPro {
-                                // Purchased on another device or Apple ID — Supabase is the record
+                            if supabasePro {
+                                // This account is Pro in Supabase → grant locally and record claim
                                 purchaseService.grantPro()
-                            }
-                            if storeKitPro && !supabasePro {
+                                purchaseService.claimPro(for: userID)
+                            } else if storeKitPro {
+                                // StoreKit says Pro but Supabase has no record for this account
                                 let claimedBy = purchaseService.claimedByUserID()
                                 if claimedBy == nil || claimedBy == userID {
                                     // Unclaimed anonymous purchase, or same user on a new device → claim + sync
                                     purchaseService.claimPro(for: userID)
                                     await purchaseService.syncProToSupabase(userID: userID, value: true)
+                                } else {
+                                    // Claimed by a different account — override the StoreKit grant
+                                    purchaseService.resetProStatus()
                                 }
-                                // else: claimed by a different account on this device → stay free
                             }
                         } else {
                             // Clean up on sign-out — Pro resets so Account B starts free
