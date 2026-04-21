@@ -12,6 +12,10 @@ final class PurchaseService {
     private(set) var product: Product?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
+    /// True when the last isPro→false change came from a StoreKit revocation (refund),
+    /// as opposed to a logout reset. WhishApp reads this to decide whether to sync
+    /// the revocation to Supabase.
+    private(set) var lastChangeWasRevocation = false
 
     // MARK: - Constants
 
@@ -113,7 +117,9 @@ final class PurchaseService {
         guard case .verified(let tx) = result else { return }
         await tx.finish()
         if tx.productID == Self.productID {
-            setPro(tx.revocationDate == nil)
+            let newValue = tx.revocationDate == nil
+            lastChangeWasRevocation = !newValue
+            setPro(newValue)
         }
     }
 
@@ -130,7 +136,48 @@ final class PurchaseService {
     }
 
     func resetProStatus() {
+        lastChangeWasRevocation = false
         setPro(false)
+    }
+
+    /// Forces Pro = true locally. Used when Supabase confirms Pro but StoreKit
+    /// has no entitlement on this device (e.g. purchased on a different device).
+    func grantPro() {
+        setPro(true)
+    }
+
+    // MARK: - Supabase Pro sync
+
+    /// Upserts the user's Pro status to the `profiles` table.
+    /// Called after purchase, restore, or refund while the user is signed in.
+    func syncProToSupabase(userID: String, value: Bool) async {
+        struct ProfileRow: Encodable {
+            let id: String
+            // swiftlint:disable:next identifier_name
+            let is_pro: Bool
+            let updated_at: Date
+        }
+        try? await supabase
+            .from("profiles")
+            .upsert(ProfileRow(id: userID, is_pro: value, updated_at: .now), onConflict: "id")
+            .execute()
+    }
+
+    /// Fetches the user's Pro status from `profiles`. Returns false if the row
+    /// doesn't exist yet (new account that has never purchased).
+    func fetchProFromSupabase(userID: String) async -> Bool {
+        struct ProfileRow: Decodable {
+            // swiftlint:disable:next identifier_name
+            let is_pro: Bool
+        }
+        let rows: [ProfileRow]? = try? await supabase
+            .from("profiles")
+            .select("is_pro")
+            .eq("id", value: userID)
+            .limit(1)
+            .execute()
+            .value
+        return rows?.first?.is_pro ?? false
     }
 
     #if DEBUG

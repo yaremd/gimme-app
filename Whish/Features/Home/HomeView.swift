@@ -16,7 +16,7 @@ struct HomeView: View {
     @State private var isShowingStats = false
     @State private var isShowingSettings = false
     private var isSearchActive: Bool {
-        isSearchFocused || !viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        shouldFocusSearch || isSearchFocused || !viewModel.searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
     @AppStorage("defaultCurrency") private var displayCurrency = "USD"
     @State private var listShareURL: URL?
@@ -46,8 +46,8 @@ struct HomeView: View {
     @AppStorage("wasSignedIn") private var wasSignedIn = false
 
     @FocusState private var isSearchFocused: Bool
-    @State private var isScrolled = false
-    @State private var listTopY: CGFloat? = nil
+    @State private var shouldFocusSearch = false   // survives the view-transition; @FocusState does not
+
 
     @State private var isShowingNotifications = false
     @State private var notificationsViewModel = NotificationsViewModel()
@@ -90,11 +90,17 @@ struct HomeView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !lists.isEmpty {
+                if isSearchActive {
                     searchBarView
                 }
             }
             .animation(Theme.spring, value: isSearchActive)
+            .task(id: shouldFocusSearch) {
+                guard shouldFocusSearch else { return }
+                // Give the view-transition time to place the TextField before focusing.
+                try? await Task.sleep(for: .milliseconds(150))
+                isSearchFocused = true
+            }
             .overlay(alignment: .top) {
                 SyncToast(isSyncing: syncService.isSyncing, lastSyncDate: syncService.lastSyncDate)
                     .padding(.top, 8)
@@ -102,7 +108,7 @@ struct HomeView: View {
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar(isSearchActive ? .hidden : .visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -278,7 +284,6 @@ struct HomeView: View {
             .onChange(of: auth.isSignedIn) { _, signedIn in
                 guard signedIn, let uid = auth.userID else {
                     // Sign out: reset UI state immediately on main thread.
-                    purchase.resetProStatus()
                     wasSignedIn = false
                     WidgetDataService.updateSnapshot(context: modelContext)
 
@@ -432,24 +437,50 @@ struct HomeView: View {
                 : viewModel.filteredLists(lists)
             let archivedCount = viewModel.archivedLists(lists).count
 
+            ScrollViewReader { proxy in
             List {
-                // ── Scroll position sensor (zero height) ──────────
-                Color.clear.frame(height: 0)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(
-                            key: ScrollSensorKey.self,
-                            value: geo.frame(in: .global).minY
-                        )
-                    })
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                // ── Pull-down search trigger ──────────────────────────────────
+                // _SearchBarHider walks up to the UIScrollView after its first
+                // layout pass and bumps contentOffset.y by exactly one row height,
+                // pushing this row above the fold without any timing race.
+                Button {
+                    shouldFocusSearch = true
+                } label: {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .font(.system(.callout, weight: .medium))
+                        Text("Search lists & items…")
+                            .foregroundStyle(.tertiary)
+                            .font(.system(.body))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Theme.Colors.surfaceElevated, in: Capsule())
+                    .background(_SearchBarHider())   // UIKit one-shot offset setter
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, Theme.Spacing.gridPadding)
+                .padding(.vertical, Theme.Spacing.sm)
+                .id("search-bar")
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .onAppear {
+                    // Fires when this row enters the viewport.
+                    // The UIKit hider keeps it above fold at launch so this
+                    // only triggers on real user pull-downs.
+                    Haptics.light()
+                }
 
                 // ── Hero ──────────────────────────────────────────
                 heroSection
+                    .id("hero")
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowInsets(EdgeInsets(top: 24, leading: 0, bottom: 0, trailing: 0))
 
                 // ── Section header row ─────────────────────────────
                 HStack {
@@ -602,14 +633,18 @@ struct HomeView: View {
             }
             .scrollContentBackground(.hidden)
             .contentMargins(.bottom, 100, for: .scrollContent)
-            .onPreferenceChange(ScrollSensorKey.self) { y in
-                if listTopY == nil { listTopY = y }
-                isScrolled = y < (listTopY ?? y) - 10
+            .onChange(of: isSearchActive) { _, active in
+                if !active {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        proxy.scrollTo("hero", anchor: .top)
+                    }
+                }
             }
+            } // end ScrollViewReader
         }
     }
 
-    // MARK: - Search bar (pinned below navbar via safeAreaInset)
+    // MARK: - Search bar
 
     private var searchBarView: some View {
         HStack(spacing: Theme.Spacing.sm) {
@@ -632,6 +667,7 @@ struct HomeView: View {
             if isSearchActive {
                 Button {
                     isSearchFocused = false
+                    shouldFocusSearch = false
                     viewModel.searchText = ""
                 } label: {
                     Image(systemName: "xmark")
@@ -647,13 +683,6 @@ struct HomeView: View {
         .padding(.horizontal, Theme.Spacing.gridPadding)
         .padding(.top, 4)
         .padding(.bottom, 2)
-        .background {
-            Rectangle()
-                .fill(.regularMaterial)
-                .opacity(isScrolled ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isScrolled)
-                .ignoresSafeArea()
-        }
     }
 
     // MARK: - Search results content
@@ -681,6 +710,7 @@ struct HomeView: View {
                                     .buttonStyle(.plain)
                                     .simultaneousGesture(TapGesture().onEnded {
                                         isSearchFocused = false
+                                        shouldFocusSearch = false
                                         viewModel.searchText = ""
                                     })
                                 }
@@ -699,6 +729,7 @@ struct HomeView: View {
                                     .buttonStyle(.plain)
                                     .simultaneousGesture(TapGesture().onEnded {
                                         isSearchFocused = false
+                                        shouldFocusSearch = false
                                         viewModel.searchText = ""
                                     })
                                 }
@@ -1714,9 +1745,50 @@ struct FirstItemView: View {
     }
 }
 
-// MARK: - Scroll sensor preference key
+// MARK: - UIKit one-shot: push the search-bar row above the initial fold
+//
+// scrollPosition(id:) / proxy.scrollTo() both race the List's first layout.
+// This UIViewRepresentable sidesteps the race: it waits for layoutSubviews
+// (guaranteed post-layout), walks up to the UIScrollView, reads the actual
+// first-row height from UITableView / UICollectionView, and shifts contentOffset
+// by exactly that amount — once, atomically.
 
-private struct ScrollSensorKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+private struct _SearchBarHider: UIViewRepresentable {
+    func makeUIView(context: Context) -> _SearchBarHiderView { _SearchBarHiderView() }
+    func updateUIView(_ uiView: _SearchBarHiderView, context: Context) {}
 }
+
+private final class _SearchBarHiderView: UIView {
+    private var applied = false
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !applied else { return }
+
+        var v: UIView? = superview
+        while let view = v {
+            if let sv = view as? UIScrollView {
+                let rowH = firstRowHeight(in: sv)
+                guard rowH > 0 else { return }   // not laid out yet — retry next pass
+                sv.contentOffset.y += rowH
+                applied = true
+                return
+            }
+            v = view.superview
+        }
+    }
+
+    private func firstRowHeight(in sv: UIScrollView) -> CGFloat {
+        if let tv = sv as? UITableView,
+           tv.numberOfSections > 0, tv.numberOfRows(inSection: 0) > 0 {
+            return tv.rectForRow(at: IndexPath(row: 0, section: 0)).height
+        }
+        if let cv = sv as? UICollectionView,
+           cv.numberOfSections > 0, cv.numberOfItems(inSection: 0) > 0,
+           let attr = cv.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)) {
+            return attr.frame.height
+        }
+        return 0
+    }
+}
+

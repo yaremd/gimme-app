@@ -186,13 +186,38 @@ struct WhishApp: App {
                             if let token = appDelegate.deviceToken {
                                 await PushNotificationService.shared.uploadToken(token, userID: userID)
                             }
+
+                            // Pro is Supabase-account-level.
+                            // Check both StoreKit and Supabase; whichever says Pro wins.
                             await purchaseService.refreshEntitlement()
+                            let storeKitPro = purchaseService.isPro
+                            let supabasePro = await purchaseService.fetchProFromSupabase(userID: userID)
+
+                            if supabasePro && !storeKitPro {
+                                // Purchased on another device or Apple ID — Supabase is the record
+                                purchaseService.grantPro()
+                            }
+                            if storeKitPro && !supabasePro {
+                                // Anonymous purchase before this login — write it to Supabase now
+                                await purchaseService.syncProToSupabase(userID: userID, value: true)
+                            }
                         } else {
-                            // Clean up on sign-out
+                            // Clean up on sign-out — Pro resets so Account B starts free
                             appDelegate.currentUserID = nil
                             purchaseService.resetProStatus()
                         }
                     }
+                }
+                .onChange(of: purchaseService.isPro) { _, isPro in
+                    guard let userID = authService.userID else { return }
+                    if isPro {
+                        // Purchase or restore succeeded while logged in — persist to Supabase
+                        Task { await purchaseService.syncProToSupabase(userID: userID, value: true) }
+                    } else if purchaseService.lastChangeWasRevocation {
+                        // Refund/revocation — sync the revocation to Supabase
+                        Task { await purchaseService.syncProToSupabase(userID: userID, value: false) }
+                    }
+                    // If !isPro && !lastChangeWasRevocation → logout reset → don't touch Supabase
                 }
         }
         .modelContainer(container)
