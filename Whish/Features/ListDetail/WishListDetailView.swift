@@ -583,27 +583,15 @@ struct WishListDetailView: View {
 
     // MARK: - FAB
     private var fabButton: some View {
-        Button { Haptics.light(); viewModel.showAddItem() } label: {
-            let c = Color(hex: wishList.colorHex)
-            HStack(spacing: Theme.Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.25))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                Text("Add Item")
-                    .font(.rounded(.body, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .padding(.leading, Theme.Spacing.md)
-            .padding(.trailing, Theme.Spacing.xl)
-            .padding(.vertical, Theme.Spacing.md)
-            .primaryGlassBackground(color: c)
-            .shadow(color: .black.opacity(0.28), radius: 20, y: 8)
-            .shadow(color: c.opacity(0.35), radius: 12, y: 4)
+        let c = Color(hex: wishList.colorHex)
+        return Button { Haptics.light(); viewModel.showAddItem() } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .primaryGlassBackground(color: c)
+                .shadow(color: .black.opacity(0.28), radius: 20, y: 8)
+                .shadow(color: c.opacity(0.35), radius: 12, y: 4)
         }
         .buttonStyle(ScaleButtonStyle())
     }
@@ -623,14 +611,14 @@ struct WishListDetailView: View {
             Text("Add your first wish to get started.")
                 .foregroundStyle(Theme.Colors.textSecondary)
             Button { viewModel.showAddItem() } label: {
-                Text("Add Wish")
-                    .font(.rounded(.body, weight: .semibold))
+                let c = Color(hex: wishList.colorHex)
+                Image(systemName: "plus")
+                    .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, Theme.Spacing.xl)
-                    .padding(.vertical, Theme.Spacing.md)
-                    .primaryGlassBackground(color: Color(hex: wishList.colorHex))
+                    .frame(width: 64, height: 64)
+                    .primaryGlassBackground(color: c)
                     .shadow(color: .black.opacity(0.28), radius: 20, y: 8)
-                    .shadow(color: Color(hex: wishList.colorHex).opacity(0.35), radius: 12, y: 4)
+                    .shadow(color: c.opacity(0.35), radius: 12, y: 4)
             }
             .buttonStyle(ScaleButtonStyle())
             Spacer()

@@ -90,15 +90,12 @@ struct HomeView: View {
                     mainContent
                 }
 
-                // FABs — hidden during search and on empty state
+                // FAB — hidden during search and on empty state
                 if !isSearchActive && !lists.isEmpty {
-                    HStack(spacing: Theme.Spacing.md) {
-                        newListFab
-                        fab
-                    }
-                    .padding(.bottom, 36)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .zIndex(10)
+                    fab
+                        .padding(.bottom, 36)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(10)
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -353,53 +350,13 @@ struct HomeView: View {
                 isShowingFirstItem = true
             }
         } label: {
-            HStack(spacing: Theme.Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white.opacity(0.25))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                }
-                Text("Add Wish")
-                    .font(.rounded(.body, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .padding(.leading, Theme.Spacing.md)
-            .padding(.trailing, Theme.Spacing.xl)
-            .padding(.vertical, Theme.Spacing.md)
-            .primaryGlassBackground(color: Theme.Colors.accent)
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .primaryGlassBackground(color: Theme.Colors.accent)
         }
         .buttonStyle(ScaleButtonStyle())
-    }
-
-    private var newListFab: some View {
-        Button {
-            Haptics.light()
-            viewModel.showNewList()
-        } label: {
-            HStack(spacing: Theme.Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.07))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(colorScheme == .dark ? .white : Theme.Colors.textPrimary)
-                }
-                Text("New List")
-                    .font(.rounded(.body, weight: .semibold))
-                    .foregroundStyle(colorScheme == .dark ? .white : Theme.Colors.textPrimary)
-            }
-            .padding(.leading, Theme.Spacing.md)
-            .padding(.trailing, Theme.Spacing.xl)
-            .padding(.vertical, Theme.Spacing.md)
-            .glassCapsuleBackground()
-            .shadow(color: .black.opacity(0.14), radius: 16, y: 6)
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .contentShape(Capsule())
     }
 
     // MARK: - Main content
@@ -417,28 +374,6 @@ struct HomeView: View {
 
             ScrollViewReader { proxy in
             List {
-                // ── Search trigger ────────────────────────────────
-                Button { shouldFocusSearch = true } label: {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .font(.system(.callout, weight: .medium))
-                        Text("Search lists & items…")
-                            .foregroundStyle(.tertiary)
-                            .font(.system(.body))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .glassCapsuleBackground()
-                    .padding(.horizontal, Theme.Spacing.gridPadding)
-                }
-                .buttonStyle(.plain)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 4, trailing: 0))
-
                 // ── Hero ──────────────────────────────────────────
                 heroSection
                     .id("hero")
@@ -463,6 +398,18 @@ struct HomeView: View {
                                 Text(viewModel.showArchivedLists ? "Current" : "Archived")
                                     .font(.system(.subheadline, weight: .medium))
                                     .foregroundStyle(Theme.Colors.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if !viewModel.showArchivedLists {
+                            Button {
+                                Haptics.light()
+                                viewModel.showNewList()
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.accent)
+                                    .frame(width: 28, height: 28)
                             }
                             .buttonStyle(.plain)
                         }
@@ -674,19 +621,19 @@ struct HomeView: View {
 
     private var topTrailingButtons: some View {
         HStack(spacing: 8) {
-            Button { isShowingNotifications = true } label: {
-                Image(systemName: "bell")
+            Button { shouldFocusSearch = true } label: {
+                Image(systemName: "magnifyingglass")
                     .font(.system(size: 22, weight: .regular))
                     .foregroundStyle(Theme.Colors.textSecondary)
-                    .overlay(alignment: .topTrailing) {
-                        if notificationsViewModel.unreadCount > 0 {
-                            Circle()
-                                .fill(Theme.Colors.accent)
-                                .frame(width: 8, height: 8)
-                                .offset(x: 4, y: -4)
-                        }
-                    }
                     .frame(width: 44, height: 44)
+            }
+            if notificationsViewModel.unreadCount > 0 {
+                Button { isShowingNotifications = true } label: {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(Theme.Colors.accent)
+                        .frame(width: 44, height: 44)
+                }
             }
             Button {
                 if purchase.isPro { isShowingStats = true }
@@ -1029,27 +976,14 @@ struct HomeView: View {
 
             Spacer().frame(height: 28)
 
-            // Add Wish button (same style as FAB)
             Button { isShowingFirstItem = true } label: {
-                HStack(spacing: Theme.Spacing.md) {
-                    ZStack {
-                        Circle()
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.18) : Color.white.opacity(0.25))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "plus")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                    Text("Add Wish")
-                        .font(.rounded(.body, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.leading, Theme.Spacing.md)
-                .padding(.trailing, Theme.Spacing.xl)
-                .padding(.vertical, Theme.Spacing.md)
-                .primaryGlassBackground(color: Theme.Colors.accent)
+                Image(systemName: "plus")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 64, height: 64)
+                    .primaryGlassBackground(color: Theme.Colors.accent)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ScaleButtonStyle())
 
             Spacer()
         }
