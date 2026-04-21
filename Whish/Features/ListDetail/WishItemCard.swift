@@ -73,8 +73,7 @@ struct WishItemCard: View {
             }
         }
         .padding(Theme.Spacing.cardInner)
-        .background(Theme.Colors.surfaceElevated,
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
         .shadow(color: .black.opacity(Theme.Shadow.cardOpacity),
                 radius: Theme.Shadow.cardRadius, y: Theme.Shadow.cardY)
         .opacity(item.isPurchased ? 0.7 : 1.0)
@@ -114,8 +113,8 @@ struct WishItemGridCard: View {
             imageArea
             contentArea
         }
-        .background(Theme.Colors.surfaceElevated)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
         .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
         .opacity(item.isPurchased ? 0.65 : 1.0)
     }

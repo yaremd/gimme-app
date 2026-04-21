@@ -337,12 +337,7 @@ private struct SharedItemCard: View {
             actionButton
         }
         .padding(Theme.Spacing.cardInner)
-        .background(
-            isUnavailable
-                ? Theme.Colors.surfaceElevated.opacity(0.5)
-                : Theme.Colors.surfaceElevated,
-            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-        )
+        .glassCardBackground()
         .opacity(isUnavailable ? 0.65 : 1.0)
         .shadow(
             color: .black.opacity(Theme.Shadow.cardOpacity),

@@ -157,7 +157,7 @@ struct AuthView: View {
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
         .frame(height: 50)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .clipShape(Capsule())
         .disabled(auth.isLoading)
     }
 

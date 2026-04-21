@@ -96,21 +96,10 @@ struct NewListView: View {
                     .font(.system(size: 52))
             }
             .matchedGeometryEffect(id: "emojiCircle", in: ns, isSource: !isCustomizing)
-            .overlay(alignment: .bottomTrailing) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Colors.surface)
-                        .frame(width: 26, height: 26)
-                    Image(systemName: "pencil")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
-                .offset(x: 4, y: 4)
-                .opacity(isCustomizing ? 0 : 1)
-            }
         }
         .buttonStyle(.plain)
         .animation(Theme.spring, value: selectedColorHex)
+        .padding(.bottom, Theme.Spacing.xl)
     }
 
     // MARK: - Customization overlay

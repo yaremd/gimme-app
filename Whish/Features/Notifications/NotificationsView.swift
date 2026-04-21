@@ -33,10 +33,20 @@ struct NotificationEvent: Codable, Identifiable {
 
 // MARK: - ViewModel
 
+private struct ItemImageDTO: Decodable {
+    let id: UUID
+    let imageURL: String?
+    enum CodingKeys: String, CodingKey {
+        case id
+        case imageURL = "image_url"
+    }
+}
+
 @Observable
 @MainActor
 final class NotificationsViewModel {
     var events: [NotificationEvent] = []
+    var itemImages: [UUID: String] = [:]
     var isLoading = false
 
     var unreadCount: Int { events.filter { !$0.isRead }.count }
@@ -54,6 +64,19 @@ final class NotificationsViewModel {
                 .execute()
                 .value
             events = fetched
+
+            let ids = fetched.map { $0.itemID.uuidString }
+            if !ids.isEmpty {
+                let dtos: [ItemImageDTO] = try await supabase
+                    .from("wish_items")
+                    .select("id, image_url")
+                    .in("id", values: ids)
+                    .execute()
+                    .value
+                var map: [UUID: String] = [:]
+                for dto in dtos { if let url = dto.imageURL { map[dto.id] = url } }
+                itemImages = map
+            }
         } catch {
             print("[Notifications] Load failed: \(error)")
         }
@@ -125,7 +148,7 @@ struct NotificationsView: View {
     private var eventsList: some View {
         List {
             ForEach(viewModel.events) { event in
-                NotificationEventRow(event: event) {
+                NotificationEventRow(event: event, itemImageURL: viewModel.itemImages[event.itemID]) {
                     onSelectItem?(event.itemID)
                     dismiss()
                 }
@@ -180,6 +203,7 @@ struct NotificationsView: View {
 
 private struct NotificationEventRow: View {
     let event: NotificationEvent
+    var itemImageURL: String? = nil
     var onTap: (() -> Void)? = nil
 
     var body: some View {
@@ -190,13 +214,18 @@ private struct NotificationEventRow: View {
     private var rowContent: some View {
         HStack(spacing: Theme.Spacing.md) {
 
-            // Gift icon bubble
-            ZStack {
-                Circle()
-                    .fill(Theme.Colors.accent.opacity(0.12))
-                    .frame(width: 44, height: 44)
-                Text("🎁")
-                    .font(.system(size: 20))
+            // Item image or fallback gift bubble
+            if let url = itemImageURL, !url.isEmpty {
+                AsyncImageView(urlString: url, imageData: nil, cornerRadius: 10)
+                    .frame(width: 52, height: 52)
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Theme.Colors.accent.opacity(0.12))
+                        .frame(width: 52, height: 52)
+                    Text("🎁")
+                        .font(.system(size: 22))
+                }
             }
 
             // Text stack
@@ -224,9 +253,6 @@ private struct NotificationEventRow: View {
             }
         }
         .padding(Theme.Spacing.cardInner)
-        .background(
-            Theme.Colors.surface,
-            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-        )
+        .glassCardBackground()
     }
 }

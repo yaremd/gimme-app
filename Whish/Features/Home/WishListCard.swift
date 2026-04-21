@@ -68,8 +68,7 @@ struct WishListCard: View {
             }
         }
         .padding(Theme.Spacing.cardInner)
-        .background(Theme.Colors.surfaceElevated,
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
         .shadow(color: .black.opacity(Theme.Shadow.cardOpacity),
                 radius: Theme.Shadow.cardRadius, y: Theme.Shadow.cardY)
     }

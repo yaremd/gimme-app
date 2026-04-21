@@ -14,15 +14,13 @@ struct WishListDetailView: View {
     @State private var isShowingRevokeAlert = false
     @State private var showCopiedFeedback = false
     @State private var isShowingAuthForShare = false
-    @State private var isShowingCurrencyPicker = false
     @AppStorage("defaultCurrency") private var defaultCurrency = "USD"
     @AppStorage("itemViewMode") private var isGridMode = true
     @State private var showNavTitle = false
     @State private var pendingNavigationListID: UUID?
     @State private var syncDebounceTask: Task<Void, Never>?
 
-    private let supportedCurrencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "UAH"]
-    @Environment(\.modelContext) private var modelContext
+@Environment(\.modelContext) private var modelContext
     private var modelContainer: ModelContainer { modelContext.container }
     @Environment(SyncService.self) private var syncService
     @Environment(AuthService.self) private var auth
@@ -125,15 +123,6 @@ struct WishListDetailView: View {
         .sheet(isPresented: $isShowingEditList, onDismiss: { debouncedSync() }) {
             NewListView(listToEdit: wishList)
                 .pageSheet()
-        }
-        .confirmationDialog("Display Currency", isPresented: $isShowingCurrencyPicker) {
-            ForEach(supportedCurrencies, id: \.self) { currency in
-                Button(currency) {
-                    withAnimation(Theme.spring) { defaultCurrency = currency }
-                }
-            }
-        } message: {
-            Text("Amounts are converted using approximate exchange rates.")
         }
         .onChange(of: pendingShareURL) { _, url in
             guard let url else { return }
@@ -533,10 +522,7 @@ struct WishListDetailView: View {
         let wantCount = items.count - purchasedCount
         return HStack(spacing: 0) {
             if let total = totalPrice {
-                Button { isShowingCurrencyPicker = true } label: {
-                    stripStat(label: defaultCurrency, value: total, flexible: true)
-                }
-                .buttonStyle(.plain)
+                stripStat(label: defaultCurrency, value: total, flexible: true)
                 Divider().frame(height: 28)
             }
             stripStat(label: "Total",  value: "\(items.count)")
@@ -642,9 +628,11 @@ struct WishListDetailView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, Theme.Spacing.xl)
                     .padding(.vertical, Theme.Spacing.md)
-                    .background(Color(hex: wishList.colorHex), in: Capsule())
+                    .primaryGlassBackground(color: Color(hex: wishList.colorHex))
+                    .shadow(color: .black.opacity(0.28), radius: 20, y: 8)
+                    .shadow(color: Color(hex: wishList.colorHex).opacity(0.35), radius: 12, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ScaleButtonStyle())
             Spacer()
         }
         .frame(maxWidth: .infinity)

@@ -37,15 +37,28 @@ struct SettingsView: View {
                 List {
                     // ── Subscribe banner ─────────────────────────────
                     Section {
-                        darkRow {
-                            Button {
-                                if !purchase.isPro { isShowingPaywall = true }
-                            } label: {
-                                proBanner
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
+                        Button {
+                            if !purchase.isPro { isShowingPaywall = true }
+                        } label: {
+                            proBanner
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .listRowBackground(
+                            LinearGradient(
+                                stops: purchase.isPro
+                                    ? [
+                                        .init(color: Theme.Colors.accent.opacity(0.11), location: 0),
+                                        .init(color: Theme.Colors.accent.opacity(0.04), location: 1)
+                                    ]
+                                    : [
+                                        .init(color: Theme.Colors.accent.opacity(0.22), location: 0),
+                                        .init(color: Theme.Colors.accent.opacity(0.07), location: 1)
+                                    ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                     }
 
                     // ── Account ──────────────────────────────────────
@@ -368,7 +381,7 @@ struct SettingsView: View {
                         }
                         darkRow {
                             Button {
-                                if let url = URL(string: "mailto:yaremchukdima@gmail.com?subject=Gimme%20Feedback") {
+                                if let url = URL(string: "mailto:hello@gimmelist.com?subject=Gimme%20Feedback") {
                                     UIApplication.shared.open(url)
                                 }
                             } label: {
@@ -439,6 +452,7 @@ struct SettingsView: View {
                     .listSectionSeparator(.hidden)
                 }
                 .scrollContentBackground(.hidden)
+                .contentMargins(.top, Theme.Spacing.cardGap, for: .scrollContent)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -509,19 +523,34 @@ struct SettingsView: View {
 
             Spacer()
 
-            Text(purchase.isPro ? "Pro ✓" : "Upgrade")
-                .font(.system(.caption, weight: .semibold))
-                .foregroundStyle(purchase.isPro ? Theme.Colors.textSecondary : .white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    purchase.isPro ? Theme.Colors.surfaceElevated : Theme.Colors.accent,
-                    in: Capsule()
-                )
+            if purchase.isPro {
+                Text("Pro ✓")
+                    .font(.system(.subheadline, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Theme.Colors.accent, in: Capsule())
+                    .shadow(color: Theme.Colors.accent.opacity(0.5), radius: 10, y: 4)
+            } else {
+                Text("Upgrade")
+                    .font(.system(.subheadline, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        LinearGradient(
+                            colors: [Theme.Colors.accent, Theme.Colors.accent.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+                    .shadow(color: Theme.Colors.accent.opacity(0.55), radius: 12, y: 5)
 
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(Theme.Colors.textTertiary)
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.Colors.accent.opacity(0.7))
+            }
         }
         .padding(.vertical, Theme.Spacing.sm)
     }

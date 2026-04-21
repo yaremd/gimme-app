@@ -50,6 +50,7 @@ struct HomeView: View {
 
 
     @State private var isShowingNotifications = false
+    @State private var isScrolledPastTop = false
     @State private var notificationsViewModel = NotificationsViewModel()
     @State private var pendingNotificationItemID: UUID?
 
@@ -69,6 +70,17 @@ struct HomeView: View {
         NavigationStack(path: $navPath) {
             ZStack(alignment: .bottom) {
                 Theme.backgroundGradient.ignoresSafeArea()
+
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: "#7C6FFD").opacity(colorScheme == .dark ? 0.08 : 0.12), location: 0),
+                        .init(color: .clear, location: 0.5),
+                        .init(color: Color(hex: "#EC407A").opacity(colorScheme == .dark ? 0.05 : 0.08), location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
                 // Main content or search results
                 if isSearchActive {
@@ -91,7 +103,14 @@ struct HomeView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 if isSearchActive {
-                    searchBarView
+                    searchHeader
+                } else {
+                    homeHeaderView
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if !isSearchActive {
+                    topTrailingButtons
                 }
             }
             .animation(Theme.spring, value: isSearchActive)
@@ -106,48 +125,7 @@ struct HomeView: View {
                     .padding(.top, 8)
                     .allowsHitTesting(false)
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar(isSearchActive ? .hidden : .visible, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Image("GimmeLogo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: 28)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { isShowingNotifications = true } label: {
-                        Image(systemName: "bell")
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .overlay(alignment: .topTrailing) {
-                                if notificationsViewModel.unreadCount > 0 {
-                                    Circle()
-                                        .fill(Theme.Colors.accent)
-                                        .frame(width: 8, height: 8)
-                                        .offset(x: 4, y: -4)
-                                }
-                            }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        if purchase.isPro { isShowingStats = true }
-                        else { isShowingPaywall = true }
-                    } label: {
-                        Image(systemName: "chart.pie")
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { isShowingSettings = true } label: {
-                        Image(systemName: "gearshape")
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $viewModel.isShowingNewList, onDismiss: {
                 if let id = pendingNavigationListID {
                     pendingNavigationListID = nil
@@ -439,13 +417,8 @@ struct HomeView: View {
 
             ScrollViewReader { proxy in
             List {
-                // ── Pull-down search trigger ──────────────────────────────────
-                // _SearchBarHider walks up to the UIScrollView after its first
-                // layout pass and bumps contentOffset.y by exactly one row height,
-                // pushing this row above the fold without any timing race.
-                Button {
-                    shouldFocusSearch = true
-                } label: {
+                // ── Search trigger ────────────────────────────────
+                Button { shouldFocusSearch = true } label: {
                     HStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
@@ -458,22 +431,13 @@ struct HomeView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity)
-                    .background(Theme.Colors.surfaceElevated, in: Capsule())
-                    .background(_SearchBarHider())   // UIKit one-shot offset setter
+                    .glassCapsuleBackground()
+                    .padding(.horizontal, Theme.Spacing.gridPadding)
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, Theme.Spacing.gridPadding)
-                .padding(.vertical, Theme.Spacing.sm)
-                .id("search-bar")
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                .onAppear {
-                    // Fires when this row enters the viewport.
-                    // The UIKit hider keeps it above fold at launch so this
-                    // only triggers on real user pull-downs.
-                    Haptics.light()
-                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 4, trailing: 0))
 
                 // ── Hero ──────────────────────────────────────────
                 heroSection
@@ -633,6 +597,11 @@ struct HomeView: View {
             }
             .scrollContentBackground(.hidden)
             .contentMargins(.bottom, 100, for: .scrollContent)
+            .trackScrolledPastTop { scrolled in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isScrolledPastTop = scrolled
+                }
+            }
             .onChange(of: isSearchActive) { _, active in
                 if !active {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -644,9 +613,32 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Search bar
+    // MARK: - Header
 
-    private var searchBarView: some View {
+    private var homeHeaderView: some View {
+        HStack {
+            Image("GimmeLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 28)
+            Spacer()
+        }
+        .padding(.horizontal, Theme.Spacing.gridPadding)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background {
+            if isScrolledPastTop {
+                ZStack {
+                    Rectangle().fill(.ultraThinMaterial)
+                    Theme.Colors.background.opacity(0.55)
+                }
+                .ignoresSafeArea(edges: .top)
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private var searchHeader: some View {
         HStack(spacing: Theme.Spacing.sm) {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "magnifyingglass")
@@ -660,29 +652,61 @@ struct HomeView: View {
                     .submitLabel(.search)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .glassCapsuleBackground()
 
-            if isSearchActive {
-                Button {
-                    isSearchFocused = false
-                    shouldFocusSearch = false
-                    viewModel.searchText = ""
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .frame(width: 40, height: 40)
-                        .glassCircleBackground()
-                }
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+            Button {
+                isSearchFocused = false
+                shouldFocusSearch = false
+                viewModel.searchText = ""
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .frame(width: 44, height: 44)
+                    .glassCircleBackground()
             }
         }
-        .animation(Theme.spring, value: isSearchActive)
         .padding(.horizontal, Theme.Spacing.gridPadding)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+    }
+
+    private var topTrailingButtons: some View {
+        HStack(spacing: 8) {
+            Button { isShowingNotifications = true } label: {
+                Image(systemName: "bell")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .overlay(alignment: .topTrailing) {
+                        if notificationsViewModel.unreadCount > 0 {
+                            Circle()
+                                .fill(Theme.Colors.accent)
+                                .frame(width: 8, height: 8)
+                                .offset(x: 4, y: -4)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+            }
+            Button {
+                if purchase.isPro { isShowingStats = true }
+                else { isShowingPaywall = true }
+            } label: {
+                Image(systemName: "chart.pie")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .frame(width: 44, height: 44)
+            }
+            Button { isShowingSettings = true } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 4)
         .padding(.top, 4)
-        .padding(.bottom, 2)
     }
 
     // MARK: - Search results content
@@ -787,8 +811,7 @@ struct HomeView: View {
             }
         }
         .padding(Theme.Spacing.cardInner)
-        .background(Theme.Colors.surface,
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
     }
 
     // Search overlay — nothing typed yet
@@ -879,7 +902,7 @@ struct HomeView: View {
         } else {
             Text(cachedTotalRemaining.formatted(currency: displayCurrency))
                 .font(.system(size: 46, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.Colors.textPrimary.opacity(0.70))
+                .foregroundStyle(Theme.Colors.textPrimary)
                 .contentTransition(.numericText())
                 .animation(.smooth(duration: 0.25), value: cachedTotalRemaining)
                 .overlay {
@@ -1520,7 +1543,7 @@ struct FirstItemView: View {
                 .padding(Theme.Spacing.cardInner)
             }
         }
-        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
     }
 
     private var detailsCard: some View {
@@ -1542,7 +1565,7 @@ struct FirstItemView: View {
             }
             .padding(Theme.Spacing.cardInner)
         }
-        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
     }
 
     private var priceCard: some View {
@@ -1556,7 +1579,7 @@ struct FirstItemView: View {
                     .foregroundStyle(priceText.isEmpty ? Theme.Colors.textTertiary : Theme.Colors.textPrimary)
             }
             .padding(Theme.Spacing.cardInner)
-            .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .glassCardBackground()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1588,7 +1611,7 @@ struct FirstItemView: View {
             }
         }
         .padding(Theme.Spacing.cardInner)
-        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
     }
 
     /// Color presets with selected color moved to front
@@ -1659,7 +1682,7 @@ struct FirstItemView: View {
                 }
             }
         }
-        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .glassCardBackground()
     }
 
     private var inlineBottomButton: some View {
@@ -1792,3 +1815,17 @@ private final class _SearchBarHiderView: UIView {
     }
 }
 
+private extension View {
+    @ViewBuilder
+    func trackScrolledPastTop(threshold: CGFloat = 10, action: @escaping (Bool) -> Void) -> some View {
+        if #available(iOS 18.0, *) {
+            self.onScrollGeometryChange(for: Bool.self) { geo in
+                geo.contentOffset.y > threshold
+            } action: { _, scrolled in
+                action(scrolled)
+            }
+        } else {
+            self
+        }
+    }
+}
