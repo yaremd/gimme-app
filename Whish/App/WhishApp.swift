@@ -36,7 +36,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
+        #if DEBUG
         print("[Push] Registration failed: \(error.localizedDescription)")
+        #endif
     }
 }
 

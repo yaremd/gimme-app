@@ -78,7 +78,9 @@ final class NotificationsViewModel {
                 itemImages = map
             }
         } catch {
+            #if DEBUG
             print("[Notifications] Load failed: \(error)")
+            #endif
         }
     }
 
@@ -96,7 +98,9 @@ final class NotificationsViewModel {
                 .eq("is_read", value: false)
                 .execute()
         } catch {
+            #if DEBUG
             print("[Notifications] Mark-read failed: \(error)")
+            #endif
         }
     }
 }

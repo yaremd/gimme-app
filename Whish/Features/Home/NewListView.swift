@@ -1,10 +1,14 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - NewListView
 
 struct NewListView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    private var modelContainer: ModelContainer { modelContext.container }
+    @Environment(AuthService.self) private var auth
+    @Environment(SyncService.self) private var syncService
 
     @State private var name = ""
     @State private var selectedEmoji = "✨"
@@ -500,6 +504,7 @@ struct NewListView: View {
         guard !trimmed.isEmpty else { return }
         let resolvedEndDate = hasEndDate ? endDate : nil
 
+        let savedList: WishList
         if let list = listToEdit {
             list.name = trimmed
             list.emoji = selectedEmoji
@@ -509,6 +514,7 @@ struct NewListView: View {
             list.anonymousReservations = anonymousReservations
             scheduleOrCancelReminders(id: list.id, title: trimmed,
                                       endDate: resolvedEndDate, reminders: reminders)
+            savedList = list
         } else {
             let list = WishList(name: trimmed, emoji: selectedEmoji, colorHex: selectedColorHex,
                                 endDate: resolvedEndDate, reminders: reminders,
@@ -517,7 +523,14 @@ struct NewListView: View {
             scheduleOrCancelReminders(id: list.id, title: trimmed,
                                       endDate: resolvedEndDate, reminders: reminders)
             onCreated?(list)
+            savedList = list
         }
+
+        // Targeted push — fire-and-forget, 500ms debounce coalesces rapid edits.
+        if let uid = auth.userID {
+            syncService.schedulePushList(savedList, container: modelContainer, userID: uid)
+        }
+
         Haptics.success()
         dismiss()
     }

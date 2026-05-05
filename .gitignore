@@ -46,3 +46,19 @@ supabase/.temp/
 *.pem
 *.p8
 Secrets.swift
+# === BEGIN design-engineer-plugin ===
+# Disposable working artifacts the plugin creates during a session.
+# Stack-agnostic — only includes paths the plugin itself guarantees to
+# write. Framework-specific outputs (test reports, build caches, native
+# build artifacts, etc.) are the user's responsibility to add to their
+# own .gitignore — outside this fenced block — since they vary by stack.
+
+# All disposable working files (Playwright debug captures, intermediate
+# analysis dumps, exploratory drafts, anything the model would discard
+# tomorrow). Auto-purged at phase boundaries by /design-engineer:document, or
+# manually by /design-engineer:tidy. Never commit anything from temporary/.
+.design-engineer-plugin/temporary/
+
+# Per-session active-workflow marker (process-recall hook gate).
+.design-engineer-plugin/.active-workflow
+# === END design-engineer-plugin ===

@@ -34,7 +34,9 @@ final class PushNotificationService {
                 )
                 .execute()
         } catch {
+            #if DEBUG
             print("[Push] Failed to upload device token: \(error)")
+            #endif
         }
     }
 
@@ -47,7 +49,9 @@ final class PushNotificationService {
                 .eq("user_id", value: userID)
                 .execute()
         } catch {
+            #if DEBUG
             print("[Push] Failed to remove device tokens: \(error)")
+            #endif
         }
     }
 }
