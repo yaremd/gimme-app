@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-const APP_STORE_URL = "https://apps.apple.com/app/gimme-wishlist-gift-ideas/id0000000000";
+const APP_STORE_URL = "https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923";
 
 export default async function SharePage({ params }: Props) {
   const { token } = await params;

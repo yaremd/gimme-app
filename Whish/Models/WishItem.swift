@@ -25,6 +25,9 @@ final class WishItem {
     var createdAt: Date
     /// Last mutation time — used for conflict resolution during sync. nil = never synced.
     var updatedAt: Date?
+    /// Outbox flag — true when local mutation hasn't been pushed to Supabase yet.
+    /// Defaults to true so the first launch after this field is added triggers a one-time reconcile.
+    var needsSync: Bool = true
     var list: WishList?
 
     var price: Decimal? {

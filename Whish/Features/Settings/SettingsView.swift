@@ -25,6 +25,8 @@ struct SettingsView: View {
     @State private var isShowingSignOutConfirm   = false
     @State private var isShowingDeleteAccount     = false
     @State private var isShowingPaywall          = false
+    @State private var isShowingNotifications    = false
+    @State private var notificationsViewModel    = NotificationsViewModel()
 
     @State private var isUpdatingRates           = false
     @State private var isShowingShareSheet       = false
@@ -59,6 +61,50 @@ struct SettingsView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
+                    }
+
+                    // ── Notifications ────────────────────────────────
+                    Section("Notifications") {
+                        darkRow {
+                            HStack(spacing: 12) {
+                                Image(systemName: "bell")
+                                    .font(.system(size: 17))
+                                    .frame(width: 22)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Text("Notifications")
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Spacer()
+                                Toggle("", isOn: $notificationsOn.animation(Theme.spring))
+                                    .labelsHidden()
+                                    .tint(Theme.Colors.accent)
+                                    .onChange(of: notificationsOn) { _, newValue in
+                                        if newValue {
+                                            Task {
+                                                let granted = await NotificationService.shared.requestPermission()
+                                                if !granted { notificationsOn = false }
+                                            }
+                                        }
+                                    }
+                            }
+                        }
+                        darkRow {
+                            Button { isShowingNotifications = true } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "bell.badge")
+                                        .font(.system(size: 17))
+                                        .frame(width: 22)
+                                        .foregroundStyle(Theme.Colors.textPrimary)
+                                    Text("Activity")
+                                        .foregroundStyle(Theme.Colors.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.Colors.textTertiary)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     // ── Account ──────────────────────────────────────
@@ -118,24 +164,6 @@ struct SettingsView: View {
                                                 .font(.system(.caption))
                                                 .foregroundStyle(Theme.Colors.textTertiary)
                                         }
-                                    }
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            darkRow {
-                                Button { isShowingDeleteAccount = true } label: {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "exclamationmark.triangle")
-                                            .font(.system(size: 17))
-                                            .frame(width: 22)
-                                            .foregroundStyle(Theme.Colors.textSecondary)
-                                        Text("Danger Zone")
-                                            .foregroundStyle(Theme.Colors.textPrimary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.Colors.textTertiary)
                                     }
                                     .contentShape(Rectangle())
                                 }
@@ -315,32 +343,6 @@ struct SettingsView: View {
                     }
                     #endif
 
-                    // ── Notifications ────────────────────────────────
-                    Section("Notifications") {
-                        darkRow {
-                            HStack(spacing: 12) {
-                                Image(systemName: "bell")
-                                    .font(.system(size: 17))
-                                    .frame(width: 22)
-                                    .foregroundStyle(Theme.Colors.textPrimary)
-                                Text("Notifications")
-                                    .foregroundStyle(Theme.Colors.textPrimary)
-                                Spacer()
-                                Toggle("", isOn: $notificationsOn.animation(Theme.spring))
-                                    .labelsHidden()
-                                    .tint(Theme.Colors.accent)
-                                    .onChange(of: notificationsOn) { _, newValue in
-                                        if newValue {
-                                            Task {
-                                                let granted = await NotificationService.shared.requestPermission()
-                                                if !granted { notificationsOn = false }
-                                            }
-                                        }
-                                    }
-                            }
-                        }
-                    }
-
                     // ── Links ────────────────────────────────────────
                     Section {
                         darkRow {
@@ -400,6 +402,30 @@ struct SettingsView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+
+                    // ── Danger Zone ──────────────────────────────────
+                    if auth.isSignedIn {
+                        Section {
+                            darkRow {
+                                Button { isShowingDeleteAccount = true } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "exclamationmark.triangle")
+                                            .font(.system(size: 17))
+                                            .frame(width: 22)
+                                            .foregroundStyle(Theme.Colors.textSecondary)
+                                        Text("Danger Zone")
+                                            .foregroundStyle(Theme.Colors.textPrimary)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.Colors.textTertiary)
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
 
@@ -469,6 +495,13 @@ struct SettingsView: View {
             .sheet(isPresented: $isShowingPaywall) { PaywallView().pageSheet() }
             .sheet(isPresented: $isShowingAuth) { AuthView().pageSheet() }
             .sheet(isPresented: $isShowingDeleteAccount) { DeleteAccountView().pageSheet() }
+            .sheet(isPresented: $isShowingNotifications) {
+                NotificationsView(viewModel: notificationsViewModel)
+                    .task {
+                        guard let uid = auth.userID else { return }
+                        await notificationsViewModel.load(ownerID: uid)
+                    }
+            }
             .sheet(isPresented: $isShowingShareSheet) {
                 ShareSheetView(items: [
                     "Check out Gimme — the easiest way to create and share wishlists!",

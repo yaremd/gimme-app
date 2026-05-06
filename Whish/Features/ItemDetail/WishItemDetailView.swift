@@ -8,10 +8,17 @@ struct WishItemDetailView: View {
     @State private var viewModel = ItemDetailViewModel()
     @State private var isShowingClearReservationConfirm = false
     @Environment(\.modelContext) private var modelContext
+    private var modelContainer: ModelContainer { modelContext.container }
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthService.self) private var auth
     @Environment(SyncService.self) private var syncService
     @Environment(\.colorScheme) private var colorScheme
+
+    /// Schedule a single-row upsert after mutating this view's item.
+    private func pushThisItem() {
+        guard let uid = auth.userID else { return }
+        syncService.schedulePushItem(item, container: modelContainer, userID: uid)
+    }
 
     // Accent glow colour — list colour or fallback accent
     private var glowColor: Color { Color(hex: wishList.colorHex) }
@@ -96,7 +103,10 @@ struct WishItemDetailView: View {
                 .pageSheet()
         }
         .alert("Clear Reservation?", isPresented: $isShowingClearReservationConfirm) {
-            Button("Clear", role: .destructive) { viewModel.clearReservation(item) }
+            Button("Clear", role: .destructive) {
+                viewModel.clearReservation(item)
+                pushThisItem()
+            }
             Button("Cancel", role: .cancel) {}
         } message: { Text("This will mark the item as no longer reserved.") }
         .alert("Delete \"\(item.title)\"?", isPresented: $viewModel.isShowingDeleteConfirm) {
@@ -154,44 +164,25 @@ struct WishItemDetailView: View {
     @ViewBuilder
     private var imageBlock: some View {
         ZStack {
-            // Blurred fill — removes dead space, shows dominant image colours
-            heroImage(contentMode: .fill)
+            // Blurred fill — stable size via AsyncImageView (Color.clear base), no layout jump on load
+            AsyncImageView(urlString: item.imageURL, imageData: item.imageData,
+                           cornerRadius: 0, contentMode: .fill)
                 .blur(radius: 28)
-                .scaleEffect(1.15)        // push blur edges outside the clip
+                .scaleEffect(1.15)
                 .overlay(Color.black.opacity(0.18))
 
             // Sharp image fitted without cropping
-            heroImage(contentMode: .fit)
+            AsyncImageView(urlString: item.imageURL, imageData: item.imageData,
+                           cornerRadius: 0, contentMode: .fit)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 260)
+        .drawingGroup()
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .strokeBorder(glowColor.opacity(0.25), lineWidth: 1)
         )
-    }
-
-    @ViewBuilder
-    private func heroImage(contentMode: ContentMode) -> some View {
-        if let data = item.imageData, let uiImage = UIImage(data: data) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
-        } else if let urlString = item.imageURL, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: contentMode)
-                case .empty:
-                    Color(Theme.Colors.surfaceElevated)
-                default:
-                    Color(Theme.Colors.surfaceElevated)
-                }
-            }
-        } else {
-            Color(Theme.Colors.surfaceElevated)
-        }
     }
 
     // MARK: - Info card
@@ -256,7 +247,7 @@ struct WishItemDetailView: View {
         VStack(spacing: Theme.Spacing.md) {
             if item.isPurchased {
                 // Mark as Wanted — faded primary (undo action)
-                Button { Haptics.medium(); viewModel.togglePurchased(item) } label: {
+                Button { Haptics.medium(); viewModel.togglePurchased(item); pushThisItem() } label: {
                     HStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: "arrow.uturn.left.circle.fill")
                         Text("Mark as Wanted")
@@ -270,7 +261,7 @@ struct WishItemDetailView: View {
                 .primaryGlassBackground(color: accessibleGlow.opacity(colorScheme == .dark ? 0.45 : 0.7))
             } else {
                 // Mark as Purchased — primary glass
-                Button { Haptics.medium(); viewModel.togglePurchased(item) } label: {
+                Button { Haptics.medium(); viewModel.togglePurchased(item); pushThisItem() } label: {
                     HStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: "checkmark.circle.fill")
                         Text("Mark as Purchased")

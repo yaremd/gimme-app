@@ -596,7 +596,7 @@ export default function CaseStudy() {
           Create your first wishlist in seconds.
         </p>
         <a
-          href="https://apps.apple.com/app/id0000000000"
+          href="https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923"
           target="_blank"
           rel="noopener noreferrer"
           className="group inline-flex items-center gap-3 rounded-full pl-6 pr-2 py-2 text-[15px] font-semibold l-cta no-underline"

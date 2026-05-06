@@ -31,8 +31,10 @@ final class AuthService {
     // MARK: - Bootstrap
 
     private func bootstrap() async {
-        // Restore persisted session
-        session = try? await supabase.auth.session
+        // Restore persisted session with a 3s cap. If it times out, the auth
+        // state stream below flips `session` the moment the network resolves —
+        // UI stays interactive instead of hanging on a slow Keychain/refresh.
+        session = await Self.sessionOrTimeout(seconds: 3)
 
         // Stream auth state changes for real-time UI updates
         for await (event, newSession) in await supabase.auth.authStateChanges {
@@ -157,6 +159,18 @@ final class AuthService {
     }
 
     // MARK: - Helpers
+
+    private nonisolated static func sessionOrTimeout(seconds: TimeInterval) async -> Session? {
+        await withTaskGroup(of: Session?.self) { group -> Session? in
+            group.addTask { try? await supabase.auth.session }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(seconds))
+                return nil
+            }
+            defer { group.cancelAll() }
+            return await group.next() ?? nil
+        }
+    }
 
     private func run(_ body: () async throws -> Void) async {
         errorMessage = nil
