@@ -27,15 +27,14 @@ export const metadata: Metadata = {
   description:
     "Create and share wishlists with anyone. No account needed to view or claim gifts.",
   applicationName: "Gimme",
-  // TODO: Replace id0000000000 with real Apple ID when available
   appLinks: {
     ios: {
-      app_store_id: "0000000000",
+      app_store_id: "6762543923",
       url: "https://gimmelist.com",
     },
   },
   other: {
-    "apple-itunes-app": "app-id=0000000000", // Smart App Banner — shows native "Open in App Store" bar in Safari
+    "apple-itunes-app": "app-id=6762543923",
   },
   appleWebApp: {
     capable: true,

@@ -1,4 +1,4 @@
-const APP_STORE_URL = "https://apps.apple.com/app/gimme-wishlist-gift-ideas/id0000000000"; // TODO: Replace with real App Store URL
+const APP_STORE_URL = "https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923";
 
 export default function Home() {
   return (
@@ -114,23 +114,8 @@ export default function Home() {
                     Friends see your wishes on a clean web page and quietly claim what they&apos;re getting. No downloads, no sign-ups.
                   </p>
                 </div>
-                <div className="doppel-outer-dark shrink-0 w-full md:w-[260px]">
-                  <div className="doppel-inner-dark p-5">
-                    <div className="flex items-center gap-2.5 mb-4">
-                      <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5v3.5a1 1 0 001 1h7a1 1 0 001-1V7.5M9.5 4L7 1.5 4.5 4M7 1.5V9" stroke="#F43F5E" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold">Birthday Wishes</p>
-                        <p className="text-[10px] text-white/30">gimmelist.com/share/...</p>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <MockRow title="AirPods Max" price="$549" claimed />
-                      <MockRow title="Kindle Paperwhite" price="$149" />
-                      <MockRow title="Patagonia Fleece" price="$179" />
-                    </div>
-                  </div>
+                <div className="shrink-0 w-full md:w-[260px] flex items-center justify-center">
+                  <SharingIllustration />
                 </div>
               </div>
             </BentoCard>
@@ -145,16 +130,7 @@ export default function Home() {
               <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--l-muted)" }}>
                 Share Extension auto-fills title, image, and price from any URL.
               </p>
-              <div className="doppel-outer-dark">
-                <div className="doppel-inner-dark p-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <p className="text-[10px] text-white/35">Auto-filled</p>
-                  </div>
-                  <p className="text-sm font-semibold">Sony WH-1000XM5</p>
-                  <p className="text-lg font-bold mt-1 tabular-nums">$348.00</p>
-                </div>
-              </div>
+              <CaptureIllustration />
             </BentoCard>
           </div>
 
@@ -168,22 +144,7 @@ export default function Home() {
               <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--l-muted)" }}>
                 Home Screen and Lock Screen widgets. Five Siri Shortcuts. Spotlight finds any item instantly.
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="doppel-outer-dark">
-                  <div className="doppel-inner-dark p-3">
-                    <p className="text-[9px] text-white/25 uppercase tracking-widest mb-1.5">Widget</p>
-                    <p className="text-xl font-bold tabular-nums">$2,340</p>
-                    <p className="text-[10px] text-white/35 mt-0.5">12 remaining</p>
-                  </div>
-                </div>
-                <div className="doppel-outer-dark">
-                  <div className="doppel-inner-dark p-3">
-                    <p className="text-[9px] text-white/25 uppercase tracking-widest mb-1.5">Siri</p>
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 mb-1.5" />
-                    <p className="text-[10px] text-white/40 italic">&ldquo;Add wish&rdquo;</p>
-                  </div>
-                </div>
-              </div>
+              <NativeIllustration />
             </BentoCard>
           </div>
 
@@ -196,35 +157,7 @@ export default function Home() {
               <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--l-muted)" }}>
                 Visual breakdown of your spending by list and priority. Supports 9 currencies with automatic conversion.
               </p>
-              <div className="doppel-outer-dark">
-                <div className="doppel-inner-dark p-5">
-                  <div className="flex items-end gap-6">
-                    <div>
-                      <p className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Total value</p>
-                      <p className="text-3xl font-bold tabular-nums">$4,847</p>
-                    </div>
-                    <div className="flex items-end gap-1 pb-1">
-                      {[40, 65, 45, 80, 55, 70, 90].map((h, i) => (
-                        <div key={i} className="w-3 rounded-sm bg-white/10" style={{ height: `${h * 0.4}px` }} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-4 mt-4 pt-3 border-t border-white/[0.06]">
-                    <div>
-                      <p className="text-[10px] text-white/30">Purchased</p>
-                      <p className="text-sm font-semibold tabular-nums text-emerald-400">$1,290</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-white/30">Remaining</p>
-                      <p className="text-sm font-semibold tabular-nums">$3,557</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-white/30">Lists</p>
-                      <p className="text-sm font-semibold tabular-nums">7</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <StatsIllustration />
             </BentoCard>
           </div>
         </div>
@@ -260,46 +193,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── More features — clean list ── */}
+      {/* ── More features — split layout with illustration ── */}
       <section className="max-w-[1400px] mx-auto px-6 md:px-12 py-32 md:py-40">
-        <div className="mb-16 md:mb-20 max-w-xl">
-          <span className="l-eyebrow mb-5 inline-flex">And more</span>
-          <h2 className="text-3xl md:text-[2.75rem] font-bold tracking-[-0.03em] leading-[1.1]">
-            Every detail, considered
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-16 gap-y-10 max-w-3xl">
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M2 9h14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
-            title="Unlimited lists"
-            description="Birthday, holiday, personal. Create a list for every occasion with custom colors."
-          />
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.2"/><path d="M9 5.5v3.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            title="Reminders"
-            description="Get notified 1 day, 3 days, or 1 week before birthdays and events."
-          />
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2.5" y="2.5" width="13" height="13" rx="3" stroke="currentColor" strokeWidth="1.2"/><path d="M6 6h6M6 9h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
-            title="Share Extension"
-            description="Save items from Safari, Amazon, or any app with one tap."
-          />
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M14.5 9c0 3.04-2.46 5.5-5.5 5.5S3.5 12.04 3.5 9 5.96 3.5 9 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M12 3.5h3.5V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            title="Cloud sync"
-            description="Sign in with Apple or email. Your wishes stay in sync across devices."
-          />
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="1.5" width="10" height="15" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 13.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
-            title="Privacy first"
-            description="No ads, no tracking SDKs. Works fully offline. Your data stays on your device."
-          />
-          <FeatureItem
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4.5 9l3 3 6-6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            title="One purchase, forever"
-            description="No subscriptions. Gimme Pro is a single lifetime purchase."
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
+          {/* Left: heading + feature list */}
+          <div>
+            <div className="mb-14 md:mb-16">
+              <span className="l-eyebrow mb-5 inline-flex">And more</span>
+              <h2 className="text-3xl md:text-[2.75rem] font-bold tracking-[-0.03em] leading-[1.1]">
+                Every detail, considered
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v14M2 9h14" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+                title="Unlimited lists"
+                description="Birthday, holiday, personal. Create a list for every occasion with custom colors."
+              />
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.2"/><path d="M9 5.5v3.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                title="Reminders"
+                description="Get notified 1 day, 3 days, or 1 week before birthdays and events."
+              />
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2.5" y="2.5" width="13" height="13" rx="3" stroke="currentColor" strokeWidth="1.2"/><path d="M6 6h6M6 9h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+                title="Share Extension"
+                description="Save items from Safari, Amazon, or any app with one tap."
+              />
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M14.5 9c0 3.04-2.46 5.5-5.5 5.5S3.5 12.04 3.5 9 5.96 3.5 9 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M12 3.5h3.5V7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                title="Cloud sync"
+                description="Sign in with Apple or email. Your wishes stay in sync across devices."
+              />
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="1.5" width="10" height="15" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 13.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+                title="Privacy first"
+                description="No ads, no tracking SDKs. Works fully offline. Your data stays on your device."
+              />
+              <FeatureItem
+                icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4.5 9l3 3 6-6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                title="One purchase, forever"
+                description="No subscriptions. Gimme Pro is a single lifetime purchase."
+              />
+            </div>
+          </div>
+          {/* Right: decorative illustration */}
+          <div className="flex items-center justify-center lg:justify-end">
+            <AndMoreIllustration />
+          </div>
         </div>
       </section>
 
@@ -428,22 +369,6 @@ function FeatureItem({
   );
 }
 
-/* ── Mock wishlist row (inside dark cards) ── */
-function MockRow({ title, price, claimed }: { title: string; price: string; claimed?: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-white/[0.04] border border-white/[0.04] px-3 py-2">
-      <div>
-        <p className={`text-xs font-medium ${claimed ? "text-white/35 line-through" : ""}`}>{title}</p>
-        <p className="text-[10px] text-white/25 tabular-nums">{price}</p>
-      </div>
-      {claimed && (
-        <span className="text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 rounded-full px-2 py-0.5">
-          Claimed
-        </span>
-      )}
-    </div>
-  );
-}
 
 /* ── Pricing row ── */
 function PricingRow({ text, light }: { text: string; light?: boolean }) {
@@ -454,5 +379,315 @@ function PricingRow({ text, light }: { text: string; light?: boolean }) {
       </svg>
       <span style={{ opacity: light ? 0.75 : 1 }}>{text}</span>
     </li>
+  );
+}
+
+/* ── Sharing Illustration ── */
+function SharingIllustration() {
+  return (
+    <svg viewBox="0 0 260 140" fill="none" xmlns="http://www.w3.org/2000/svg"
+         className="w-full h-auto" aria-hidden="true" role="presentation">
+      {/* Left phone */}
+      <rect x="8" y="16" width="52" height="90" rx="10" fill="#F5F2EC" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.55"/>
+      <rect x="14" y="23" width="40" height="64" rx="5" fill="#3D3580" fillOpacity="0.04"/>
+      <rect x="22" y="20" width="18" height="2.5" rx="1.25" fill="#3D3580" fillOpacity="0.15"/>
+      {/* Share icon on left screen */}
+      <circle cx="34" cy="55" r="12" fill="#3D3580" fillOpacity="0.07"/>
+      <path d="M30 58L34 54L38 58M34 54V63" stroke="#3D3580" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.55"/>
+      {/* Dashed arc */}
+      <path d="M62 60 C92 16 168 16 198 60" stroke="#3D3580" strokeWidth="1.5" strokeDasharray="5 3.5" strokeLinecap="round" fill="none" strokeOpacity="0.28"/>
+      {/* Gift box — shadow */}
+      <ellipse cx="130" cy="50" rx="19" ry="4.5" fill="#18181B" fillOpacity="0.05"/>
+      {/* Gift box — body */}
+      <rect x="119" y="34" width="22" height="16" rx="3" fill="#FDFBF7" stroke="#3D3580" strokeWidth="1.2" strokeOpacity="0.65"/>
+      {/* Gift box — lid */}
+      <rect x="117" y="24" width="26" height="12" rx="3" fill="#3D3580"/>
+      {/* Ribbon vertical */}
+      <line x1="130" y1="24" x2="130" y2="50" stroke="#C4956A" strokeWidth="1.5"/>
+      {/* Ribbon horizontal */}
+      <line x1="117" y1="34" x2="143" y2="34" stroke="#C4956A" strokeWidth="1.5"/>
+      {/* Bow loops */}
+      <path d="M125.5 23 Q128 17 130 23" stroke="#C4956A" strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+      <path d="M130 23 Q132 17 134.5 23" stroke="#C4956A" strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+      {/* Right phone */}
+      <rect x="200" y="16" width="52" height="90" rx="10" fill="#F5F2EC" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.55"/>
+      <rect x="206" y="23" width="40" height="64" rx="5" fill="#3D3580" fillOpacity="0.04"/>
+      <rect x="218" y="20" width="18" height="2.5" rx="1.25" fill="#3D3580" fillOpacity="0.15"/>
+      {/* Wishlist rows on right phone */}
+      <rect x="210" y="32" width="32" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.13"/>
+      <rect x="210" y="42" width="26" height="4" rx="2" fill="#3D3580" fillOpacity="0.09"/>
+      <rect x="232" y="41" width="9" height="6" rx="3" fill="#10B981" fillOpacity="0.18"/>
+      <path d="M233.5 44L235 45.5L237.5 43" stroke="#10B981" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="210" y="52" width="28" height="4" rx="2" fill="#3D3580" fillOpacity="0.09"/>
+      <rect x="210" y="61" width="24" height="4" rx="2" fill="#3D3580" fillOpacity="0.09"/>
+      {/* Sparkles */}
+      <g transform="translate(74,16)" fill="#3D3580" fillOpacity="0.32">
+        <path d="M0,-5.5 L1.6,-1.6 L5.5,0 L1.6,1.6 L0,5.5 L-1.6,1.6 L-5.5,0 L-1.6,-1.6 Z"/>
+      </g>
+      <g transform="translate(186,18)" fill="#C4956A" fillOpacity="0.5">
+        <path d="M0,-4.5 L1.4,-1.4 L4.5,0 L1.4,1.4 L0,4.5 L-1.4,1.4 L-4.5,0 L-1.4,-1.4 Z"/>
+      </g>
+      <g transform="translate(95,110)" fill="#3D3580" fillOpacity="0.16">
+        <path d="M0,-3 L0.9,-0.9 L3,0 L0.9,0.9 L0,3 L-0.9,0.9 L-3,0 L-0.9,-0.9 Z"/>
+      </g>
+      <g transform="translate(163,114)" fill="#C4956A" fillOpacity="0.22">
+        <path d="M0,-3.5 L1,-1 L3.5,0 L1,1 L0,3.5 L-1,1 L-3.5,0 L-1,-1 Z"/>
+      </g>
+    </svg>
+  );
+}
+
+/* ── Capture Illustration ── */
+function CaptureIllustration() {
+  return (
+    <svg viewBox="0 0 210 132" fill="none" xmlns="http://www.w3.org/2000/svg"
+         className="w-full h-auto" aria-hidden="true" role="presentation">
+      {/* Browser address bar */}
+      <rect x="8" y="8" width="194" height="30" rx="15" fill="#F5F2EC" stroke="#3D3580" strokeWidth="1" strokeOpacity="0.18"/>
+      {/* Emerald dot */}
+      <circle cx="25" cy="23" r="4.5" fill="#10B981"/>
+      {/* URL placeholder rects */}
+      <rect x="38" y="19" width="55" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.11"/>
+      <rect x="99" y="19" width="38" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.06"/>
+      {/* Down arrow */}
+      <line x1="105" y1="41" x2="105" y2="58" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.25" strokeLinecap="round"/>
+      <path d="M99 55L105 62L111 55" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.25" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Product card */}
+      <rect x="8" y="65" width="194" height="60" rx="13" fill="white" stroke="#3D3580" strokeWidth="1" strokeOpacity="0.09"/>
+      {/* Product image placeholder */}
+      <rect x="18" y="75" width="38" height="40" rx="9" fill="#3D3580" fillOpacity="0.07"/>
+      {/* Headphone arc suggestion */}
+      <path d="M26 92 Q37 84 48 92" stroke="#3D3580" strokeWidth="1.2" strokeOpacity="0.25" fill="none" strokeLinecap="round"/>
+      <circle cx="27" cy="93" r="3" fill="#3D3580" fillOpacity="0.15"/>
+      <circle cx="47" cy="93" r="3" fill="#3D3580" fillOpacity="0.15"/>
+      {/* Product title lines */}
+      <rect x="64" y="76" width="95" height="7" rx="3.5" fill="#18181B" fillOpacity="0.14"/>
+      <rect x="64" y="87" width="68" height="6" rx="3" fill="#18181B" fillOpacity="0.08"/>
+      {/* Price */}
+      <rect x="64" y="101" width="48" height="10" rx="4" fill="#3D3580" fillOpacity="0.11"/>
+      {/* Auto-filled badge */}
+      <circle cx="165" cy="76" r="4" fill="#10B981"/>
+      <rect x="170" y="71" width="24" height="10" rx="5" fill="#10B981" fillOpacity="0.1" stroke="#10B981" strokeWidth="0.8" strokeOpacity="0.2"/>
+    </svg>
+  );
+}
+
+/* ── Native Illustration ── */
+function NativeIllustration() {
+  return (
+    <svg viewBox="0 0 256 162" fill="none" xmlns="http://www.w3.org/2000/svg"
+         className="w-full h-auto" aria-hidden="true" role="presentation">
+      <defs>
+        <linearGradient id="siriGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#60A5FA"/>
+          <stop offset="100%" stopColor="#8B5CF6"/>
+        </linearGradient>
+      </defs>
+      {/* Row 1 — app icons */}
+      {/* Icon 0: purple (Gimme) */}
+      <rect x="10" y="8" width="56" height="54" rx="13" fill="#3D3580" fillOpacity="0.1"/>
+      <path d="M33 26v14M26 33h14" stroke="#3D3580" strokeWidth="1.8" strokeOpacity="0.38" strokeLinecap="round"/>
+      {/* Icon 1: amber (Reminders) */}
+      <rect x="74" y="8" width="56" height="54" rx="13" fill="#C4956A" fillOpacity="0.1"/>
+      <circle cx="102" cy="35" r="10" stroke="#C4956A" strokeWidth="1.3" strokeOpacity="0.45" fill="none"/>
+      <path d="M102 28v7l5 5" stroke="#C4956A" strokeWidth="1.2" strokeOpacity="0.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Icon 2: cream (Share) */}
+      <rect x="138" y="8" width="56" height="54" rx="13" fill="#F5F2EC"/>
+      <circle cx="155" cy="35" r="5" stroke="#3D3580" strokeOpacity="0.2" strokeWidth="1.2" fill="none"/>
+      <circle cx="175" cy="28" r="4" stroke="#3D3580" strokeOpacity="0.2" strokeWidth="1.2" fill="none"/>
+      <circle cx="175" cy="42" r="4" stroke="#3D3580" strokeOpacity="0.2" strokeWidth="1.2" fill="none"/>
+      <path d="M159 32.5L172 30M159 37.5L172 40" stroke="#3D3580" strokeOpacity="0.15" strokeWidth="1.1"/>
+      {/* Row 2 — widget + icon + siri */}
+      {/* Widget: purple, 2-col wide */}
+      <rect x="10" y="70" width="120" height="80" rx="13" fill="#3D3580"/>
+      {/* Widget label indicator rect */}
+      <rect x="20" y="80" width="32" height="5" rx="2" fill="white" fillOpacity="0.22"/>
+      {/* Amount rect (represents "$2,340") */}
+      <rect x="20" y="91" width="72" height="14" rx="3.5" fill="white" fillOpacity="0.82"/>
+      {/* Remaining rect */}
+      <rect x="20" y="112" width="54" height="8" rx="2.5" fill="white" fillOpacity="0.32"/>
+      {/* Remaining dots */}
+      <circle cx="21" cy="132" r="3.5" fill="white" fillOpacity="0.55"/>
+      <circle cx="29" cy="132" r="3.5" fill="white" fillOpacity="0.38"/>
+      <circle cx="37" cy="132" r="3.5" fill="white" fillOpacity="0.22"/>
+      <circle cx="45" cy="132" r="3.5" fill="white" fillOpacity="0.12"/>
+      {/* Single icon: emerald (sync) */}
+      <rect x="138" y="70" width="56" height="54" rx="13" fill="#10B981" fillOpacity="0.08"/>
+      <path d="M161 82 Q174 80 178 90" stroke="#10B981" strokeOpacity="0.4" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      <path d="M178 90 Q180 100 171 106" stroke="#10B981" strokeOpacity="0.4" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+      <path d="M161 82 L159 86 M161 82 L165 84" stroke="#10B981" strokeOpacity="0.4" strokeWidth="1.2" strokeLinecap="round"/>
+      {/* Siri orb */}
+      <circle cx="212" cy="107" r="24" fill="url(#siriGrad)" fillOpacity="0.09"/>
+      <circle cx="212" cy="107" r="13" fill="url(#siriGrad)" fillOpacity="0.22"/>
+      <circle cx="212" cy="107" r="6" fill="url(#siriGrad)" fillOpacity="0.65"/>
+      {/* Siri label placeholder */}
+      <rect x="198" y="137" width="28" height="6" rx="3" fill="#3D3580" fillOpacity="0.1"/>
+    </svg>
+  );
+}
+
+/* ── Stats Illustration ── */
+function StatsIllustration() {
+  const bars = [40, 65, 45, 80, 55, 70, 90];
+  const maxH = 90;
+  const barW = 26;
+  const gap = 12;
+  const baseY = 118;
+  const startX = 16;
+  return (
+    <svg viewBox="0 0 300 148" fill="none" xmlns="http://www.w3.org/2000/svg"
+         className="w-full h-auto" aria-hidden="true" role="presentation">
+      {/* Bars */}
+      {bars.map((h, i) => {
+        const x = startX + i * (barW + gap);
+        const opacity = 0.14 + (h / maxH) * 0.72;
+        return (
+          <rect key={i} x={x} y={baseY - h} width={barW} height={h} rx="5"
+                fill="#3D3580" fillOpacity={opacity}/>
+        );
+      })}
+      {/* Gift box on tallest bar (index 6, x=238, top=28) */}
+      {(() => {
+        const gi = 6;
+        const gx = startX + gi * (barW + gap) + barW / 2; // center = 16 + 6*38 + 13 = 257
+        const topY = baseY - bars[gi]; // 118 - 90 = 28
+        return (
+          <g>
+            {/* Shadow */}
+            <ellipse cx={gx} cy={topY - 2} rx="13" ry="3" fill="#18181B" fillOpacity="0.06"/>
+            {/* Body */}
+            <rect x={gx - 11} y={topY - 18} width="22" height="16" rx="3" fill="#FDFBF7" stroke="#3D3580" strokeWidth="1.2" strokeOpacity="0.6"/>
+            {/* Lid */}
+            <rect x={gx - 13} y={topY - 28} width="26" height="12" rx="3" fill="#3D3580"/>
+            {/* Ribbon V */}
+            <line x1={gx} y1={topY - 28} x2={gx} y2={topY - 2} stroke="#C4956A" strokeWidth="1.4"/>
+            {/* Ribbon H */}
+            <line x1={gx - 11} y1={topY - 18} x2={gx + 11} y2={topY - 18} stroke="#C4956A" strokeWidth="1.4"/>
+            {/* Bow */}
+            <path d={`M${gx - 4} ${topY - 29} Q${gx - 1} ${topY - 35} ${gx} ${topY - 29}`} stroke="#C4956A" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+            <path d={`M${gx} ${topY - 29} Q${gx + 1} ${topY - 35} ${gx + 4} ${topY - 29}`} stroke="#C4956A" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+          </g>
+        );
+      })()}
+      {/* Divider */}
+      <line x1="16" y1="124" x2="284" y2="124" stroke="#3D3580" strokeOpacity="0.08" strokeWidth="1"/>
+      {/* Stat: Purchased */}
+      <rect x="16" y="130" width="38" height="5" rx="2" fill="#18181B" fillOpacity="0.12"/>
+      <rect x="16" y="139" width="44" height="7" rx="2.5" fill="#10B981" fillOpacity="0.55"/>
+      {/* Stat: Remaining */}
+      <rect x="110" y="130" width="38" height="5" rx="2" fill="#18181B" fillOpacity="0.12"/>
+      <rect x="110" y="139" width="44" height="7" rx="2.5" fill="#3D3580" fillOpacity="0.22"/>
+      {/* Stat: Lists */}
+      <rect x="210" y="130" width="22" height="5" rx="2" fill="#18181B" fillOpacity="0.12"/>
+      <rect x="210" y="139" width="16" height="7" rx="2.5" fill="#3D3580" fillOpacity="0.35"/>
+    </svg>
+  );
+}
+
+/* ── And More Illustration ── */
+function AndMoreIllustration() {
+  return (
+    <svg viewBox="0 0 380 420" fill="none" xmlns="http://www.w3.org/2000/svg"
+         className="w-full h-auto max-w-[420px]" aria-hidden="true" role="presentation">
+      {/* Background card */}
+      <rect x="4" y="4" width="372" height="412" rx="28" fill="#F5F2EC"/>
+      {/* Purple glow blobs */}
+      <ellipse cx="190" cy="210" rx="160" ry="140" fill="#3D3580" fillOpacity="0.03"/>
+      <ellipse cx="290" cy="120" rx="80" ry="70" fill="#3D3580" fillOpacity="0.03"/>
+
+      {/* Central list card */}
+      <rect x="90" y="80" width="200" height="230" rx="16" fill="white" stroke="#3D3580" strokeWidth="1" strokeOpacity="0.08"/>
+      {/* Card header line */}
+      <rect x="108" y="98" width="80" height="8" rx="4" fill="#3D3580" fillOpacity="0.15"/>
+      <rect x="108" y="110" width="50" height="6" rx="3" fill="#3D3580" fillOpacity="0.08"/>
+      {/* Divider */}
+      <line x1="90" y1="124" x2="290" y2="124" stroke="#3D3580" strokeOpacity="0.06" strokeWidth="1"/>
+      {/* List item 1: checked */}
+      <circle cx="108" cy="143" r="7" fill="#3D3580" fillOpacity="0.1"/>
+      <path d="M105 143L107.5 145.5L111 141" stroke="#3D3580" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.6"/>
+      <rect x="122" y="139" width="90" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.14"/>
+      <rect x="122" y="150" width="55" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.07"/>
+      {/* List item 2: checked */}
+      <circle cx="108" cy="174" r="7" fill="#10B981" fillOpacity="0.12"/>
+      <path d="M105 174L107.5 176.5L111 172" stroke="#10B981" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.7"/>
+      <rect x="122" y="170" width="75" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.14"/>
+      <rect x="122" y="181" width="45" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.07"/>
+      {/* List item 3: pending */}
+      <circle cx="108" cy="205" r="7" stroke="#C4956A" strokeWidth="1.3" strokeOpacity="0.4" fill="none"/>
+      <rect x="122" y="201" width="85" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.11"/>
+      <rect x="122" y="212" width="60" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.07"/>
+      {/* List item 4: pending */}
+      <circle cx="108" cy="236" r="7" stroke="#3D3580" strokeWidth="1.3" strokeOpacity="0.2" fill="none"/>
+      <rect x="122" y="232" width="70" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.09"/>
+      <rect x="122" y="243" width="40" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.05"/>
+      {/* List item 5: pending */}
+      <circle cx="108" cy="267" r="7" stroke="#3D3580" strokeWidth="1.3" strokeOpacity="0.2" fill="none"/>
+      <rect x="122" y="263" width="80" height="7" rx="3.5" fill="#3D3580" fillOpacity="0.09"/>
+      <rect x="122" y="274" width="50" height="5" rx="2.5" fill="#3D3580" fillOpacity="0.05"/>
+
+      {/* === Gift box: top-right === */}
+      <g transform="translate(280, 100) rotate(12)">
+        <ellipse cx="0" cy="44" rx="28" ry="5" fill="#18181B" fillOpacity="0.06"/>
+        <rect x="-26" y="10" width="52" height="34" rx="6" fill="white" stroke="#3D3580" strokeWidth="1.3" strokeOpacity="0.6"/>
+        <rect x="-28" y="-4" width="56" height="16" rx="5" fill="#3D3580"/>
+        <line x1="0" y1="-4" x2="0" y2="44" stroke="#C4956A" strokeWidth="1.8"/>
+        <line x1="-26" y1="10" x2="26" y2="10" stroke="#C4956A" strokeWidth="1.8"/>
+        <path d="M-5 -5 Q-2 -14 0 -5" stroke="#C4956A" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+        <path d="M0 -5 Q2 -14 5 -5" stroke="#C4956A" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+      </g>
+
+      {/* === Gift box: bottom-left === */}
+      <g transform="translate(72, 310) rotate(-8)">
+        <ellipse cx="0" cy="36" rx="24" ry="4" fill="#18181B" fillOpacity="0.05"/>
+        <rect x="-22" y="8" width="44" height="28" rx="5" fill="#F5F2EC" stroke="#C4956A" strokeWidth="1.3" strokeOpacity="0.55"/>
+        <rect x="-24" y="-3" width="48" height="13" rx="4" fill="#C4956A" fillOpacity="0.75"/>
+        <line x1="0" y1="-3" x2="0" y2="36" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.5"/>
+        <line x1="-22" y1="8" x2="22" y2="8" stroke="#3D3580" strokeWidth="1.5" strokeOpacity="0.5"/>
+        <path d="M-4 -4 Q-1.5 -11 0 -4" stroke="#3D3580" strokeWidth="1.2" strokeLinecap="round" fill="none" strokeOpacity="0.5"/>
+        <path d="M0 -4 Q1.5 -11 4 -4" stroke="#3D3580" strokeWidth="1.2" strokeLinecap="round" fill="none" strokeOpacity="0.5"/>
+      </g>
+
+      {/* === Gift box: top-left, small === */}
+      <g transform="translate(44, 130) rotate(-14)">
+        <ellipse cx="0" cy="29" rx="18" ry="3" fill="#18181B" fillOpacity="0.05"/>
+        <rect x="-16" y="7" width="32" height="22" rx="4" fill="#FDFBF7" stroke="#C4956A" strokeWidth="1.2" strokeOpacity="0.5"/>
+        <rect x="-18" y="-2" width="36" height="11" rx="3" fill="#C4956A" fillOpacity="0.65"/>
+        <line x1="0" y1="-2" x2="0" y2="29" stroke="#3D3580" strokeWidth="1.2" strokeOpacity="0.4"/>
+        <line x1="-16" y1="7" x2="16" y2="7" stroke="#3D3580" strokeWidth="1.2" strokeOpacity="0.4"/>
+        <path d="M-3 -3 Q-1 -9 0 -3" stroke="#3D3580" strokeWidth="1" strokeLinecap="round" fill="none" strokeOpacity="0.4"/>
+        <path d="M0 -3 Q1 -9 3 -3" stroke="#3D3580" strokeWidth="1" strokeLinecap="round" fill="none" strokeOpacity="0.4"/>
+      </g>
+
+      {/* === Gift box: bottom-right, medium === */}
+      <g transform="translate(318, 305) rotate(6)">
+        <ellipse cx="0" cy="40" rx="26" ry="4.5" fill="#18181B" fillOpacity="0.06"/>
+        <rect x="-24" y="8" width="48" height="32" rx="6" fill="white" stroke="#3D3580" strokeWidth="1.3" strokeOpacity="0.6"/>
+        <rect x="-26" y="-3" width="52" height="13" rx="4" fill="#3D3580" fillOpacity="0.85"/>
+        <line x1="0" y1="-3" x2="0" y2="40" stroke="#C4956A" strokeWidth="1.6"/>
+        <line x1="-24" y1="8" x2="24" y2="8" stroke="#C4956A" strokeWidth="1.6"/>
+        <path d="M-4.5 -4 Q-1.5 -12 0 -4" stroke="#C4956A" strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+        <path d="M0 -4 Q1.5 -12 4.5 -4" stroke="#C4956A" strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+      </g>
+
+      {/* Stars / sparkles */}
+      <g transform="translate(58, 64)" fill="#3D3580" fillOpacity="0.3">
+        <path d="M0,-6 L1.8,-1.8 L6,0 L1.8,1.8 L0,6 L-1.8,1.8 L-6,0 L-1.8,-1.8 Z"/>
+      </g>
+      <g transform="translate(328, 68)" fill="#C4956A" fillOpacity="0.42">
+        <path d="M0,-5 L1.5,-1.5 L5,0 L1.5,1.5 L0,5 L-1.5,1.5 L-5,0 L-1.5,-1.5 Z"/>
+      </g>
+      <g transform="translate(348, 200)" fill="#3D3580" fillOpacity="0.2">
+        <path d="M0,-4 L1.2,-1.2 L4,0 L1.2,1.2 L0,4 L-1.2,1.2 L-4,0 L-1.2,-1.2 Z"/>
+      </g>
+      <g transform="translate(32, 270)" fill="#C4956A" fillOpacity="0.28">
+        <path d="M0,-4 L1.2,-1.2 L4,0 L1.2,1.2 L0,4 L-1.2,1.2 L-4,0 L-1.2,-1.2 Z"/>
+      </g>
+      <g transform="translate(180, 52)" fill="#3D3580" fillOpacity="0.16">
+        <path d="M0,-3.5 L1,-1 L3.5,0 L1,1 L0,3.5 L-1,1 L-3.5,0 L-1,-1 Z"/>
+      </g>
+      <g transform="translate(200, 375)" fill="#C4956A" fillOpacity="0.22">
+        <path d="M0,-3.5 L1,-1 L3.5,0 L1,1 L0,3.5 L-1,1 L-3.5,0 L-1,-1 Z"/>
+      </g>
+    </svg>
   );
 }
