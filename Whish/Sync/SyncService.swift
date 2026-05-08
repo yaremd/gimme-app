@@ -80,6 +80,8 @@ final class SyncService {
         let sp = Perf.begin("sync-foreground")
         defer { Perf.end("sync-foreground", sp) }
 
+        guard (try? await supabase.auth.session) != nil else { return }
+
         let since = lastIncrementalSyncAt
         let syncStart = Date()
 
@@ -370,6 +372,11 @@ final class SyncService {
     /// so @Query properties in SwiftUI will refresh.
     private nonisolated static func performSync(container: ModelContainer, userID: String) async throws {
         guard let ownerUUID = UUID(uuidString: userID) else { return }
+
+        // Ensure the Supabase client has loaded the session before any requests.
+        // On first launch the cached session may be available to AuthService before
+        // the client's internal token is ready, causing unauthenticated upserts.
+        _ = try await supabase.auth.session
 
         let sp = Perf.begin("sync-perform")
         defer { Perf.end("sync-perform", sp) }
