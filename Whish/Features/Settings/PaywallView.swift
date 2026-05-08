@@ -170,10 +170,11 @@ struct PaywallView: View {
 
     private var purchaseTile: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Lifetime")
-                    .font(.rounded(.body, weight: .bold))
-                    .foregroundStyle(titleColor)
+            VStack(alignment: .leading, spacing: 5) {
+                Image("GimmeProLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 18)
                 Text("One-time purchase")
                     .font(.system(.subheadline))
                     .foregroundStyle(bodyColor)
