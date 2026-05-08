@@ -104,11 +104,6 @@ struct PaywallView: View {
                 footerRow
             }
 
-            // Confetti celebration on purchase
-            if celebrating {
-                ConfettiView()
-            }
-
             // Close button
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
@@ -120,6 +115,11 @@ struct PaywallView: View {
             .buttonStyle(.plain)
             .padding(.top, 16)
             .padding(.leading, 20)
+        }
+        .overlay {
+            if celebrating {
+                ConfettiView()
+            }
         }
         .presentationDetents([.height(440)])
         .presentationCornerRadius(deviceCornerRadius)
