@@ -119,6 +119,9 @@ struct PaywallView: View {
         .overlay {
             if celebrating {
                 ConfettiView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
         }
         .presentationDetents([.height(440)])

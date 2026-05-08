@@ -1,86 +1,90 @@
 import SwiftUI
+import UIKit
 
-struct ConfettiView: View {
-
-    private struct Particle: Identifiable {
-        let id = UUID()
-        let xFraction: CGFloat
-        let delay: Double
-        let duration: Double
-        let color: Color
-        let startAngle: Double
-        let endAngle: Double
-        let width: CGFloat
-        let height: CGFloat
-        let shape: Int  // 0 = rect, 1 = circle, 2 = rounded
+struct ConfettiView: UIViewRepresentable {
+    func makeUIView(context: Context) -> ConfettiUIView {
+        let view = ConfettiUIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
     }
 
-    private static let palette: [Color] = [
-        Color(hex: "#7C6FFD"),
-        Color(hex: "#3FA9F5"),
-        Color(hex: "#34C4A0"),
-        Color(hex: "#FF7043"),
-        Color(hex: "#FFCA28"),
-        Color(hex: "#EC407A"),
+    func updateUIView(_ uiView: ConfettiUIView, context: Context) {}
+}
+
+final class ConfettiUIView: UIView {
+
+    private let emitter = CAEmitterLayer()
+    private var started = false
+
+    private static let palette: [UIColor] = [
+        UIColor(red: 0.49, green: 0.44, blue: 0.99, alpha: 1), // #7C6FFD
+        UIColor(red: 0.25, green: 0.66, blue: 0.96, alpha: 1), // #3FA9F5
+        UIColor(red: 0.20, green: 0.77, blue: 0.63, alpha: 1), // #34C4A0
+        UIColor(red: 1.00, green: 0.44, blue: 0.26, alpha: 1), // #FF7043
+        UIColor(red: 1.00, green: 0.79, blue: 0.16, alpha: 1), // #FFCA28
+        UIColor(red: 0.93, green: 0.25, blue: 0.48, alpha: 1), // #EC407A
         .white,
     ]
 
-    @State private var particles: [Particle] = []
-    @State private var animating = false
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !started, bounds.width > 0 else { return }
+        started = true
+        start()
+    }
 
-    var body: some View {
-        GeometryReader { geo in
-            ForEach(particles) { p in
-                confettiPiece(p)
-                    .position(
-                        x: p.xFraction * geo.size.width,
-                        y: animating ? geo.size.height + 60 : -20
-                    )
-                    .rotationEffect(.degrees(animating ? p.endAngle : p.startAngle))
-                    .animation(
-                        .linear(duration: p.duration).delay(p.delay),
-                        value: animating
-                    )
-            }
+    private func start() {
+        emitter.emitterPosition = CGPoint(x: bounds.width / 2, y: -10)
+        emitter.emitterSize     = CGSize(width: bounds.width * 1.2, height: 1)
+        emitter.emitterShape    = .line
+        emitter.renderMode      = .unordered
+
+        emitter.emitterCells = Self.palette.flatMap { color in
+            [makeCell(color: color, rect: true),
+             makeCell(color: color, rect: false)]
         }
-        .allowsHitTesting(false)
-        .ignoresSafeArea()
-        .onAppear {
-            particles = (0..<90).map { _ in
-                Particle(
-                    xFraction: .random(in: 0.02...0.98),
-                    delay: .random(in: 0...0.55),
-                    duration: .random(in: 0.9...1.5),
-                    color: Self.palette.randomElement()!,
-                    startAngle: .random(in: -30...30),
-                    endAngle: .random(in: 200...520),
-                    width: .random(in: 5...9),
-                    height: .random(in: 8...14),
-                    shape: Int.random(in: 0...2)
-                )
-            }
-            // Tiny delay so the view is in the hierarchy before animation fires
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                animating = true
-            }
+
+        layer.addSublayer(emitter)
+
+        // Burst: emit hard for 0.35 s then cut off so particles drain naturally.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.emitter.birthRate = 0
         }
     }
 
-    @ViewBuilder
-    private func confettiPiece(_ p: Particle) -> some View {
-        switch p.shape {
-        case 1:
-            Circle()
-                .fill(p.color)
-                .frame(width: p.width, height: p.width)
-        case 2:
-            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(p.color)
-                .frame(width: p.width, height: p.height)
-        default:
-            Rectangle()
-                .fill(p.color)
-                .frame(width: p.width, height: p.height)
+    private func makeCell(color: UIColor, rect: Bool) -> CAEmitterCell {
+        let cell = CAEmitterCell()
+
+        // Draw particle image
+        let w: CGFloat = rect ? 7 : 8
+        let h: CGFloat = rect ? 12 : 8
+        let size = CGSize(width: w, height: h)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let img = renderer.image { _ in
+            color.setFill()
+            if rect {
+                UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 1.5).fill()
+            } else {
+                UIBezierPath(ovalIn: CGRect(origin: .zero, size: size)).fill()
+            }
         }
+        cell.contents = img.cgImage
+
+        cell.birthRate        = 14
+        cell.lifetime         = 2.2
+        cell.lifetimeRange    = 0.5
+        cell.velocity         = 380
+        cell.velocityRange    = 120
+        cell.emissionLongitude = .pi          // straight down
+        cell.emissionRange    = .pi / 5       // slight spread
+        cell.spin             = 4
+        cell.spinRange        = 5
+        cell.scale            = 1.0
+        cell.scaleRange       = 0.4
+        cell.alphaSpeed       = -0.25
+        cell.yAcceleration    = 80            // subtle gravity boost
+
+        return cell
     }
 }
