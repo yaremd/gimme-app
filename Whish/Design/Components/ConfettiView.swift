@@ -51,7 +51,7 @@ struct ConfettiView: View {
                     xFraction: .random(in: 0.02...0.98),
                     delay: .random(in: 0...0.55),
                     duration: .random(in: 0.9...1.5),
-                    color: palette.randomElement()!,
+                    color: Self.palette.randomElement()!,
                     startAngle: .random(in: -30...30),
                     endAngle: .random(in: 200...520),
                     width: .random(in: 5...9),
