@@ -544,7 +544,7 @@ struct SettingsView: View {
                 .shadow(color: Theme.Colors.accent.opacity(0.3), radius: 8, y: 3)
 
             VStack(alignment: .leading, spacing: 3) {
-                Image("GimmeLogo")
+                Image("GimmeProLogo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(height: 16)

@@ -61,6 +61,7 @@
 		B3D042721C70579D6D6D0A3B /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C116DB2B519E2EC23A27019 /* OnboardingViewModel.swift */; };
 		C0A056AEF8091F912968AEA8 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19BB40C3FA64A4127663CC9 /* ShareViewController.swift */; };
 		C3D9674BFC71BFC3D180A6E3 /* ScaleButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14CAC9A2C55DA9801ECEEB58 /* ScaleButtonStyle.swift */; };
+		F1FC993C4D874B0E83028D1C97AD5C09 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B786F764A8F4E8685BD9D6ABCDE2F91 /* ConfettiView.swift */; };
 		C5F47CC94361C5654B52A88E /* SyncToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF9BEB4DA49C559A4594760 /* SyncToast.swift */; };
 		C8F8BF65D52F509CC7285F32 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788409F2844A601AAAC370C3 /* FlowLayout.swift */; };
 		CDC355AF0D59D2A662308243 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5C3EA88EFDCA550AD30D2D /* ImageLoader.swift */; };
@@ -140,6 +141,7 @@
 		13F96E2F7811A0350E1B7FB0 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		148A2A3D2F41BF5A09C33B05 /* StatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsViewModel.swift; sourceTree = "<group>"; };
 		14CAC9A2C55DA9801ECEEB58 /* ScaleButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleButtonStyle.swift; sourceTree = "<group>"; };
+		3B786F764A8F4E8685BD9D6ABCDE2F91 /* ConfettiView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiView.swift; sourceTree = "<group>"; };
 		14E940C7AEA2357C727A9D83 /* PurchaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseService.swift; sourceTree = "<group>"; };
 		1BE81C252A0AB224FE3D00B1 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		2779D5C1085F118F5EC4D303 /* WhishTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhishTests.swift; sourceTree = "<group>"; };
@@ -307,6 +309,7 @@
 				788409F2844A601AAAC370C3 /* FlowLayout.swift */,
 				B816D107EBB012D252B26815 /* PriorityBadge.swift */,
 				14CAC9A2C55DA9801ECEEB58 /* ScaleButtonStyle.swift */,
+				3B786F764A8F4E8685BD9D6ABCDE2F91 /* ConfettiView.swift */,
 				6DF9BEB4DA49C559A4594760 /* SyncToast.swift */,
 			);
 			path = Components;
@@ -718,6 +721,7 @@
 				7230778C13D828F99EC76A68 /* ReminderOption.swift in Sources */,
 				FCBA9D72CA5465BA2485AF76 /* ResetPasswordView.swift in Sources */,
 				C3D9674BFC71BFC3D180A6E3 /* ScaleButtonStyle.swift in Sources */,
+				F1FC993C4D874B0E83028D1C97AD5C09 /* ConfettiView.swift in Sources */,
 				5884095BCD45DDBABFE4DB98 /* SettingsView.swift in Sources */,
 				72B06EB0C1CC1B5DA809EEA0 /* SharedListView.swift in Sources */,
 				4F86D6F981EA915CBC70817D /* SharedListViewModel.swift in Sources */,
@@ -916,6 +920,7 @@
 				CODE_SIGN_ENTITLEMENTS = Whish/Gimme.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_TEAM = S4M9R72TXR;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTABILITY = YES;
@@ -925,6 +930,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yaremchuk.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1059,6 +1065,7 @@
 				CODE_SIGN_ENTITLEMENTS = Whish/Gimme.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 13;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = S4M9R72TXR;
 				ENABLE_PREVIEWS = YES;
@@ -1071,6 +1078,7 @@
 					"@executable_path/Frameworks",
 				);
 				LLVM_LTO = YES_THIN;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.yaremchuk.app;
 				SDKROOT = iphoneos;
 				STRIP_INSTALLED_PRODUCT = YES;

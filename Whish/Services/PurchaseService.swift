@@ -32,8 +32,11 @@ final class PurchaseService {
     // MARK: - Purchase
 
     func purchase() async {
+        if product == nil { await loadProduct() }
         guard let product else {
-            errorMessage = "Product unavailable. Check your connection and try again."
+            if errorMessage == nil {
+                errorMessage = "Product unavailable. Check your connection and try again."
+            }
             return
         }
         isLoading = true
@@ -97,9 +100,17 @@ final class PurchaseService {
     private func loadProduct() async {
         do {
             let products = try await Product.products(for: [Self.productID])
-            product = products.first
+            if products.isEmpty {
+                // Product ID not found in App Store Connect — IAP not yet approved
+                // or the Paid Apps agreement is incomplete.
+                errorMessage = "Purchase setup is incomplete. Please try again later or contact support."
+            } else {
+                product = products.first
+                errorMessage = nil
+            }
         } catch {
-            // Non-fatal — price label falls back to "$4.99" in PaywallView.
+            // Network or StoreKit framework error — transient.
+            // price label falls back to "$4.99" in PaywallView.
         }
     }
 

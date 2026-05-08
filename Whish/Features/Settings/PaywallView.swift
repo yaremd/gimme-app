@@ -7,6 +7,7 @@ struct PaywallView: View {
     @Environment(PurchaseService.self) private var purchase
     @State private var currentFeature = 0
     @State private var isPressed = false
+    @State private var celebrating = false
 
     private let features: [(icon: String, title: String, body: String)] = [
         ("square.and.arrow.up", "Unlimited Sharing",  "Share all your lists. Free plan includes up to 2 shared lists."),
@@ -103,6 +104,11 @@ struct PaywallView: View {
                 footerRow
             }
 
+            // Confetti celebration on purchase
+            if celebrating {
+                ConfettiView()
+            }
+
             // Close button
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
@@ -123,9 +129,16 @@ struct PaywallView: View {
                 bgColor.opacity(0.92)
             }
         }
-        // Auto-dismiss on successful purchase
+        // Celebrate then auto-dismiss on successful purchase
         .onChange(of: purchase.isPro) { _, isPro in
-            if isPro { Haptics.success(); dismiss() }
+            if isPro {
+                Haptics.success()
+                celebrating = true
+                Task {
+                    try? await Task.sleep(for: .seconds(1.8))
+                    dismiss()
+                }
+            }
         }
         .alert("Purchase Error", isPresented: Binding(
             get: { purchase.errorMessage != nil },
