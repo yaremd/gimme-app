@@ -1,7 +1,16 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { Fraunces } from "next/font/google";
 import { supabase, WishList, WishItem } from "@/lib/supabase";
 import { WishItemCard } from "@/components/WishItemCard";
+import { BottomCTA } from "./BottomCTA";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+});
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -116,92 +125,94 @@ export default async function SharePage({ params }: Props) {
   const allClaimedOrPurchased = items.length > 0 && unpurchasedCount === 0;
 
   return (
-    <main className="share-page max-w-lg mx-auto px-4 pt-6 pb-36">
+    <main className={`share-page atelier ${fraunces.variable} relative overflow-hidden min-h-[100dvh]`}>
+
+      {/* ── Radial glow in list color ── */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[700px] pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at center, ${list.color_hex}1F 0%, ${list.color_hex}0A 35%, transparent 65%)`,
+          filter: "blur(50px)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* ── Film grain ── */}
+      <div className="atelier-grain pointer-events-none fixed inset-0 z-50" aria-hidden="true" />
+
+      <div className="relative max-w-lg mx-auto px-4 pt-7 pb-44">
 
       {/* ── Branded header ── */}
       <a
         href="https://gimmelist.com"
-        className="l-anim flex items-center justify-center gap-2 mb-8 no-underline"
+        className="l-anim flex items-center justify-center gap-2.5 mb-14 no-underline"
       >
-        <img src="/app-icon.png" alt="Gimme" width={20} height={20} className="rounded-md opacity-50" />
-        <span className="text-[11px] font-bold text-white/25 tracking-[0.18em] uppercase">Gimme</span>
+        <img src="/app-icon.png" alt="Gimme" width={28} height={28} className="rounded-lg opacity-75" />
+        <span className="text-[13px] font-bold text-white/55 tracking-[0.22em] uppercase">Gimme</span>
       </a>
 
       {/* ── List header ── */}
-      <header className="text-center mb-8 l-anim l-d1">
+      <header className="text-center mb-12 l-anim l-d1">
         {/* Emoji icon with list color */}
         <div
-          className="inline-flex items-center justify-center w-[88px] h-[88px] rounded-[1.75rem] text-[42px] mb-5"
+          className="inline-flex items-center justify-center w-[120px] h-[120px] rounded-[2rem] text-[60px] mb-8 relative s-float"
           style={{
-            backgroundColor: list.color_hex + "16",
-            boxShadow: `0 12px 40px ${list.color_hex}14, inset 0 1px 0 rgba(255,255,255,0.06)`,
-            border: `1px solid ${list.color_hex}20`,
+            backgroundColor: list.color_hex + "14",
+            boxShadow: `0 24px 60px ${list.color_hex}22, inset 0 1px 0 rgba(255,255,255,0.08)`,
+            border: `1px solid ${list.color_hex}26`,
           }}
         >
           {list.emoji}
         </div>
 
-        <h1 className="text-[28px] font-bold tracking-tight leading-tight mb-2">
+        <h1 className="atelier-name text-[40px] leading-[1.05] tracking-[-0.01em] mb-3 text-white">
           {list.name}
         </h1>
 
         {/* Subtitle line */}
-        <p className="text-white/35 text-[13px]">
+        <p className="text-white/40 text-[13px] tracking-wide">
           {items.length > 0
             ? allClaimedOrPurchased
               ? "Everything has been claimed or purchased"
-              : `${unpurchasedCount} gift${unpurchasedCount === 1 ? "" : "s"} to claim`
-            : "No items yet"}
-          {claimedCount > 0 && !allClaimedOrPurchased && (
-            <span
-              className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5"
-              style={{ backgroundColor: list.color_hex + "1A", color: list.color_hex + "CC" }}
-            >
-              <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-                <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              {claimedCount} claimed
-            </span>
-          )}
+              : `A shared wishlist`
+            : "A shared wishlist"}
         </p>
       </header>
 
-      {/* ── Stats strip ── */}
+      {/* ── Stats strip (compact inline) ── */}
       {items.length > 0 && (
-        <div className="l-anim l-d2 flex items-center justify-center gap-8 mb-8">
-          <Stat
-            value={String(unpurchasedCount)}
-            label="remaining"
-            color={list.color_hex}
-          />
-          {totalPrice && (
-            <>
-              <div className="w-px h-8 bg-white/[0.06]" />
-              <Stat value={totalPrice} label="total" />
-            </>
-          )}
-          {purchasedCount > 0 && (
-            <>
-              <div className="w-px h-8 bg-white/[0.06]" />
-              <Stat value={String(purchasedCount)} label="purchased" color="#34C48A" />
-            </>
-          )}
-          {claimedCount > 0 && purchasedCount === 0 && (
-            <>
-              <div className="w-px h-8 bg-white/[0.06]" />
-              <Stat value={String(claimedCount)} label="claimed" color="#34C48A" />
-            </>
-          )}
+        <div className="l-anim l-d2 mb-12">
+          <div className="text-center text-[12px] text-white/45 tabular-nums tracking-wide">
+            <span className="text-white/85 font-semibold">{unpurchasedCount}</span> gift{unpurchasedCount === 1 ? "" : "s"} to claim
+            {totalPrice && (
+              <>
+                <span className="text-white/15 mx-2.5">·</span>
+                <span className="text-white/85 font-semibold">{totalPrice}</span> total
+              </>
+            )}
+            {claimedCount > 0 && (
+              <>
+                <span className="text-white/15 mx-2.5">·</span>
+                <span className="font-semibold" style={{ color: list.color_hex }}>{claimedCount}</span> claimed
+              </>
+            )}
+            {purchasedCount > 0 && (
+              <>
+                <span className="text-white/15 mx-2.5">·</span>
+                <span className="font-semibold text-[#34C48A]">{purchasedCount}</span> bought
+              </>
+            )}
+          </div>
         </div>
       )}
 
-      {/* ── Items list ── */}
+      {/* ── Items grid (2-up) ── */}
       {items.length === 0 ? (
         <EmptyState color={list.color_hex} />
       ) : allClaimedOrPurchased ? (
         <>
           <AllDoneState color={list.color_hex} name={list.name} />
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3">
             {items.map((item, index) => (
               <div key={item.id} className={`l-anim l-d${Math.min(index + 4, 8)}`}>
                 <WishItemCard item={item} shareToken={token} accent={list.color_hex} />
@@ -210,7 +221,7 @@ export default async function SharePage({ params }: Props) {
           </div>
         </>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3 mb-20">
           {items.map((item, index) => (
             <div key={item.id} className={`l-anim l-d${Math.min(index + 3, 8)}`}>
               <WishItemCard item={item} shareToken={token} accent={list.color_hex} />
@@ -219,15 +230,115 @@ export default async function SharePage({ params }: Props) {
         </div>
       )}
 
-      {/* ── Fixed bottom download CTA ── */}
-      <div className="fixed bottom-0 inset-x-0 z-40 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0C0C0F] via-[#0C0C0F]/96 to-transparent pointer-events-none" />
-        <div className="relative max-w-lg mx-auto">
-          <DownloadCTA />
-        </div>
+      {/* ── Editorial "you-too" block ── */}
+      {items.length > 0 && (
+        <section className="l-anim l-d5">
+          <div className="atelier-divider mb-14" />
+
+          <div className="text-center max-w-sm mx-auto">
+            <p className="atelier-name italic text-[26px] leading-[1.2] text-white/90 mb-1.5">
+              Made with Gimme.
+            </p>
+            <p
+              className="atelier-name italic text-[26px] leading-[1.2] mb-12"
+              style={{ color: list.color_hex }}
+            >
+              You can have one too.
+            </p>
+
+            <div className="grid grid-cols-3 gap-3 mb-12">
+              <Step n="01" label="Add wishes" />
+              <Step n="02" label="Share a link" />
+              <Step n="03" label="Friends claim" />
+            </div>
+
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 rounded-full pl-5 pr-1.5 py-2 text-[13px] font-semibold no-underline atelier-cta"
+            >
+              <svg width="14" height="17" viewBox="0 0 16 20" fill="currentColor" className="shrink-0">
+                <path d="M11.86 10.36c-.03-2.3 1.88-3.4 1.97-3.46-1.07-1.57-2.74-1.78-3.34-1.81-1.42-.14-2.77.84-3.49.84s-1.83-.82-3.01-.8c-1.55.03-2.98.9-3.78 2.29-1.61 2.79-.41 6.93 1.16 9.19.77 1.11 1.68 2.36 2.88 2.31 1.16-.05 1.6-.75 3-.75s1.79.75 3.01.73c1.24-.03 2.04-1.13 2.8-2.24.88-1.29 1.24-2.53 1.27-2.6-.03-.01-2.44-.94-2.47-3.7zM9.53 3.5c.64-.77 1.07-1.85.95-2.92-.92.04-2.03.61-2.69 1.38-.59.68-1.11 1.77-.97 2.82 1.02.08 2.07-.52 2.71-1.28z"/>
+              </svg>
+              <span>Download on the App Store</span>
+              <span className="atelier-cta-arrow w-7 h-7 rounded-full bg-black/10 flex items-center justify-center">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2.5 7.5L7.5 2.5M7.5 2.5H3.5M7.5 2.5V6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+            </a>
+
+            <p className="text-[11px] text-white/25 mt-7 tracking-wide">
+              Free · Optional Pro upgrade · No subscriptions
+            </p>
+          </div>
+        </section>
+      )}
+
       </div>
 
+      {/* ── Fixed bottom dismissible CTA ── */}
+      <BottomCTA />
+
+      <style>{`
+        .atelier {
+          font-family: var(--font-outfit), system-ui, sans-serif;
+        }
+        .atelier-name {
+          font-family: var(--font-fraunces), Georgia, serif;
+          font-weight: 500;
+          font-style: italic;
+          font-variation-settings: "opsz" 144, "SOFT" 50;
+        }
+        .atelier-grain {
+          opacity: 0.04;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+        .atelier-divider {
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent);
+        }
+        .atelier-cta {
+          background: #FFFFFF;
+          color: #0C0C0F;
+          transition: all 0.7s cubic-bezier(0.32, 0.72, 0, 1);
+          box-shadow: 0 4px 24px rgba(255,255,255,0.10);
+        }
+        .atelier-cta:hover {
+          box-shadow: 0 10px 44px rgba(255,255,255,0.18);
+          transform: translateY(-2px);
+        }
+        .atelier-cta:active {
+          transform: translateY(0) scale(0.98);
+        }
+        .atelier-cta-arrow {
+          transition: transform 0.7s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .atelier-cta:hover .atelier-cta-arrow {
+          transform: translate(2px, -1px) scale(1.05);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .s-float, .l-anim, .atelier-cta, .atelier-cta-arrow {
+            animation: none !important;
+            opacity: 1 !important;
+            transition: none !important;
+          }
+        }
+      `}</style>
     </main>
+  );
+}
+
+/* ── 3-step card ── */
+function Step({ n, label }: { n: string; label: string }) {
+  return (
+    <div className="doppel-outer-dark">
+      <div className="doppel-inner-dark p-4 text-center">
+        <p className="text-white/30 text-[10px] font-bold tabular-nums tracking-[0.18em] mb-2">{n}</p>
+        <p className="text-white/75 text-[11px] font-medium leading-tight">{label}</p>
+      </div>
+    </div>
   );
 }
 

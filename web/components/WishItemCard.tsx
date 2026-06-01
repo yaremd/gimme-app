@@ -99,6 +99,28 @@ function ConfettiBurst({ accent }: { accent: string }) {
   );
 }
 
+/* ── Gift box placeholder for items without an image ── */
+function GiftPlaceholder({ accent }: { accent: string }) {
+  return (
+    <div
+      className="relative w-full h-full flex items-center justify-center"
+      style={{
+        background: `linear-gradient(135deg, ${accent}14 0%, ${accent}05 60%, transparent 100%)`,
+      }}
+    >
+      <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <ellipse cx="24" cy="40" rx="14" ry="2" fill="black" fillOpacity="0.18" />
+        <rect x="11" y="18" width="26" height="22" rx="2.5" fill="white" fillOpacity="0.03" stroke={accent} strokeWidth="1.3" strokeOpacity="0.55" />
+        <rect x="9" y="13" width="30" height="7" rx="2" fill={accent} fillOpacity="0.65" />
+        <line x1="24" y1="13" x2="24" y2="40" stroke={accent} strokeWidth="1.4" strokeOpacity="0.65" />
+        <line x1="11" y1="20" x2="37" y2="20" stroke={accent} strokeWidth="1.4" strokeOpacity="0.65" />
+        <path d="M19 12 Q22 4 24 12" stroke={accent} strokeWidth="1.4" strokeLinecap="round" fill="none" strokeOpacity="0.65" />
+        <path d="M24 12 Q26 4 29 12" stroke={accent} strokeWidth="1.4" strokeLinecap="round" fill="none" strokeOpacity="0.65" />
+      </svg>
+    </div>
+  );
+}
+
 /* ── Animated checkmark SVG ── */
 function AnimatedCheck({ color }: { color: string }) {
   return (
@@ -203,18 +225,18 @@ export function WishItemCard({ item, shareToken, accent }: Props) {
   const showClaimButton = !item.is_purchased && !reserved;
   const showMyClaimInfo = !item.is_purchased && reserved && claimedByMe;
 
-  const accentRgba = `${accent}30`;
-  const ringColor  = `${accent}40`;
+  const ringColor = `${accent}40`;
 
   return (
     <>
       {/* ── Card shell ── */}
       <div
-        className={`s-card-outer transition-all duration-700 ${
-          isUnavailable ? "opacity-45" : ""
+        className={`s-card-outer relative h-full atelier-card transition-all duration-700 ${
+          isUnavailable ? "opacity-50" : ""
         } ${showMyClaimInfo ? "s-claimed-ring" : ""}`}
         style={{
           transitionTimingFunction: "var(--s-ease, cubic-bezier(0.32, 0.72, 0, 1))",
+          borderLeft: `2px solid ${accent}${showMyClaimInfo ? "70" : "1E"}`,
           ...(showMyClaimInfo
             ? {
                 borderColor: accent + "35",
@@ -223,239 +245,137 @@ export function WishItemCard({ item, shareToken, accent }: Props) {
             : {}),
         } as React.CSSProperties}
       >
-        <div className="s-card-inner relative overflow-hidden">
+        <div className="s-card-inner relative overflow-hidden h-full flex flex-col">
 
-          {/* ── Confetti burst overlay ── */}
+          {/* Confetti burst overlay */}
           {showConfetti && <ConfettiBurst accent={accent} />}
 
-          {/* ── Product image (square crop, edge-to-edge) ── */}
-          {item.image_url && (
-            <div className="relative w-full aspect-square bg-white/[0.03] overflow-hidden">
+          {/* Image area (always present — real image or gift placeholder) */}
+          <div className="relative w-full aspect-square bg-white/[0.025] overflow-hidden">
+            {item.image_url ? (
               <img
                 src={item.image_url}
-                alt={item.title}
-                className={`w-full h-full object-cover transition-all duration-700 ${
-                  isUnavailable ? "grayscale-[60%]" : ""
-                }`}
+                alt=""
+                className={`w-full h-full object-cover transition-all duration-700 atelier-card-image ${isUnavailable ? "grayscale-[55%]" : ""}`}
                 loading="lazy"
               />
+            ) : (
+              <GiftPlaceholder accent={accent} />
+            )}
 
-              {/* Subtle vignette at bottom for text legibility */}
-              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+            {/* Vignette */}
+            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/35 to-transparent pointer-events-none" />
 
-              {/* ── Status badges ── */}
-              {item.is_purchased && (
-                <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-[#30D158]/90 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white shadow-lg animate-scale-pop">
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="shrink-0">
-                    <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Purchased
-                </div>
-              )}
-
-              {reserved && !item.is_purchased && !claimedByMe && (
-                <div className="absolute top-3 right-3 rounded-full bg-white/15 backdrop-blur-md border border-white/10 px-3 py-1.5 text-xs font-medium text-white/80 shadow-lg">
-                  Reserved
-                </div>
-              )}
-
-              {showMyClaimInfo && (
-                <div
-                  className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full backdrop-blur-md px-3 py-1.5 text-xs font-bold shadow-lg animate-scale-pop"
-                  style={{ backgroundColor: accent + "E8", color: contrastingText(accent) }}
-                >
-                  <AnimatedCheck color={contrastingText(accent)} />
-                  You&apos;re getting this
-                </div>
-              )}
-
-              {/* Priority dot */}
-              <div className="absolute top-3 left-3">
-                <div
-                  className={`w-2.5 h-2.5 rounded-full ${priority.dot} shadow-md ring-1 ring-black/20`}
-                  title={`${priority.label} priority`}
-                />
+            {/* Status badges (compact) */}
+            {item.is_purchased && (
+              <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-[#30D158]/90 backdrop-blur-md px-2 py-1 text-[10px] font-semibold text-white shadow-md animate-scale-pop">
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+                  <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Bought
               </div>
-            </div>
-          )}
-
-          {/* ── No-image header strip (claimed state bg) ── */}
-          {!item.image_url && showMyClaimInfo && (
-            <div
-              className="w-full h-1.5"
-              style={{ background: `linear-gradient(90deg, ${accent}60, ${accent}20)` }}
-            />
-          )}
-
-          {/* ── Content ── */}
-          <div className="p-4">
-
-            {/* Title + price */}
-            <div className="flex items-start justify-between gap-3">
-              <h3
-                className={`font-semibold text-[15px] leading-snug line-clamp-2 flex-1 ${
-                  isUnavailable
-                    ? "line-through text-white/35"
-                    : "text-white"
-                }`}
+            )}
+            {reserved && !item.is_purchased && !claimedByMe && (
+              <div className="absolute top-2 right-2 rounded-full bg-white/15 backdrop-blur-md border border-white/10 px-2 py-1 text-[10px] font-medium text-white/80 shadow-md">
+                Reserved
+              </div>
+            )}
+            {showMyClaimInfo && (
+              <div
+                className="absolute top-2 right-2 flex items-center gap-1 rounded-full backdrop-blur-md px-2 py-1 text-[10px] font-bold shadow-md animate-scale-pop"
+                style={{ backgroundColor: accent + "EC", color: contrastingText(accent) }}
               >
-                {item.title}
-              </h3>
-
-              {item.price_double != null && item.currency && (
-                <p
-                  className={`text-[13px] font-bold tabular-nums shrink-0 mt-0.5 ${
-                    isUnavailable ? "text-white/25 line-through" : "text-white/55"
-                  }`}
-                >
-                  {formatPrice(item.price_double, item.currency)}
-                </p>
-              )}
-            </div>
-
-            {/* No-image status badges */}
-            {!item.image_url && (
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className={`text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5 ${priority.badge}`}>
-                  {priority.label}
-                </span>
-                {item.is_purchased && (
-                  <span className="text-[10px] font-semibold bg-green-500/15 text-green-400 rounded-full px-2 py-0.5 flex items-center gap-1">
-                    <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-                      <path d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Purchased
-                  </span>
-                )}
-                {reserved && !item.is_purchased && !claimedByMe && (
-                  <span className="text-[10px] font-medium bg-white/10 text-white/45 rounded-full px-2 py-0.5">
-                    Reserved
-                  </span>
-                )}
-                {showMyClaimInfo && (
-                  <span
-                    className="text-[10px] font-bold rounded-full px-2 py-0.5 flex items-center gap-1 animate-scale-pop"
-                    style={{ backgroundColor: accent + "22", color: accent }}
-                  >
-                    <AnimatedCheck color={accent} />
-                    You&apos;re getting this
-                  </span>
-                )}
+                <AnimatedCheck color={contrastingText(accent)} />
+                Yours
               </div>
             )}
 
-            {/* Notes */}
-            {item.notes && (
-              <p className="text-[13px] text-white/35 mt-2.5 line-clamp-2 leading-relaxed">
-                {item.notes}
+            {/* Priority dot */}
+            <div className="absolute top-2 left-2">
+              <div
+                className={`w-2 h-2 rounded-full ${priority.dot} shadow-md ring-1 ring-black/25`}
+                title={`${priority.label} priority`}
+              />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-3 flex-1 flex flex-col">
+
+            <h3
+              className={`font-semibold text-[13px] leading-snug line-clamp-2 mb-1.5 ${
+                isUnavailable ? "line-through text-white/35" : "text-white"
+              }`}
+              title={item.title}
+            >
+              {item.title}
+            </h3>
+
+            {item.price_double != null && item.currency && (
+              <p
+                className={`text-[13px] font-bold tabular-nums mb-auto ${
+                  isUnavailable ? "text-white/30" : "text-white/85"
+                }`}
+              >
+                {formatPrice(item.price_double, item.currency)}
               </p>
             )}
 
-            {/* External link */}
-            {item.url && (
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 mt-2.5 text-[11px] text-white/28 hover:text-white/55 transition-colors group"
-              >
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" className="opacity-60 group-hover:opacity-90 transition-opacity shrink-0">
-                  <path d="M5 3H3.5C2.67 3 2 3.67 2 4.5v4C2 9.33 2.67 10 3.5 10h4c.83 0 1.5-.67 1.5-1.5V7M7 2h3v3M6 6l4-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                {hostFromURL(item.url)}
-              </a>
-            )}
+            {/* Footer row: hostname + action */}
+            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-white/[0.05]">
+              {item.url ? (
+                <span className="text-[10px] text-white/30 truncate flex-1 min-w-0">
+                  {hostFromURL(item.url)}
+                </span>
+              ) : (
+                <span className="flex-1" />
+              )}
 
-            {/* ── Claimed-by info ── */}
-            {reserved && reservedBy && (
-              <div
-                className="mt-3 pt-3 border-t border-white/[0.06] flex items-start gap-2"
-              >
-                {/* Avatar initial */}
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+              {showClaimButton && (
+                <button
+                  type="button"
+                  onClick={() => setShowModal(true)}
+                  className="atelier-claim shrink-0 relative z-10 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all duration-300 active:scale-[0.97]"
                   style={{
-                    backgroundColor: claimedByMe ? accent + "22" : "rgba(255,255,255,0.07)",
-                    color: claimedByMe ? accent : "rgba(255,255,255,0.4)",
+                    backgroundColor: accent + "22",
+                    color: accent,
+                    border: `1px solid ${accent}40`,
                   }}
                 >
-                  {reservedBy.charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12px] text-white/40 leading-snug">
-                    {claimedByMe
-                      ? <span style={{ color: accent + "CC" }}>You ({reservedBy}) claimed this</span>
-                      : <span>Reserved by <span className="text-white/55 font-medium">{reservedBy}</span></span>
-                    }
-                  </p>
-                  {reservedComment && (
-                    <p className="text-[11px] text-white/25 italic mt-0.5 line-clamp-2">
-                      &ldquo;{reservedComment}&rdquo;
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── Claim button ── */}
-            {showClaimButton && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="mt-4 w-full rounded-[14px] py-3.5 text-[14px] font-bold tracking-wide transition-all active:scale-[0.97] active:brightness-90"
-                style={{
-                  backgroundColor: accent,
-                  color: contrastingText(accent),
-                  boxShadow: `0 4px 20px ${accent}35`,
-                }}
-              >
-                I&apos;ll get this
-              </button>
-            )}
-
-            {/* Undo link */}
-            {showMyClaimInfo && (
-              <button
-                onClick={handleUnclaim}
-                disabled={loading}
-                className="mt-3 w-full text-[11px] text-white/25 hover:text-white/45 transition-colors disabled:opacity-40"
-              >
-                {loading ? "Removing..." : "Changed your mind? Undo"}
-              </button>
-            )}
-
-            {/* Post-claim download prompt */}
-            {justClaimed && (
-              <a
-                href="https://apps.apple.com/app/gimme-wishlist-gift-ideas/id0000000000"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 flex items-center gap-3 rounded-[1.25rem] p-3 no-underline l-anim"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}10, ${accent}06)`,
-                  border: `1px solid ${accent}18`,
-                }}
-                onClick={() => setJustClaimed(false)}
-              >
-                <img
-                  src="/app-icon.png"
-                  alt="Gimme"
-                  width={36}
-                  height={36}
-                  className="rounded-[10px] shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-white">Want your own wishlist?</p>
-                  <p className="text-[11px] mt-0.5" style={{ color: accent + "99" }}>Get Gimme — it&apos;s free</p>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 opacity-30">
-                  <path d="M4 10L10 4M10 4H5.5M10 4V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </a>
-            )}
-
+                  Claim
+                </button>
+              )}
+              {showMyClaimInfo && (
+                <button
+                  type="button"
+                  onClick={handleUnclaim}
+                  disabled={loading}
+                  className="shrink-0 relative z-10 text-[10px] text-white/45 hover:text-white/70 italic transition-colors disabled:opacity-40"
+                >
+                  {loading ? "..." : "tap to unclaim"}
+                </button>
+              )}
+              {reserved && !item.is_purchased && !claimedByMe && (
+                <span className="shrink-0 text-[10px] text-white/30">claimed</span>
+              )}
+              {item.is_purchased && (
+                <span className="shrink-0 text-[10px] text-white/30">bought</span>
+              )}
+            </div>
           </div>
         </div>
-      </div>{/* s-card-outer */}
+
+        {/* Stretched link covers entire card — buttons sit above via z-10 */}
+        {item.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${item.title}`}
+            className="absolute inset-0 rounded-[1.5rem] z-[1]"
+          />
+        )}
+      </div>
 
       {/* ── Claim modal — portalled to body to escape CSS stacking contexts ── */}
       {showModal && mounted && createPortal(
@@ -524,6 +444,13 @@ export function WishItemCard({ item, shareToken, accent }: Props) {
                 />
               </div>
 
+              {/* Reservation info (shown in modal so card stays compact) */}
+              {reserved && reservedBy && !claimedByMe && (
+                <p className="text-white/35 text-[12px] text-center mb-4 italic">
+                  Currently reserved by {reservedBy}
+                </p>
+              )}
+
               {error && (
                 <p className="text-red-400 text-[12px] text-center mb-3 flex items-center justify-center gap-1.5">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -561,6 +488,36 @@ export function WishItemCard({ item, shareToken, accent }: Props) {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Post-claim mini download prompt — appears below card after successful claim */}
+      {justClaimed && (
+        <a
+          href="https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="col-span-2 flex items-center gap-3 rounded-[1.25rem] p-3 no-underline l-anim mt-1"
+          style={{
+            background: `linear-gradient(135deg, ${accent}10, ${accent}06)`,
+            border: `1px solid ${accent}18`,
+          }}
+          onClick={() => setJustClaimed(false)}
+        >
+          <img
+            src="/app-icon.png"
+            alt="Gimme"
+            width={36}
+            height={36}
+            className="rounded-[10px] shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-white">Want your own wishlist?</p>
+            <p className="text-[11px] mt-0.5" style={{ color: accent + "99" }}>Get Gimme — it&apos;s free</p>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 opacity-30">
+            <path d="M4 10L10 4M10 4H5.5M10 4V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </a>
       )}
     </>
   );
