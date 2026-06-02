@@ -449,11 +449,18 @@ export default async function Image({
     },
   ];
 
+  // Shorter cache: 1 day fresh + 1 week stale-while-revalidate. Per-deploy
+  // cache-busting query param means scrapers see updated images right away.
+  const ogHeaders = {
+    "cache-control": "public, max-age=0, s-maxage=86400, stale-while-revalidate=604800",
+  };
+
   if (!list) {
     return new ImageResponse(<FallbackOG />, {
       width: 1200,
       height: 630,
       fonts,
+      headers: ogHeaders,
     });
   }
 
@@ -474,6 +481,7 @@ export default async function Image({
       width: 1200,
       height: 630,
       fonts,
+      headers: ogHeaders,
     }
   );
 }

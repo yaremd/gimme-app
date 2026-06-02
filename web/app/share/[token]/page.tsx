@@ -62,7 +62,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const result = await getSharedList(token);
 
   const shareUrl = `https://gimmelist.com/share/${token}`;
-  const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image`;
+  // Cache-bust the OG image per deploy so updates show up immediately on
+  // Facebook/Slack/iMessage without waiting for the 1-year edge cache to expire.
+  const ogVersion = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev";
+  const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image?v=${ogVersion}`;
 
   if (!result) {
     return {
