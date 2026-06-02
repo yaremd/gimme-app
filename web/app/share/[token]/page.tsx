@@ -64,7 +64,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const shareUrl = `https://gimmelist.com/share/${token}`;
   // Cache-bust the OG image per deploy so updates show up immediately on
   // Facebook/Slack/iMessage without waiting for the 1-year edge cache to expire.
-  const ogVersion = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev";
+  // Prefer commit SHA when available (git-linked deploys); fall back to the
+  // unique deployment hostname slug from VERCEL_URL (CLI-driven deploys).
+  const ogVersion =
+    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+    process.env.VERCEL_URL?.split("-")[1]?.slice(0, 10) ??
+    "dev";
   const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image?v=${ogVersion}`;
 
   if (!result) {
