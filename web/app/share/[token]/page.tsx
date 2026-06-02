@@ -61,8 +61,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params;
   const result = await getSharedList(token);
 
+  const shareUrl = `https://gimmelist.com/share/${token}`;
+  const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image`;
+
   if (!result) {
-    return { title: "List not found — Gimme" };
+    return {
+      title: "List not found — Gimme",
+      // Override the layout's site-wide canonical so the share URL is canonical to itself
+      alternates: { canonical: shareUrl },
+      // Wishlists are private-by-link — keep them out of search results
+      robots: { index: false, follow: false },
+    };
   }
 
   const { list, items } = result;
@@ -73,16 +82,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${title} — Gimme`,
     description,
+    // Critical: override the layout's site-wide canonical. Without this, Facebook/Slack/iMessage
+    // follow the rel="canonical" to the homepage and use the LANDING PAGE OG image.
+    alternates: { canonical: shareUrl },
+    // Private-by-link surface; don't index in search engines.
+    robots: { index: false, follow: false },
     openGraph: {
       title,
       description,
+      url: shareUrl,
       type: "website",
       siteName: "Gimme",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${list.name} — wishlist on Gimme`,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: [ogImageUrl],
     },
   };
 }
