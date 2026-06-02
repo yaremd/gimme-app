@@ -62,15 +62,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const result = await getSharedList(token);
 
   const shareUrl = `https://gimmelist.com/share/${token}`;
-  // Cache-bust the OG image per deploy so updates show up immediately on
-  // Facebook/Slack/iMessage without waiting for the 1-year edge cache to expire.
-  // Prefer commit SHA when available (git-linked deploys); fall back to the
-  // unique deployment hostname slug from VERCEL_URL (CLI-driven deploys).
-  const ogVersion =
-    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
-    process.env.VERCEL_URL?.split("-")[1]?.slice(0, 10) ??
-    "dev";
-  const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image?v=${ogVersion}`;
+  // BUILD_ID is injected by next.config.js at build time — one unique value
+  // per deploy. Appending it to og:image busts every CDN/scraper cache that
+  // would otherwise hold @vercel/og's default 1-year immutable response.
+  const ogImageUrl = `https://gimmelist.com/share/${token}/opengraph-image?v=${process.env.BUILD_ID ?? "dev"}`;
 
   if (!result) {
     return {
