@@ -27,13 +27,6 @@ function formatTotalPrice(items: WishItem[]): string | null {
   }
 }
 
-/* ── Enriched list with computed stats passed to the Card ── */
-interface EnrichedList extends WishList {
-  unpurchasedCount: number;
-  claimedCount: number;
-  totalPrice: string | null;
-}
-
 /* ── Fallback OG (when list doesn't exist) ── */
 function FallbackOG() {
   return (
@@ -77,13 +70,13 @@ function FallbackOG() {
   );
 }
 
-/* ── Card: Midnight Atelier OG card ── */
+/* ── Card: Midnight Atelier OG card (self-contained — computes its own stats) ── */
 function Card({
   list,
   items,
   accent,
 }: {
-  list: EnrichedList;
+  list: WishList;
   items: WishItem[];
   accent: string;
 }) {
@@ -92,15 +85,18 @@ function Card({
   const validItems = items.slice(0, 4);
   const remaining = Math.max(items.length - 3, 0);
 
-  const totalPriceStr = list?.totalPrice || null;
-  const stats = `${list?.unpurchasedCount ?? items.length} gifts · ${
-    totalPriceStr || "Wishlist"
-  } · ${list?.claimedCount ?? 0} claimed`;
+  const unpurchasedCount = items.filter((i) => !i.is_purchased).length;
+  const claimedCount = items.filter(
+    (i) => i.is_reserved_by_friend && !i.is_purchased
+  ).length;
+  const totalPrice = formatTotalPrice(items);
+
+  const stats = `${unpurchasedCount} gifts · ${totalPrice || "Wishlist"} · ${claimedCount} claimed`;
 
   const nameLen = list?.name?.length ?? 0;
   const title = nameLen > 28 ? 56 : nameLen > 18 ? 64 : 72;
 
-  const isFullyClaimed = list?.unpurchasedCount === 0 && items.length > 0;
+  const isFullyClaimed = unpurchasedCount === 0 && items.length > 0;
 
   return (
     <div
@@ -408,26 +404,13 @@ export default async function Image({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Load fonts in parallel: Outfit for body, Fraunces italic for the editorial list name
-  const [outfitMedium, frauncesItalic] = await Promise.all([
-    fetch(new URL("./Outfit-Medium.ttf", import.meta.url)).then((r) => r.arrayBuffer()),
-    fetch(new URL("./Fraunces-MediumItalic.ttf", import.meta.url)).then((r) => r.arrayBuffer()),
-  ]);
+  const outfit = await fetch(
+    new URL("./Outfit-Medium.ttf", import.meta.url)
+  ).then((r) => r.arrayBuffer());
 
-  const fonts = [
-    {
-      name: "Outfit",
-      data: outfitMedium,
-      style: "normal" as const,
-      weight: 500 as const,
-    },
-    {
-      name: "Fraunces",
-      data: frauncesItalic,
-      style: "italic" as const,
-      weight: 500 as const,
-    },
-  ];
+  const fraunces = await fetch(
+    new URL("./Fraunces-MediumItalic.ttf", import.meta.url)
+  ).then((r) => r.arrayBuffer());
 
   const { data: list } = await supabaseClient
     .from("wish_lists")
@@ -436,8 +419,26 @@ export default async function Image({
     .eq("is_shared", true)
     .single<WishList>();
 
+  const fonts = [
+    {
+      name: "Outfit",
+      data: outfit,
+      weight: 500 as const,
+    },
+    {
+      name: "Fraunces",
+      data: fraunces,
+      style: "italic" as const,
+      weight: 500 as const,
+    },
+  ];
+
   if (!list) {
-    return new ImageResponse(<FallbackOG />, { ...size, fonts });
+    return new ImageResponse(<FallbackOG />, {
+      width: 1200,
+      height: 630,
+      fonts,
+    });
   }
 
   const { data: allItems } = await supabaseClient
@@ -450,21 +451,13 @@ export default async function Image({
     .returns<WishItem[]>();
 
   const items = allItems ?? [];
-  const unpurchasedCount = items.filter((i) => !i.is_purchased).length;
-  const claimedCount = items.filter(
-    (i) => i.is_reserved_by_friend && !i.is_purchased
-  ).length;
-  const totalPrice = formatTotalPrice(items);
-
-  const enrichedList: EnrichedList = {
-    ...list,
-    unpurchasedCount,
-    claimedCount,
-    totalPrice,
-  };
 
   return new ImageResponse(
-    <Card list={enrichedList} items={items} accent={list.color_hex} />,
-    { ...size, fonts }
+    <Card list={list} items={items} accent={list.color_hex} />,
+    {
+      width: 1200,
+      height: 630,
+      fonts,
+    }
   );
 }
