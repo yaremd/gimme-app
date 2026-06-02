@@ -91,7 +91,14 @@ function Card({
   ).length;
   const totalPrice = formatTotalPrice(items);
 
-  const stats = `${unpurchasedCount} gifts · ${totalPrice || "Wishlist"} · ${claimedCount} claimed`;
+  // Compact stats — drop the middle segment when no price; drop "0 claimed"
+  const stats = [
+    `${unpurchasedCount} ${unpurchasedCount === 1 ? "gift" : "gifts"}`,
+    totalPrice,
+    claimedCount > 0 ? `${claimedCount} claimed` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const nameLen = list?.name?.length ?? 0;
   const title = nameLen > 28 ? 56 : nameLen > 18 ? 64 : 72;
@@ -304,6 +311,32 @@ function Card({
             {validItems.map((item, i) => {
               const showMore = i === 3 && items.length > 4;
 
+              // When the slot is the "+N more" tile, render ONLY the overlay —
+              // don't render the underlying item content (was leaking through 72% black).
+              if (showMore && remaining > 0) {
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      width: 240,
+                      height: 240,
+                      borderRadius: 28,
+                      border: "1.5px solid rgba(255,255,255,0.1)",
+                      boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+                      background: `linear-gradient(135deg, ${color}24, ${color}10)`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 42,
+                      fontWeight: 600,
+                      color: "#fff",
+                    }}
+                  >
+                    +{remaining} more
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={i}
@@ -343,23 +376,6 @@ function Card({
                       }}
                     >
                       {item?.title || "Gift"}
-                    </div>
-                  )}
-
-                  {showMore && remaining > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "rgba(12,12,15,0.72)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 42,
-                        fontWeight: 600,
-                      }}
-                    >
-                      +{remaining} more
                     </div>
                   )}
                 </div>
