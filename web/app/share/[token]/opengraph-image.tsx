@@ -28,7 +28,7 @@ function FallbackOG() {
         alignItems: "center",
         justifyContent: "center",
         background: "linear-gradient(135deg, #12111C 0%, #0D0D0F 100%)",
-        fontFamily: "system-ui, sans-serif",
+        fontFamily: "Outfit",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
@@ -70,6 +70,27 @@ export default async function Image({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Load fonts in parallel: Outfit for body, Fraunces italic for the editorial list name
+  const [outfitMedium, frauncesItalic] = await Promise.all([
+    fetch(new URL("./Outfit-Medium.ttf", import.meta.url)).then((r) => r.arrayBuffer()),
+    fetch(new URL("./Fraunces-MediumItalic.ttf", import.meta.url)).then((r) => r.arrayBuffer()),
+  ]);
+
+  const fonts = [
+    {
+      name: "Outfit",
+      data: outfitMedium,
+      style: "normal" as const,
+      weight: 500 as const,
+    },
+    {
+      name: "Fraunces",
+      data: frauncesItalic,
+      style: "italic" as const,
+      weight: 500 as const,
+    },
+  ];
+
   const { data: list } = await supabaseClient
     .from("wish_lists")
     .select("*")
@@ -78,7 +99,7 @@ export default async function Image({
     .single<WishList>();
 
   if (!list) {
-    return new ImageResponse(<FallbackOG />, { ...size });
+    return new ImageResponse(<FallbackOG />, { ...size, fonts });
   }
 
   const { data: allItems } = await supabaseClient
@@ -112,7 +133,7 @@ export default async function Image({
           display: "flex",
           flexDirection: "column",
           background: `linear-gradient(135deg, #14121F 0%, #0D0D0F 55%, #0C0C0F 100%)`,
-          fontFamily: "system-ui, -apple-system, sans-serif",
+          fontFamily: "Outfit",
           position: "relative",
           overflow: "hidden",
         }}
@@ -182,15 +203,17 @@ export default async function Image({
               {list.emoji}
             </div>
 
-            {/* List name */}
+            {/* List name — Fraunces italic for editorial weight */}
             <div
               style={{
-                fontSize: 52,
-                fontWeight: 800,
+                fontFamily: "Fraunces",
+                fontStyle: "italic",
+                fontWeight: 500,
+                fontSize: 58,
                 color: "white",
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-                marginBottom: 16,
+                lineHeight: 1.05,
+                letterSpacing: "-0.015em",
+                marginBottom: 18,
                 maxWidth: 460,
               }}
             >
@@ -236,33 +259,33 @@ export default async function Image({
               )}
             </div>
 
-            {/* CTA pill */}
+            {/* CTA pill — white pill matching the share page editorial CTA */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
                 marginTop: 36,
-                backgroundColor: accentSolid,
+                backgroundColor: "white",
                 borderRadius: 9999,
                 padding: "13px 24px",
                 width: "fit-content",
-                boxShadow: `0 8px 28px rgba(${r},${g},${b},0.38)`,
+                boxShadow: `0 12px 36px rgba(${r},${g},${b},0.20)`,
               }}
             >
               <div
                 style={{
                   fontSize: 19,
                   fontWeight: 700,
-                  color: "white",
+                  color: "#0C0C0F",
                   letterSpacing: "-0.01em",
                 }}
               >
-                Tap to claim a gift
+                Open this wishlist
               </div>
               {/* Arrow */}
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M4.5 13.5L13.5 4.5M13.5 4.5H6.5M13.5 4.5V11.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M4.5 13.5L13.5 4.5M13.5 4.5H6.5M13.5 4.5V11.5" stroke="#0C0C0F" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
           </div>
@@ -427,18 +450,19 @@ export default async function Image({
             </div>
           </div>
 
-          {/* Right: item count summary */}
+          {/* Right: conversion-driving tagline */}
           <div
             style={{
               fontSize: 15,
-              color: "rgba(255,255,255,0.24)",
+              color: "rgba(255,255,255,0.32)",
+              letterSpacing: "0.02em",
             }}
           >
-            Wishlist &amp; Gift Ideas
+            Make your own — free on iPhone
           </div>
         </div>
       </div>
     ),
-    { ...size }
+    { ...size, fonts }
   );
 }
