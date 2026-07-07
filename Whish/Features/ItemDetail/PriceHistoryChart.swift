@@ -27,7 +27,8 @@ struct PriceHistoryChart: View {
         Chart(plotted, id: \.date) { point in
             AreaMark(
                 x: .value("Date", point.date),
-                y: .value("Price", point.price)
+                yStart: .value("Floor", yDomain.lowerBound),
+                yEnd: .value("Price", point.price)
             )
             .interpolationMethod(.stepEnd)
             .foregroundStyle(
@@ -43,6 +44,7 @@ struct PriceHistoryChart: View {
             .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
         }
         .chartYScale(domain: yDomain)
+        .chartPlotStyle { $0.clipped() }
         .chartXAxis(.hidden)
         .chartYAxis {
             AxisMarks(position: .trailing, values: .automatic(desiredCount: 2)) { value in
