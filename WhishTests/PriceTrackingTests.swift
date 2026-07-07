@@ -80,6 +80,26 @@ struct PriceTrackingTests {
         #expect(!purchased.canTrackPrice)
     }
 
+    // MARK: - Target price
+
+    @Test func targetAlertsOnFirstCrossing() {
+        #expect(PriceDropRule.shouldNotify(reference: 200, current: 180, target: 180))
+        #expect(PriceDropRule.shouldNotify(reference: 200, current: 150, target: 180))
+        #expect(PriceDropRule.shouldNotify(reference: nil, current: 100, target: 120))
+    }
+
+    @Test func targetSilencesPercentRuleAboveIt() {
+        // 7.5% drop would normally alert, but the user asked for $180
+        #expect(!PriceDropRule.shouldNotify(reference: 200, current: 185, target: 180))
+    }
+
+    @Test func percentRuleResumesAfterTargetCrossed() {
+        // Already alerted at 175 (below target) — small move stays quiet,
+        // a further meaningful drop alerts again.
+        #expect(!PriceDropRule.shouldNotify(reference: 175, current: 174, target: 180))
+        #expect(PriceDropRule.shouldNotify(reference: 175, current: 160, target: 180))
+    }
+
     // MARK: - Verdict banding
 
     @Test func verdictBandsAgainstSeenRange() {

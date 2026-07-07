@@ -40,6 +40,8 @@ final class WishItem {
     var lastPriceCheckAt: Date?
     /// Price already alerted about — suppresses repeat notifications for the same drop.
     var lastNotifiedPriceDouble: Double?
+    /// User-set alert threshold — "notify me at or below this price".
+    var targetPriceDouble: Double?
     /// Consecutive failed checks — items backing off get checked weekly instead of daily.
     var priceCheckFailureCount: Int = 0
 

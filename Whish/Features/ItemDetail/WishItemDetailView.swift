@@ -9,6 +9,8 @@ struct WishItemDetailView: View {
     @State private var isShowingClearReservationConfirm = false
     @State private var isCheckingPrice = false
     @State private var isShowingPricePaywall = false
+    @State private var isShowingTargetInput = false
+    @State private var targetInputText = ""
     @Environment(\.modelContext) private var modelContext
     private var modelContainer: ModelContainer { modelContext.container }
     @Environment(\.dismiss) private var dismiss
@@ -112,6 +114,17 @@ struct WishItemDetailView: View {
                 .pageSheet()
         }
         .sheet(isPresented: $isShowingPricePaywall) { PaywallView().pageSheet() }
+        .alert("Alert below", isPresented: $isShowingTargetInput) {
+            TextField("Target price", text: $targetInputText)
+                .keyboardType(.decimalPad)
+            Button("Set") { applyTargetPrice() }
+            if item.targetPrice != nil {
+                Button("Remove", role: .destructive) { item.targetPrice = nil }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Get notified when the price falls to this amount.")
+        }
         .alert("Clear Reservation?", isPresented: $isShowingClearReservationConfirm) {
             Button("Clear", role: .destructive) {
                 viewModel.clearReservation(item)
@@ -314,6 +327,27 @@ struct WishItemDetailView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
 
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "bell")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        Text("Alert below")
+                            .font(.system(.caption))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                        Spacer()
+                        Button {
+                            targetInputText = item.targetPrice.map { "\($0)" } ?? ""
+                            isShowingTargetInput = true
+                        } label: {
+                            Text(item.targetPrice.map { $0.formatted(currency: item.currency) } ?? "Set")
+                                .font(.system(.caption, weight: .semibold))
+                                .foregroundStyle(isTargetMet ? Theme.Colors.purchased : accessibleGlowText)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Theme.Colors.surfaceElevated, in: Capsule())
+                        }
+                    }
+
                     HStack {
                         if let checked = item.lastPriceCheckAt {
                             Text("Checked \(checked.formatted(.relative(presentation: .named)))")
@@ -341,6 +375,21 @@ struct WishItemDetailView: View {
         .background(Theme.Colors.surface,
                     in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .animation(Theme.quickSpring, value: item.isPriceTrackingEnabled)
+    }
+
+    /// Current price is at or below the user's alert target.
+    private var isTargetMet: Bool {
+        guard let target = item.targetPriceDouble,
+              let current = item.price.map({ NSDecimalNumber(decimal: $0).doubleValue })
+        else { return false }
+        return current <= target + PriceDropRule.epsilon
+    }
+
+    private func applyTargetPrice() {
+        let normalized = targetInputText.replacingOccurrences(of: ",", with: ".")
+        guard let value = Decimal(string: normalized), value > 0 else { return }
+        item.targetPrice = value
+        Haptics.selection()
     }
 
     private func setPriceTracking(_ enabled: Bool) {
@@ -406,19 +455,33 @@ struct WishItemDetailView: View {
                 .primaryGlassBackground(color: accessibleGlow)
             }
 
-            // Open in browser — secondary glass outline
+            // Open in browser — becomes a prominent buy CTA while a drop is active
             if let urlString = item.url, let url = URL(string: urlString) {
-                Link(destination: url) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "safari")
-                        Text("Open in Browser")
-                            .font(.rounded(.body, weight: .semibold))
+                if !item.isPurchased, item.hasPriceDrop, let price = item.price {
+                    Link(destination: url) {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Image(systemName: "cart.fill")
+                            Text("Buy at \(price.formatted(currency: item.currency))")
+                                .font(.rounded(.body, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.lg)
                     }
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(Theme.Spacing.lg)
+                    .primaryGlassBackground(color: Theme.Colors.purchased)
+                } else {
+                    Link(destination: url) {
+                        HStack(spacing: Theme.Spacing.sm) {
+                            Image(systemName: "safari")
+                            Text("Open in Browser")
+                                .font(.rounded(.body, weight: .semibold))
+                        }
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(Theme.Spacing.lg)
+                    }
+                    .glassCapsuleBackground()
                 }
-                .glassCapsuleBackground()
             }
         }
     }

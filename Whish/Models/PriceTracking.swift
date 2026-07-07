@@ -15,7 +15,15 @@ enum PriceDropRule {
 
     /// Whether a drop to `current` deserves a notification.
     /// `reference` is the last price we alerted about, else the tracking baseline.
-    static func shouldNotify(reference: Double?, current: Double) -> Bool {
+    ///
+    /// With a user target set, the target replaces the percent rule while the
+    /// price is above it ("don't bug me until it hits $X"); once crossed and
+    /// alerted, the percent rule resumes for further meaningful drops.
+    static func shouldNotify(reference: Double?, current: Double, target: Double? = nil) -> Bool {
+        if let target, target > 0 {
+            let wasAboveTarget = reference.map { $0 > target + epsilon } ?? true
+            if wasAboveTarget { return current <= target + epsilon }
+        }
         guard let reference, reference > 0 else { return false }
         let drop = reference - current
         return drop > epsilon && drop / reference >= notifyThreshold
@@ -81,6 +89,11 @@ extension WishItem {
     /// Price when tracking started — the reference for "was/now" and drop badges.
     var baselinePrice: Decimal? {
         priceHistory.first.map { Decimal($0.price) }
+    }
+
+    var targetPrice: Decimal? {
+        get { targetPriceDouble.map { Decimal($0) } }
+        set { targetPriceDouble = newValue.map { NSDecimalNumber(decimal: $0).doubleValue } }
     }
 
     /// 0.12 = current price is 12% below the baseline. nil when there's no drop.

@@ -175,7 +175,9 @@ final class PriceTrackingService {
             markDirty(item)
         }
 
-        if Self.alertsEnabled, PriceDropRule.shouldNotify(reference: reference, current: newDouble) {
+        if Self.alertsEnabled,
+           PriceDropRule.shouldNotify(reference: reference, current: newDouble,
+                                      target: item.targetPriceDouble) {
             item.lastNotifiedPriceDouble = newDouble
             await NotificationService.shared.sendPriceDropAlert(
                 itemID: item.id,
@@ -183,7 +185,9 @@ final class PriceTrackingService {
                 itemTitle: item.title,
                 oldPrice: reference.map { Decimal($0) } ?? newPrice,
                 newPrice: newPrice,
-                currency: item.currency
+                currency: item.currency,
+                imageData: item.imageData,
+                imageURL: item.imageURL
             )
         }
     }

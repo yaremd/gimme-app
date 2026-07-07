@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UserNotifications
 
 /// Manages local notifications for wishlist item deadlines.
@@ -66,7 +67,8 @@ struct NotificationService: Sendable {
     /// Immediate local notification for a detected price drop. One pending
     /// notification per item — a newer drop replaces the previous one.
     func sendPriceDropAlert(itemID: UUID, listID: UUID?, itemTitle: String,
-                            oldPrice: Decimal, newPrice: Decimal, currency: String?) async {
+                            oldPrice: Decimal, newPrice: Decimal, currency: String?,
+                            imageData: Data? = nil, imageURL: String? = nil) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized
@@ -86,12 +88,41 @@ struct NotificationService: Sendable {
         if let listID { userInfo["list_id"] = listID.uuidString }
         content.userInfo = userInfo
 
+        if let attachment = await Self.productImageAttachment(
+            itemID: itemID, imageData: imageData, imageURL: imageURL
+        ) {
+            content.attachments = [attachment]
+        }
+
         let request = UNNotificationRequest(
             identifier: "price-drop-\(itemID.uuidString)",
             content: content,
             trigger: nil
         )
         try? await center.add(request)
+    }
+
+    /// Best-effort product-image attachment: local data first, else the cached
+    /// remote image. Re-encoded as JPEG so the attachment always validates.
+    private static func productImageAttachment(
+        itemID: UUID, imageData: Data?, imageURL: String?
+    ) async -> UNNotificationAttachment? {
+        var image: UIImage?
+        if let imageData {
+            image = await ImageLoader.shared.decode(data: imageData, maxPixels: 600)
+        } else if let raw = imageURL, let url = URL(string: raw) {
+            image = await ImageLoader.shared.image(for: url, maxPixels: 600)
+        }
+        guard let jpeg = image?.jpegData(compressionQuality: 0.8) else { return nil }
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("price-drop-\(itemID.uuidString).jpg")
+        do {
+            try jpeg.write(to: fileURL)
+            return try UNNotificationAttachment(identifier: "product-image", url: fileURL)
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - Cancel
