@@ -337,6 +337,8 @@ struct AddItemView: View {
                             .foregroundStyle(Theme.Colors.textTertiary)
                             .frame(width: 32)
                     }
+                } else if urlString.trimmingCharacters(in: .whitespaces).isEmpty {
+                    URLPasteButton(text: $urlString, tint: accentColor)
                 }
             }
             .padding(Theme.Spacing.cardInner)

@@ -1463,6 +1463,8 @@ struct FirstItemView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Theme.Colors.textTertiary)
                         .frame(width: 32)
+                } else {
+                    URLPasteButton(text: $urlString, tint: accentColor)
                 }
             }
             .padding(Theme.Spacing.cardInner)
