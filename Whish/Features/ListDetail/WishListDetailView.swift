@@ -668,8 +668,8 @@ private struct ListScrollObserver: UIViewRepresentable {
             var v: UIView? = probe.superview
             while let current = v {
                 if let scrollView = current as? UIScrollView {
-                    observation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] sv, _ in
-                        let y = sv.contentOffset.y
+                    observation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] _, change in
+                        guard let y = change.newValue?.y else { return }
                         Task { @MainActor [weak self] in self?.onChange(y) }
                     }
                     return

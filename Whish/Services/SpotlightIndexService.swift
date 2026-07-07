@@ -1,4 +1,4 @@
-import CoreSpotlight
+@preconcurrency import CoreSpotlight
 import Foundation
 import SwiftData
 import UniformTypeIdentifiers
@@ -58,8 +58,9 @@ enum SpotlightIndexService {
             searchableItems.append(searchItem)
         }
 
+        let itemsToIndex = searchableItems
         CSSearchableIndex.default().deleteAllSearchableItems { _ in
-            CSSearchableIndex.default().indexSearchableItems(searchableItems)
+            CSSearchableIndex.default().indexSearchableItems(itemsToIndex)
         }
     }
 }
