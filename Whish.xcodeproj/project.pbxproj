@@ -43,6 +43,7 @@
 		67A92170DFB6BA30A4B84358 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC96C823FC44FCAE22587C81 /* NotificationService.swift */; };
 		7230778C13D828F99EC76A68 /* ReminderOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3236690D7C613DE3670EFF7D /* ReminderOption.swift */; };
 		72B06EB0C1CC1B5DA809EEA0 /* SharedListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6686BC7537DB3FCF75050CBA /* SharedListView.swift */; };
+		74B8E77FCE0E806FD870CF35 /* PriceVerdictView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22543A5BFDA71105C5C89707 /* PriceVerdictView.swift */; };
 		75521E002721726F2B073A35 /* PerfSignpost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0559174347B9A971D230298F /* PerfSignpost.swift */; };
 		75F437A9313E1C4784C0A44A /* SyncRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E91A036DAA4933169167F9 /* SyncRecords.swift */; };
 		76FF0D1F90540C3E4D762316 /* PurchaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E940C7AEA2357C727A9D83 /* PurchaseService.swift */; };
@@ -150,6 +151,7 @@
 		14CAC9A2C55DA9801ECEEB58 /* ScaleButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleButtonStyle.swift; sourceTree = "<group>"; };
 		14E940C7AEA2357C727A9D83 /* PurchaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseService.swift; sourceTree = "<group>"; };
 		1BE81C252A0AB224FE3D00B1 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		22543A5BFDA71105C5C89707 /* PriceVerdictView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceVerdictView.swift; sourceTree = "<group>"; };
 		2779D5C1085F118F5EC4D303 /* WhishTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhishTests.swift; sourceTree = "<group>"; };
 		27B722B2DED7D1742F86A0CA /* Gimme.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Gimme.entitlements; sourceTree = "<group>"; };
 		2D61025D76F55AEEDCC11311 /* NewListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewListView.swift; sourceTree = "<group>"; };
@@ -446,6 +448,7 @@
 			children = (
 				A4AB64942B92CF57F93E244A /* ItemDetailViewModel.swift */,
 				3977C3E7593D17D56983B72E /* PriceHistoryChart.swift */,
+				22543A5BFDA71105C5C89707 /* PriceVerdictView.swift */,
 				AC062ED59F0E0839F2389802 /* WishItemDetailView.swift */,
 			);
 			path = ItemDetail;
@@ -745,6 +748,7 @@
 				087D7D1128050939ACEABA60 /* PriceHistoryChart.swift in Sources */,
 				2A19E6537647AC534C81E82B /* PriceTracking.swift in Sources */,
 				1B488DEC9195167A6F575E91 /* PriceTrackingService.swift in Sources */,
+				74B8E77FCE0E806FD870CF35 /* PriceVerdictView.swift in Sources */,
 				1FDA1682B036F4EED8547058 /* Priority.swift in Sources */,
 				A41C251524BF279F326B6644 /* PriorityBadge.swift in Sources */,
 				76FF0D1F90540C3E4D762316 /* PurchaseService.swift in Sources */,

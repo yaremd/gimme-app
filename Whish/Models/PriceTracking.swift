@@ -34,7 +34,39 @@ enum PriceDropRule {
     }
 }
 
+/// One-glance answer to "is this a good price?" — banded against the
+/// lowest/highest prices seen so far (Google Shopping's insights pattern).
+enum PriceVerdict: Equatable {
+    case lowestYet
+    case goodPrice
+    case typical
+    case higherThanUsual
+
+    /// nil when there isn't enough variation to judge — fewer than two
+    /// history points, or a range under 1% of the high.
+    static func evaluate(history: [PricePoint], current: Double) -> PriceVerdict? {
+        let prices = history.map(\.price)
+        guard prices.count >= 2,
+              let low = prices.min(), let high = prices.max(),
+              high - low > PriceDropRule.epsilon,
+              (high - low) / high >= 0.01
+        else { return nil }
+
+        if current <= low + PriceDropRule.epsilon { return .lowestYet }
+        let position = (current - low) / (high - low)
+        if position <= 0.33 { return .goodPrice }
+        if position >= 0.90 { return .higherThanUsual }
+        return .typical
+    }
+}
+
 extension WishItem {
+
+    /// Verdict for the current price, nil when history is too flat to judge.
+    var priceVerdict: PriceVerdict? {
+        guard let current = price.map({ NSDecimalNumber(decimal: $0).doubleValue }) else { return nil }
+        return PriceVerdict.evaluate(history: priceHistory, current: current)
+    }
 
     var priceHistory: [PricePoint] {
         get {

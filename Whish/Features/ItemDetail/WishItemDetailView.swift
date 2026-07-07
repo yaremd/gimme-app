@@ -294,15 +294,20 @@ struct WishItemDetailView: View {
             if item.isPriceTrackingEnabled {
                 Divider().background(Theme.Colors.surfaceBorder)
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    if let verdict = item.priceVerdict {
+                        PriceVerdictChip(verdict: verdict)
+                        if let current = item.price.map({ NSDecimalNumber(decimal: $0).doubleValue }),
+                           let low = item.priceHistory.map(\.price).min(),
+                           let high = item.priceHistory.map(\.price).max() {
+                            PriceRangeBar(low: low, high: high, current: current,
+                                          currency: item.currency, dotColor: verdict.color)
+                                .padding(.bottom, 2)
+                        }
+                    }
                     if item.priceHistory.count >= 2 {
                         PriceHistoryChart(history: item.priceHistory,
                                           currency: item.currency,
                                           tint: accessibleGlow)
-                        if isAtLowestPrice {
-                            Text("Lowest price since you added it 🎉")
-                                .font(.system(.caption, weight: .medium))
-                                .foregroundStyle(Theme.Colors.purchased)
-                        }
                     } else {
                         Text("Watching this price — you'll get an alert when it drops.")
                             .font(.system(.caption))
@@ -336,14 +341,6 @@ struct WishItemDetailView: View {
         .background(Theme.Colors.surface,
                     in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .animation(Theme.quickSpring, value: item.isPriceTrackingEnabled)
-    }
-
-    /// Current price equals the cheapest point ever recorded (and it dropped).
-    private var isAtLowestPrice: Bool {
-        guard item.hasPriceDrop,
-              let current = item.price.map({ NSDecimalNumber(decimal: $0).doubleValue }),
-              let lowest = item.priceHistory.map(\.price).min() else { return false }
-        return abs(current - lowest) <= PriceDropRule.epsilon
     }
 
     private func setPriceTracking(_ enabled: Bool) {

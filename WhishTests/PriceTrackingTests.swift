@@ -80,6 +80,28 @@ struct PriceTrackingTests {
         #expect(!purchased.canTrackPrice)
     }
 
+    // MARK: - Verdict banding
+
+    @Test func verdictBandsAgainstSeenRange() {
+        let history = [
+            PricePoint(date: .now.addingTimeInterval(-86_400), price: 100),
+            PricePoint(date: .now, price: 200)
+        ]
+        #expect(PriceVerdict.evaluate(history: history, current: 100) == .lowestYet)
+        #expect(PriceVerdict.evaluate(history: history, current: 120) == .goodPrice)
+        #expect(PriceVerdict.evaluate(history: history, current: 150) == .typical)
+        #expect(PriceVerdict.evaluate(history: history, current: 195) == .higherThanUsual)
+    }
+
+    @Test func verdictNeedsMeaningfulVariation() {
+        #expect(PriceVerdict.evaluate(history: [PricePoint(date: .now, price: 100)], current: 100) == nil)
+        let flat = [
+            PricePoint(date: .now.addingTimeInterval(-86_400), price: 100),
+            PricePoint(date: .now, price: 100)
+        ]
+        #expect(PriceVerdict.evaluate(history: flat, current: 100) == nil)
+    }
+
     // MARK: - Sweep cadence
 
     @Test @MainActor func isDueRespectsCadenceAndBackoff() {
