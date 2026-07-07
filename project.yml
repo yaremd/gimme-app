@@ -87,6 +87,9 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UIBackgroundModes:
           - remote-notification
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.yaremchuk.app.price-refresh
 
     entitlements:
       path: Whish/Gimme.entitlements
@@ -234,3 +237,4 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yaremchuk.tests
+        GENERATE_INFOPLIST_FILE: YES

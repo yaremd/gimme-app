@@ -77,6 +77,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 @main
 struct WhishApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
 
     let container: ModelContainer
     @State private var authService = AuthService()
@@ -222,7 +223,20 @@ struct WhishApp: App {
                         }
                     }
                 }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .active:
+                        Task { await PriceTrackingService.shared.sweepIfDue(context: container.mainContext) }
+                    case .background:
+                        PriceTrackingService.scheduleBackgroundRefresh()
+                    default:
+                        break
+                    }
+                }
         }
         .modelContainer(container)
+        .backgroundTask(.appRefresh(PriceTrackingService.backgroundTaskID)) {
+            await PriceTrackingService.shared.backgroundSweep(container: container)
+        }
     }
 }

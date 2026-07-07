@@ -61,6 +61,39 @@ struct NotificationService: Sendable {
         }
     }
 
+    // MARK: - Price drops
+
+    /// Immediate local notification for a detected price drop. One pending
+    /// notification per item — a newer drop replaces the previous one.
+    func sendPriceDropAlert(itemID: UUID, listID: UUID?, itemTitle: String,
+                            oldPrice: Decimal, newPrice: Decimal, currency: String?) async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized
+                || settings.authorizationStatus == .provisional else { return }
+
+        let oldDouble = NSDecimalNumber(decimal: oldPrice).doubleValue
+        let newDouble = NSDecimalNumber(decimal: newPrice).doubleValue
+        let percent = oldDouble > 0
+            ? Int((((oldDouble - newDouble) / oldDouble) * 100).rounded())
+            : 0
+
+        let content = UNMutableNotificationContent()
+        content.title = "📉 Price drop: \(itemTitle)"
+        content.body = "Now \(newPrice.formatted(currency: currency)) — was \(oldPrice.formatted(currency: currency)) (\(percent)% off)"
+        content.sound = .default
+        var userInfo: [String: String] = ["item_id": itemID.uuidString]
+        if let listID { userInfo["list_id"] = listID.uuidString }
+        content.userInfo = userInfo
+
+        let request = UNNotificationRequest(
+            identifier: "price-drop-\(itemID.uuidString)",
+            content: content,
+            trigger: nil
+        )
+        try? await center.add(request)
+    }
+
     // MARK: - Cancel
 
     /// Removes all pending notifications for this entity (all reminder types + legacy format).

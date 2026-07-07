@@ -7,11 +7,14 @@ struct WishItemDetailView: View {
 
     @State private var viewModel = ItemDetailViewModel()
     @State private var isShowingClearReservationConfirm = false
+    @State private var isCheckingPrice = false
+    @State private var isShowingPricePaywall = false
     @Environment(\.modelContext) private var modelContext
     private var modelContainer: ModelContainer { modelContext.container }
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthService.self) private var auth
     @Environment(SyncService.self) private var syncService
+    @Environment(PurchaseService.self) private var purchaseService
     @Environment(\.colorScheme) private var colorScheme
 
     /// Schedule a single-row upsert after mutating this view's item.
@@ -60,6 +63,12 @@ struct WishItemDetailView: View {
                     // Info card
                     infoCard
 
+                    // Price tracking
+                    if item.url != nil, !item.isPurchased,
+                       item.price != nil || !item.priceHistory.isEmpty {
+                        priceTrackingCard
+                    }
+
                     // Actions
                     actionsSection
                 }
@@ -102,6 +111,7 @@ struct WishItemDetailView: View {
             AddItemView(wishList: wishList, itemToEdit: item)
                 .pageSheet()
         }
+        .sheet(isPresented: $isShowingPricePaywall) { PaywallView().pageSheet() }
         .alert("Clear Reservation?", isPresented: $isShowingClearReservationConfirm) {
             Button("Clear", role: .destructive) {
                 viewModel.clearReservation(item)
@@ -145,12 +155,23 @@ struct WishItemDetailView: View {
                 .strikethrough(item.isPurchased, color: Theme.Colors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Price
+            // Price — shows "was/now" once tracking detects a drop
             if let price = item.price, price > 0 {
-                Text(price.formatted(currency: item.currency))
-                    .font(.rounded(.title3, weight: .semibold))
-                    .foregroundStyle(accessibleGlowText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: Theme.Spacing.sm) {
+                    if item.hasPriceDrop, let baseline = item.baselinePrice {
+                        Text(baseline.formatted(currency: item.currency))
+                            .font(.rounded(.subheadline, weight: .medium))
+                            .strikethrough(true, color: Theme.Colors.textTertiary)
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    Text(price.formatted(currency: item.currency))
+                        .font(.rounded(.title3, weight: .semibold))
+                        .foregroundStyle(item.hasPriceDrop ? Theme.Colors.purchased : accessibleGlowText)
+                    if item.hasPriceDrop, let drop = item.priceDropFraction {
+                        PriceDropBadge(fraction: drop)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text("No price set")
                     .font(.system(.subheadline))
@@ -241,6 +262,119 @@ struct WishItemDetailView: View {
         .padding(Theme.Spacing.cardInner)
     }
 
+
+    // MARK: - Price tracking
+
+    private var priceTrackingCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: "chart.line.downtrend.xyaxis")
+                    .foregroundStyle(accessibleGlowText)
+                    .frame(width: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Price tracking")
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    if !purchaseService.isPro {
+                        Text("\(PriceTrackingService.trackedCount(in: modelContext))/\(PriceTrackingService.freeTrackedLimit) free items")
+                            .font(.system(.caption2))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                }
+                Spacer()
+                Toggle("Price tracking", isOn: Binding(
+                    get: { item.isPriceTrackingEnabled },
+                    set: { setPriceTracking($0) }
+                ))
+                .labelsHidden()
+                .tint(accessibleGlow)
+            }
+            .padding(Theme.Spacing.cardInner)
+
+            if item.isPriceTrackingEnabled {
+                Divider().background(Theme.Colors.surfaceBorder)
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    if item.priceHistory.count >= 2 {
+                        PriceHistoryChart(history: item.priceHistory,
+                                          currency: item.currency,
+                                          tint: accessibleGlow)
+                        if isAtLowestPrice {
+                            Text("Lowest price since you added it 🎉")
+                                .font(.system(.caption, weight: .medium))
+                                .foregroundStyle(Theme.Colors.purchased)
+                        }
+                    } else {
+                        Text("Watching this price — you'll get an alert when it drops.")
+                            .font(.system(.caption))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+
+                    HStack {
+                        if let checked = item.lastPriceCheckAt {
+                            Text("Checked \(checked.formatted(.relative(presentation: .named)))")
+                                .font(.system(.caption2))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
+                        Spacer()
+                        Button(action: checkPriceNow) {
+                            if isCheckingPrice {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(accessibleGlowText)
+                            } else {
+                                Text("Check now")
+                                    .font(.system(.caption, weight: .semibold))
+                                    .foregroundStyle(accessibleGlowText)
+                            }
+                        }
+                        .disabled(isCheckingPrice)
+                    }
+                }
+                .padding(Theme.Spacing.cardInner)
+            }
+        }
+        .background(Theme.Colors.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .animation(Theme.quickSpring, value: item.isPriceTrackingEnabled)
+    }
+
+    /// Current price equals the cheapest point ever recorded (and it dropped).
+    private var isAtLowestPrice: Bool {
+        guard item.hasPriceDrop,
+              let current = item.price.map({ NSDecimalNumber(decimal: $0).doubleValue }),
+              let lowest = item.priceHistory.map(\.price).min() else { return false }
+        return abs(current - lowest) <= PriceDropRule.epsilon
+    }
+
+    private func setPriceTracking(_ enabled: Bool) {
+        if enabled {
+            guard PriceTrackingService.canTrackMore(isPro: purchaseService.isPro, in: modelContext) else {
+                isShowingPricePaywall = true
+                return
+            }
+            item.isPriceTrackingEnabled = true
+            item.seedPriceHistoryIfNeeded()
+            Haptics.selection()
+        } else {
+            item.isPriceTrackingEnabled = false
+            Haptics.selection()
+        }
+    }
+
+    private func checkPriceNow() {
+        guard !isCheckingPrice else { return }
+        isCheckingPrice = true
+        Task {
+            let succeeded = await PriceTrackingService.shared.checkNow(item, context: modelContext)
+            isCheckingPrice = false
+            if succeeded {
+                Haptics.success()
+                pushThisItem()   // fetched price may have changed — sync it
+            } else {
+                Haptics.error()
+            }
+        }
+    }
 
     // MARK: - Actions
     private var actionsSection: some View {

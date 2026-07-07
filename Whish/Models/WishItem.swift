@@ -28,6 +28,21 @@ final class WishItem {
     /// Outbox flag — true when local mutation hasn't been pushed to Supabase yet.
     /// Defaults to true so the first launch after this field is added triggers a one-time reconcile.
     var needsSync: Bool = true
+
+    // MARK: Price tracking (on-device)
+    // All fields optional/defaulted — must stay lightweight-migration-safe,
+    // otherwise WhishApp.init wipes the store on schema mismatch.
+
+    /// Whether this item participates in automatic price checks.
+    var isPriceTrackingEnabled: Bool = false
+    /// JSON-encoded `[PricePoint]`, oldest first. Accessed via `priceHistory`.
+    var priceHistoryData: Data?
+    var lastPriceCheckAt: Date?
+    /// Price already alerted about — suppresses repeat notifications for the same drop.
+    var lastNotifiedPriceDouble: Double?
+    /// Consecutive failed checks — items backing off get checked weekly instead of daily.
+    var priceCheckFailureCount: Int = 0
+
     var list: WishList?
 
     var price: Decimal? {

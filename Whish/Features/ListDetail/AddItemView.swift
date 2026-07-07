@@ -7,6 +7,7 @@ struct AddItemView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AuthService.self) private var auth
+    @Environment(PurchaseService.self) private var purchaseService
     @Environment(\.colorScheme) private var colorScheme
 
     var wishList: WishList? = nil
@@ -672,6 +673,11 @@ struct AddItemView: View {
             existing.endDate = nil
             existing.reminders = []
             NotificationService.shared.cancelAll(id: existing.id)
+            // Manual price edits become part of the tracked history
+            if existing.isPriceTrackingEnabled,
+               let edited = existing.price.map({ NSDecimalNumber(decimal: $0).doubleValue }) {
+                existing.priceHistory = PriceDropRule.appended(existing.priceHistory, price: edited)
+            }
             savedItem = existing
         } else {
             let item = WishItem(
@@ -687,6 +693,7 @@ struct AddItemView: View {
             )
             targetList.items.append(item)
             modelContext.insert(item)
+            PriceTrackingService.autoEnroll(item, isPro: purchaseService.isPro, in: modelContext)
             lastUsedListID = targetList.id.uuidString
             savedItem = item
         }

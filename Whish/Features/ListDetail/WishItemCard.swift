@@ -27,9 +27,14 @@ struct WishItemCard: View {
                     .strikethrough(item.isPurchased, color: Theme.Colors.textSecondary)
 
                 if let price = item.price, price > 0 {
-                    Text(price.formatted(currency: item.currency))
-                        .font(.system(.subheadline, weight: .semibold))
-                        .foregroundStyle(item.isPurchased ? Theme.Colors.textSecondary : priceColor)
+                    HStack(spacing: 5) {
+                        Text(price.formatted(currency: item.currency))
+                            .font(.system(.subheadline, weight: .semibold))
+                            .foregroundStyle(item.isPurchased ? Theme.Colors.textSecondary : priceColor)
+                        if !item.isPurchased, item.hasPriceDrop, let drop = item.priceDropFraction {
+                            PriceDropBadge(fraction: drop)
+                        }
+                    }
                 } else {
                     Text("No price set")
                         .font(.system(.subheadline))
@@ -182,9 +187,14 @@ struct WishItemGridCard: View {
                 .strikethrough(item.isPurchased, color: Theme.Colors.textSecondary)
 
             if let price = item.price, price > 0 {
-                Text(price.formatted(currency: item.currency))
-                    .font(.system(.footnote, weight: .bold))
-                    .foregroundStyle(item.isPurchased ? Theme.Colors.textSecondary : priceColor)
+                HStack(spacing: 4) {
+                    Text(price.formatted(currency: item.currency))
+                        .font(.system(.footnote, weight: .bold))
+                        .foregroundStyle(item.isPurchased ? Theme.Colors.textSecondary : priceColor)
+                    if !item.isPurchased, item.hasPriceDrop, let drop = item.priceDropFraction {
+                        PriceDropBadge(fraction: drop)
+                    }
+                }
             } else {
                 Text("No price set")
                     .font(.system(.footnote))

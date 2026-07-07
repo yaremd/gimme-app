@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage("abbreviateNumbers")   private var abbreviateNumbers     = false
     @AppStorage("defaultCurrency")     private var defaultCurrency       = "USD"
     @AppStorage("notificationsOn")     private var notificationsOn       = false
+    @AppStorage("priceAlertsEnabled")  private var priceAlertsEnabled    = true
     @AppStorage("fxLastUpdated")       private var fxLastUpdated: Double = 0
 
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -85,6 +86,20 @@ struct SettingsView: View {
                                             }
                                         }
                                     }
+                            }
+                        }
+                        darkRow {
+                            HStack(spacing: 12) {
+                                Image(systemName: "chart.line.downtrend.xyaxis")
+                                    .font(.system(size: 17))
+                                    .frame(width: 22)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Text("Price Drop Alerts")
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                Spacer()
+                                Toggle("", isOn: $priceAlertsEnabled.animation(Theme.spring))
+                                    .labelsHidden()
+                                    .tint(Theme.Colors.accent)
                             }
                         }
                         darkRow {

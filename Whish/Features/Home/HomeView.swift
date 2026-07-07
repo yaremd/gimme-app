@@ -1699,6 +1699,8 @@ struct FirstItemView: View {
         )
         list.items.append(item)
         modelContext.insert(item)
+        // First-ever item — all free tracking slots are open
+        PriceTrackingService.autoEnroll(item, isPro: false, in: modelContext)
         dismiss()
         onCreated?(list)
     }
