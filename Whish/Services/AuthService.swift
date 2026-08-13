@@ -37,7 +37,7 @@ final class AuthService {
         session = await Self.sessionOrTimeout(seconds: 3)
 
         // Stream auth state changes for real-time UI updates
-        for await (event, newSession) in await supabase.auth.authStateChanges {
+        for await (event, newSession) in supabase.auth.authStateChanges {
             switch event {
             case .signedIn, .tokenRefreshed, .userUpdated:
                 session = newSession

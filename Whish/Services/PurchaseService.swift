@@ -198,7 +198,7 @@ final class PurchaseService {
             let is_pro: Bool
             let updated_at: Date
         }
-        try? await supabase
+        _ = try? await supabase
             .from("profiles")
             .upsert(ProfileRow(id: userID, is_pro: value, updated_at: .now), onConflict: "id")
             .execute()

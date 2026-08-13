@@ -21,7 +21,8 @@ final class SharedListViewModel {
 
     private static let claimsKey = "gimme_my_claimed_ids"
 
-    nonisolated(unsafe) private var realtimeTask: Task<Void, Never>?
+    /// Stored (not observation-tracked) so `deinit` can cancel it — Task is Sendable.
+    @ObservationIgnored private var realtimeTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -86,11 +87,11 @@ final class SharedListViewModel {
         realtimeTask = Task { [weak self] in
             let channel = supabase.realtimeV2.channel("shared-list-\(listID.uuidString.prefix(8))")
 
-            let changes = await channel.postgresChange(
+            let changes = channel.postgresChange(
                 AnyAction.self,
                 schema: "public",
                 table: "wish_items",
-                filter: "list_id=eq.\(listID.uuidString)"
+                filter: .eq("list_id", value: listID.uuidString)
             )
 
             do {
@@ -101,7 +102,7 @@ final class SharedListViewModel {
 
             for await action in changes {
                 guard !Task.isCancelled else { break }
-                await self?.handleRealtimeChange(action)
+                self?.handleRealtimeChange(action)
             }
 
             await supabase.realtimeV2.removeChannel(channel)
