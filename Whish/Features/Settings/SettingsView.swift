@@ -1,6 +1,8 @@
 import StoreKit
 import SwiftData
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +29,7 @@ struct SettingsView: View {
     @State private var isShowingDeleteAccount     = false
     @State private var isShowingPaywall          = false
     @State private var isShowingNotifications    = false
+    @State private var isShowingPermissionHelp   = false
     @State private var notificationsViewModel    = NotificationsViewModel()
 
     @State private var isUpdatingRates           = false
@@ -80,10 +83,7 @@ struct SettingsView: View {
                                     .tint(Theme.Colors.accent)
                                     .onChange(of: notificationsOn) { _, newValue in
                                         if newValue {
-                                            Task {
-                                                let granted = await NotificationService.shared.requestPermission()
-                                                if !granted { notificationsOn = false }
-                                            }
+                                            Task { notificationsOn = await grantOrExplain() }
                                         }
                                     }
                             }
@@ -100,6 +100,13 @@ struct SettingsView: View {
                                 Toggle("", isOn: $priceAlertsEnabled.animation(Theme.spring))
                                     .labelsHidden()
                                     .tint(Theme.Colors.accent)
+                                    .onChange(of: priceAlertsEnabled) { _, newValue in
+                                        // Without permission the alerts would be
+                                        // silently dropped — ask before promising them.
+                                        if newValue {
+                                            Task { priceAlertsEnabled = await grantOrExplain() }
+                                        }
+                                    }
                             }
                         }
                         darkRow {
@@ -535,8 +542,30 @@ struct SettingsView: View {
             } message: {
                 Text("Your local data will be cleared from this device.")
             }
+            .alert("Notifications Are Off", isPresented: $isShowingPermissionHelp) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        Task { _ = await UIApplication.shared.open(url) }
+                    }
+                }
+                Button("Not Now", role: .cancel) {}
+            } message: {
+                Text("Gimme can't send alerts until notifications are allowed in iOS Settings.")
+            }
         }
         .preferredColorScheme(resolvedColorScheme)
+    }
+
+    /// Requests notification permission for a toggle the user just switched on.
+    /// Returns the state the toggle should settle into; when the OS won't show
+    /// the prompt again, points the user at iOS Settings rather than silently
+    /// flipping back.
+    private func grantOrExplain() async -> Bool {
+        if await NotificationService.shared.requestPermission() { return true }
+        if await NotificationService.shared.authorizationStatus() == .denied {
+            isShowingPermissionHelp = true
+        }
+        return false
     }
 
     private var resolvedColorScheme: ColorScheme? {

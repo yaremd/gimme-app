@@ -10,6 +10,9 @@ final class DeepLinkRouter {
 
     enum Action: Equatable {
         case openList(UUID)
+        /// Opens one item's detail, pushing its list underneath so Back works.
+        /// `listID` is a fallback target when the item can't be found locally.
+        case openItem(itemID: UUID, listID: UUID?)
         case openStats
         case addItem(title: String, listID: UUID?)  // nil = ask user which list
         case showAddForm(listID: UUID?)              // opens the add-item sheet
@@ -26,6 +29,14 @@ final class DeepLinkRouter {
             let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             if let id = UUID(uuidString: path) {
                 pendingAction = .openList(id)
+            }
+        case "item":
+            let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if let id = UUID(uuidString: path) {
+                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let listIDStr = components?.queryItems?.first(where: { $0.name == "list" })?.value
+                let listID = listIDStr.flatMap { UUID(uuidString: $0) }
+                pendingAction = .openItem(itemID: id, listID: listID)
             }
         case "stats":
             pendingAction = .openStats

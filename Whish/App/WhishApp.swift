@@ -56,7 +56,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge])
     }
 
-    /// Navigate to the relevant list when the user taps the notification.
+    /// Navigate to whatever the notification is about — the item when one is
+    /// named (price drops, reminders), otherwise the list (reservation alerts).
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -64,10 +65,19 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) {
         defer { completionHandler() }
         let userInfo = response.notification.request.content.userInfo
-        guard let listIDString = userInfo["list_id"] as? String,
-              let listID = UUID(uuidString: listIDString) else { return }
+        let listIDStr = userInfo["list_id"] as? String
+        // "itemID" is the legacy key used by deadline reminders.
+        let itemIDStr = (userInfo["item_id"] as? String) ?? (userInfo["itemID"] as? String)
+        let listID = listIDStr.flatMap { UUID(uuidString: $0) }
+        let itemID = itemIDStr.flatMap { UUID(uuidString: $0) }
+        guard itemID != nil || listID != nil else { return }
+
         Task { @MainActor in
-            DeepLinkRouter.shared.pendingAction = .openList(listID)
+            if let itemID {
+                DeepLinkRouter.shared.pendingAction = .openItem(itemID: itemID, listID: listID)
+            } else if let listID {
+                DeepLinkRouter.shared.pendingAction = .openList(listID)
+            }
         }
     }
 }

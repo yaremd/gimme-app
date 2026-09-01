@@ -882,6 +882,21 @@ struct HomeView: View {
                 navPath = NavigationPath()
                 Task { try? await Task.sleep(for: .milliseconds(300)); navPath.append(list.persistentModelID) }
             }
+        case .openItem(let itemID, let listID):
+            // Push the list first so Back from the item lands somewhere sensible.
+            if let item = allItems.first(where: { $0.id == itemID }) {
+                navPath = NavigationPath()
+                Task {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    if let list = item.list { navPath.append(list.persistentModelID) }
+                    try? await Task.sleep(for: .milliseconds(120))
+                    navPath.append(item)
+                }
+            } else if let listID, let list = lists.first(where: { $0.id == listID }) {
+                // Item deleted or not synced down yet — settle for its list.
+                navPath = NavigationPath()
+                Task { try? await Task.sleep(for: .milliseconds(300)); navPath.append(list.persistentModelID) }
+            }
         case .openStats:
             isShowingStats = true
         case .addItem(let title, let listID):
