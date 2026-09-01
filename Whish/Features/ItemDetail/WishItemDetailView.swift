@@ -522,67 +522,87 @@ struct WishItemDetailView: View {
     }
 
     // MARK: - Actions
+
+    private var itemURL: URL? {
+        item.url.flatMap { URL(string: $0) }
+    }
+
+    /// A live drop on an unpurchased item makes buying the moment's action.
+    private var showsBuyCTA: Bool {
+        !item.isPurchased && item.hasPriceDrop && item.price != nil && itemURL != nil
+    }
+
+    private func togglePurchased() {
+        Haptics.medium()
+        viewModel.togglePurchased(item)
+        pushThisItem()
+    }
+
+    private func actionLabel(icon: String, title: String, foreground: Color) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: icon)
+            Text(title)
+                .font(.rounded(.body, weight: .semibold))
+        }
+        .foregroundStyle(foreground)
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.lg)
+    }
+
     private var actionsSection: some View {
         VStack(spacing: Theme.Spacing.md) {
+            // While a drop is live, buying leads and the purchase toggle steps
+            // back to the secondary outline — two filled buttons of the same
+            // weight (and, on a green list, the same colour) compete.
+            if showsBuyCTA, let url = itemURL, let price = item.price {
+                Link(destination: url) {
+                    actionLabel(icon: "cart.fill",
+                                title: "Buy at \(price.formatted(currency: item.currency))",
+                                foreground: .white)
+                }
+                .primaryGlassBackground(color: Theme.Colors.purchased)
+            }
+
             if item.isPurchased {
                 // Mark as Wanted — faded primary (undo action)
-                Button { Haptics.medium(); viewModel.togglePurchased(item); pushThisItem() } label: {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "arrow.uturn.left.circle.fill")
-                        Text("Mark as Wanted")
-                            .font(.rounded(.body, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(Theme.Spacing.lg)
+                Button(action: togglePurchased) {
+                    actionLabel(icon: "arrow.uturn.left.circle.fill",
+                                title: "Mark as Wanted",
+                                foreground: .white)
                 }
                 .buttonStyle(.plain)
                 .primaryGlassBackground(color: accessibleGlow.opacity(colorScheme == .dark ? 0.45 : 0.7))
+            } else if showsBuyCTA {
+                // Demoted — the buy CTA above is the primary action.
+                Button(action: togglePurchased) {
+                    actionLabel(icon: "checkmark.circle.fill",
+                                title: "Mark as Purchased",
+                                foreground: Theme.Colors.textPrimary)
+                }
+                .buttonStyle(.plain)
+                .glassCapsuleBackground()
             } else {
                 // Mark as Purchased — primary glass
-                Button { Haptics.medium(); viewModel.togglePurchased(item); pushThisItem() } label: {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "checkmark.circle.fill")
-                        Text("Mark as Purchased")
-                            .font(.rounded(.body, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(Theme.Spacing.lg)
+                Button(action: togglePurchased) {
+                    actionLabel(icon: "checkmark.circle.fill",
+                                title: "Mark as Purchased",
+                                foreground: .white)
                 }
                 .buttonStyle(.plain)
                 .primaryGlassBackground(color: accessibleGlow)
             }
 
-            // Open in browser — becomes a prominent buy CTA while a drop is active
-            if let urlString = item.url, let url = URL(string: urlString) {
-                if !item.isPurchased, item.hasPriceDrop, let price = item.price {
-                    Link(destination: url) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "cart.fill")
-                            Text("Buy at \(price.formatted(currency: item.currency))")
-                                .font(.rounded(.body, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(Theme.Spacing.lg)
-                    }
-                    .primaryGlassBackground(color: Theme.Colors.purchased)
-                } else {
-                    Link(destination: url) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "safari")
-                            Text("Open in Browser")
-                                .font(.rounded(.body, weight: .semibold))
-                        }
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(Theme.Spacing.lg)
-                    }
-                    .glassCapsuleBackground()
+            // Plain browser link — the buy CTA already covers this when shown.
+            if !showsBuyCTA, let url = itemURL {
+                Link(destination: url) {
+                    actionLabel(icon: "safari",
+                                title: "Open in Browser",
+                                foreground: Theme.Colors.textPrimary)
                 }
+                .glassCapsuleBackground()
             }
         }
+        .animation(Theme.quickSpring, value: showsBuyCTA)
     }
 
 
