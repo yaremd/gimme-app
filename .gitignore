@@ -19,7 +19,10 @@ Pods/
 
 # Swift Package Manager
 .build/
-*.resolved
+# Package.resolved is deliberately NOT ignored: this is an app, not a
+# library, so the lockfile belongs in the repo. Without it, Xcode and CI
+# resolve Supabase to whatever the newest 2.x is, and an upstream release
+# can break the build with nothing changed here.
 
 # macOS
 .DS_Store

@@ -77,6 +77,19 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             | "${FORMAT[@]}"
 
+      # The build above resolves packages. If a committed Package.resolved
+      # disagreed with what resolution produced, xcodebuild rewrote it — that
+      # means the lockfile is stale. No-op while the file is absent
+      # (untracked changes don't show in git diff), so this stays green until
+      # the lockfile is committed.
+      - name: Check Package.resolved is in sync
+        run: |
+          LOCK=Whish.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if ! git diff --exit-code -- "$LOCK"; then
+            echo "::error::$LOCK is out of date — resolve packages in Xcode and commit the result"
+            exit 1
+          fi
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
