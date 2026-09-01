@@ -63,6 +63,9 @@ targets:
         CFBundleName: Gimme
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS — exempt encryption. Declaring it here skips the
+        # export-compliance question on every upload.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: ""
           UIImageName: ""
