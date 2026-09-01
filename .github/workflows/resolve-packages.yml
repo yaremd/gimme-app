@@ -1,0 +1,61 @@
+name: Resolve packages
+
+# Manual only. Regenerates Package.resolved on a runner that has Xcode and
+# commits it back to the branch you pick in the "Run workflow" dropdown —
+# so pinning dependencies doesn't require a Mac.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resolve-packages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve and commit Package.resolved
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      # Default checkout persists credentials, which is what lets the push below work.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Resolve package dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Whish.xcodeproj \
+            -scheme Gimme
+
+      - name: Commit if it changed
+        run: |
+          set -euo pipefail
+          LOCK=Whish.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+          if [ ! -f "$LOCK" ]; then
+            echo "::error::$LOCK was not produced — check the resolve step's output"
+            exit 1
+          fi
+
+          echo "--- resolved versions ---"
+          cat "$LOCK"
+
+          if git diff --quiet --exit-code -- "$LOCK" && \
+             [ -z "$(git status --porcelain -- "$LOCK")" ]; then
+            echo "Package.resolved is already up to date — nothing to commit."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$LOCK"
+          git commit -m "chore: pin Swift package versions"
+          git push origin HEAD:"${{ github.ref_name }}"
+          echo "Committed and pushed an updated Package.resolved."
