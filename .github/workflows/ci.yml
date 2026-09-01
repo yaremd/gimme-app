@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & test
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Recorded in the log so a green run can be traced to a toolchain.
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # No Package.resolved is committed, so key the cache on the files that
+      # declare the dependency instead.
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ hashFiles('project.yml', 'Whish.xcodeproj/project.pbxproj') }}
+          restore-keys: spm-
+
+      # Runner images change their simulator lineup without notice, so resolve
+      # a concrete iPhone at run time rather than pinning a device name.
+      - name: Select a simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available | grep -E "iPhone" || true
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[][] | select(.name | startswith("iPhone"))] | .[-1].udid')
+          if [ -z "$UDID" ] || [ "$UDID" = "null" ]; then
+            echo "::error::No available iPhone simulator on this runner"
+            exit 1
+          fi
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      # Building Whish also builds GimmeShare and GimmeWidget — both are
+      # declared dependencies of the app target.
+      - name: Build & test
+        run: |
+          set -o pipefail
+          # xcbeautify isn't guaranteed on every runner image — fall back to
+          # raw output rather than failing the run over a missing formatter.
+          if command -v xcbeautify >/dev/null 2>&1; then
+            FORMAT=(xcbeautify --renderer github-actions)
+          else
+            FORMAT=(cat)
+          fi
+          xcodebuild test \
+            -project Whish.xcodeproj \
+            -scheme Gimme \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath TestResults.xcresult \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | "${FORMAT[@]}"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
