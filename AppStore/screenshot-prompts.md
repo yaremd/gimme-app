@@ -86,8 +86,8 @@ Card 4: Game controller emoji, "Nintendo eShop Card", "$50.00", indigo pill butt
 
 ## Screenshot 4 — List Detail
 
-**Caption:** "Track prices, priority & status"
-**Sub-caption:** "Filter, sort, and organize your way"
+**Caption:** "Filter, sort & organize your way"
+**Sub-caption:** "Priorities, status & custom order"
 **Background gradient:** Emerald green to deep forest (#45C87A top → #2EAA5F middle → #1E8A4A bottom), 170-degree angle
 
 **On-screen UI:**
@@ -228,6 +228,34 @@ Rounded card (36px radius) with indigo gradient tint background (rgba indigo 20%
 - Wide indigo pill button: "Get Gimme Pro" in white bold text, with indigo glow shadow beneath
 
 **Footer:** three dim text links: "Restore Purchases", "Privacy Policy", "Terms"
+
+---
+
+## Screenshot 9 — Price Tracking
+
+**Caption:** "Never pay full price"
+**Sub-caption:** "Get an alert the moment it drops"
+**Background gradient:** Emerald green (#45C87A top → #2EAA5F middle → #1E8A4A bottom), 170-degree angle
+
+**On-screen UI:**
+Item detail view on the warm cream background (#F5F0E8 to #EDE6D8 vertical gradient). Two translucent white circular buttons float over the top: a back chevron on the left, a three-dot menu on the right.
+
+Below them, a large rounded product image (24px radius) showing a green family camping tent pitched on a pale studio floor, filling the full content width.
+
+Product title "Arpenaz 6.3 Family Tent" in bold dark text (#2C2C2E). Beneath it a price row: "€299" struck through in gray, then "€41" in large bold green (#30D158), then a small green pill badge reading "↓86%" in white bold.
+
+**Price tracking card (the focal point)** — white rounded card (#FFFDF6, 40px radius):
+- Header row: blue line-chart icon (#3B8DD4), "Price tracking" in bold dark text, and a blue toggle switch in the ON position on the right. A hairline divider below.
+- Green pill chip with a down-arrow: "Lowest price yet" in green bold on a 14% green tint
+- Low-to-high range bar: thin gray track with a green dot pinned at the far-left end, labelled "€41 low" on the left and "€299 high" on the right
+- Caption row: "Price history" on the left, "since 27 Jun" on the right, both in light gray
+- Blue step-line sparkline with a soft blue gradient fill beneath: starts high, steps down, holds flat, brief spike back up, then drops sharply to a long flat run at the bottom
+- Two equal-width capsule buttons side by side: left is filled green with a bell icon reading "Below €45"; right is an outlined blue capsule with a refresh icon reading "Check now"
+- Centered light-gray caption below: "Checked 2 hours ago"
+
+**Bottom action stack (shows the buy-moment hierarchy):**
+- Primary: wide filled green pill (#30D158) with a shopping-cart icon, "Buy at €41" in white bold, soft green glow beneath
+- Secondary: wide outlined white pill with a check-circle icon, "Mark as Purchased" in dark text — visibly stepped back behind the buy button
 
 ---
 

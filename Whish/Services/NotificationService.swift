@@ -11,6 +11,12 @@ struct NotificationService: Sendable {
 
     // MARK: - Permission
 
+    /// Current system authorization status — lets UI nudge the user when
+    /// alerts are silently unable to reach them.
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
     /// Requests notification authorization. Returns true if authorized.
     func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()

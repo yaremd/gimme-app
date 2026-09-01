@@ -7,10 +7,10 @@ Gimme — Wishlist & Gift Ideas
 Save, Track & Share Wishes
 
 ## Promotional Text (170 chars, changeable without review)
-NEW: Share any wishlist with a link — friends can claim gifts without creating an account. The only wishlist app with Siri, Widgets, and Spotlight built in.
+NEW: Price drop alerts — Gimme watches the price of anything you save and tells you the moment it falls. Plus price history, smart verdicts, and your own target price.
 
 ## Keywords (100 chars max)
-wishlist,gift ideas,registry,birthday,christmas,wedding,baby shower,want,buy,price track,holiday
+wishlist,gift ideas,registry,birthday,christmas,wedding,baby shower,price drop,price alert,holiday
 
 ## Description
 
@@ -23,6 +23,9 @@ Send a wishlist link to friends and family. They can see your wishes and quietly
 
 SAVE FROM ANYWHERE
 Use the Share Extension to save items from Safari, Amazon, or any app. Gimme automatically extracts the product name, image, and price so you don't have to type a thing.
+
+NEVER PAY FULL PRICE
+Save something with a link and Gimme keeps an eye on what it costs. When the price drops, you get a notification — tap it to jump straight to the item and buy at the lower price. Every tracked item shows its price history, where today's price sits between the highest and lowest seen, and a one-glance verdict: Lowest price yet, Good price, Typical, or Higher than usual. Set your own target and Gimme tells you the moment it's reached.
 
 ORGANIZED YOUR WAY
 - Create unlimited wishlists with custom emoji and colors
@@ -47,9 +50,22 @@ PRIVACY FIRST
 No ads. No tracking SDKs. No spam. Works fully offline in local-only mode. Your data stays on your device unless you choose to sync.
 
 GIMME PRO — UNLOCK EVERYTHING
-Free: unlimited lists, items, iCloud sync, Share Extension, widgets, and share up to 2 lists with friends. Pro unlocks unlimited sharing, the full Stats dashboard with charts and currency conversion, all widget sizes, and every future feature we ship. A single lifetime purchase — no subscriptions, no recurring charges. Pay once, own it forever.
+Free: unlimited lists, items, iCloud sync, Share Extension, widgets, price tracking on 3 items, and share up to 2 lists with friends. Pro unlocks price tracking on everything, unlimited sharing, the full Stats dashboard with charts and currency conversion, all widget sizes, and every future feature we ship. A single lifetime purchase — no subscriptions, no recurring charges. Pay once, own it forever.
 
 Download Gimme and start saving what you want.
+
+## What's New (Version 1.1.0)
+
+Price drop alerts are here.
+
+- Gimme now watches the price of any item you saved with a link
+- Get a notification the moment the price falls — tap it to go straight to the item
+- Price history chart on every tracked item, with a low-to-high range
+- At-a-glance verdict: Lowest price yet, Good price, Typical, or Higher than usual
+- Set a target price and get alerted when it's reached
+- "Buy at ..." button appears while a drop is live
+- Paste button in the URL field when adding an item
+- Track 3 items free; Gimme Pro tracks everything
 
 ## What's New (Version 1.0.0)
 
@@ -86,8 +102,17 @@ Home Screen widgets (small, medium) and Lock Screen widget are available. To tes
 SIRI SHORTCUTS
 5 Siri Shortcuts are provided. Test via the Shortcuts app or say "Hey Siri, add wish in Gimme".
 
+PRICE TRACKING (new in 1.1.0)
+Open any item saved with a product URL and switch on "Price tracking" in the item detail. Tap "Check now" to re-fetch the price on demand rather than waiting for a scheduled check. Prices are re-read from the same product page the user saved, through the same metadata pipeline used when an item is first added (the app's own Supabase edge function, falling back to a direct request) — no third-party price API, and nothing is fetched that the user hasn't explicitly saved. Price history is stored on-device only; it is not synced or uploaded.
+
+BACKGROUND REFRESH
+The app declares the "fetch" background mode and a BGAppRefreshTask (com.yaremchuk.app.price-refresh). It is used solely to re-check prices for items the user has enabled tracking on: at most once per app foreground per 4 hours, and per item no more than once per 20 hours. No background location, audio, or other background activity.
+
+NOTIFICATIONS
+Price drop alerts are local notifications, scheduled on-device. Authorization is requested when the user turns on price tracking or the "Price Drop Alerts" toggle in Settings; if it is declined the feature still shows price history in-app but sends nothing.
+
 IN-APP PURCHASE
-One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2.
+One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2. Free users can track prices on 3 items; Pro removes the limit.
 
 ## App Store Connect Configuration
 
@@ -110,20 +135,28 @@ One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2.
 
 ## Screenshot Plan
 
-| # | Screen | Caption |
-|---|--------|---------|
-| 1 | Home with colorful list cards | All your wishes, one beautiful place |
-| 2 | Share Extension in Safari | Save from any app in one tap |
-| 3 | Shared list web view + claiming | Share with anyone. No app needed. |
-| 4 | List detail with items/filters | Track prices, priority & status |
-| 5 | Widget collection | Widgets for your wishes |
-| 6 | Stats dashboard with donut chart | See where your money goes |
-| 7 | Siri Shortcuts in action | "Hey Siri, add a wish" |
-| 8 | Pro features/paywall | One price. Everything. Forever. |
+Carousel order is the `#` column; filenames keep their original numbering so
+existing exports don't have to be renamed.
+
+| # | Screen | Caption | File |
+|---|--------|---------|------|
+| 1 | Home with colorful list cards | All your wishes, one beautiful place | `01-home.html` |
+| 2 | Item detail with the price tracking card | Never pay full price | `09-price-tracking.html` |
+| 3 | Share Extension in Safari | Save from any app in one tap | `02-share-extension.html` |
+| 4 | Shared list web view + claiming | Share with anyone. No app needed. | `03-shared-list.html` |
+| 5 | List detail with items/filters | Filter, sort & organize your way | `04-list-detail.html` |
+| 6 | Widget collection | Widgets for your wishes | `05-widgets.html` |
+| 7 | Stats dashboard with donut chart | See where your money goes | `06-stats.html` |
+| 8 | Siri Shortcuts in action | "Hey Siri, add a wish" | `07-siri.html` |
+| 9 | Pro features/paywall | One price. Everything. Forever. | `08-pro.html` |
+
+Price tracking sits at #2 because only the first three are visible without
+scrolling, and it's the headline feature of 1.1.0. Screenshot 4's caption
+moved off "Track prices" so the two don't claim the same thing.
 
 Sizes: 6.7" (1290x2796) and 6.1" (1179x2556)
 
-Screenshot files: `AppStore/screenshots/01-home.html` through `08-pro.html`
+Screenshot files: `AppStore/screenshots/*.html`
 Open in Safari at 1290x2796 viewport, export as PNG.
 
 ## App Privacy Labels
