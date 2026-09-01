@@ -88,6 +88,95 @@ struct PriceRangeBar: View {
     }
 }
 
+/// Equal-weight control for the price-tracking card's action row.
+/// Outlined by default; filled once it carries a value (e.g. a set target),
+/// so "configured" reads at a glance without a second label.
+struct PriceActionButton: View {
+    let icon: String
+    let title: String
+    var tint: Color = Theme.Colors.accent
+    var isFilled: Bool = false
+    var isBusy: Bool = false
+    let action: () -> Void
+
+    private var foreground: Color { isFilled ? .white : tint }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(foreground)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .background {
+                Capsule()
+                    .fill(isFilled ? tint : Theme.Colors.surfaceElevated)
+                    .overlay(
+                        Capsule().strokeBorder(isFilled ? Color.clear : tint.opacity(0.35),
+                                               lineWidth: 1)
+                    )
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
+        .animation(Theme.quickSpring, value: isFilled)
+    }
+}
+
+/// Inline nudge shown when an item is tracked but alerts can't reach the user —
+/// otherwise notifications are dropped silently and tracking looks broken.
+struct PriceAlertPermissionRow: View {
+    let message: String
+    /// True when the only remedy is the iOS Settings app (permission denied).
+    let opensSettings: Bool
+    let action: () -> Void
+
+    private let warning = Color(hex: "#FF851B")
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "bell.slash.fill")
+                    .font(.system(size: 13))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Alerts are off")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    Text(message)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: opensSettings ? "arrow.up.forward.app" : "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(warning)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                warning.opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 #Preview {
     VStack(alignment: .leading, spacing: 16) {
         PriceVerdictChip(verdict: .lowestYet)
@@ -96,6 +185,17 @@ struct PriceRangeBar: View {
         PriceVerdictChip(verdict: .higherThanUsual)
         PriceRangeBar(low: 199, high: 249, current: 199, currency: "USD",
                       dotColor: Theme.Colors.purchased)
+        PriceAlertPermissionRow(message: "Turn on notifications to hear about drops.",
+                                opensSettings: false) {}
+        HStack(spacing: 8) {
+            PriceActionButton(icon: "bell", title: "Set alert") {}
+            PriceActionButton(icon: "arrow.clockwise", title: "Check now") {}
+        }
+        HStack(spacing: 8) {
+            PriceActionButton(icon: "bell.fill", title: "Below $180",
+                              tint: Theme.Colors.purchased, isFilled: true) {}
+            PriceActionButton(icon: "arrow.clockwise", title: "Check now", isBusy: true) {}
+        }
     }
     .padding()
 }
