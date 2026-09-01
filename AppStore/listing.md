@@ -135,20 +135,28 @@ One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2. F
 
 ## Screenshot Plan
 
-| # | Screen | Caption |
-|---|--------|---------|
-| 1 | Home with colorful list cards | All your wishes, one beautiful place |
-| 2 | Share Extension in Safari | Save from any app in one tap |
-| 3 | Shared list web view + claiming | Share with anyone. No app needed. |
-| 4 | List detail with items/filters | Track prices, priority & status |
-| 5 | Widget collection | Widgets for your wishes |
-| 6 | Stats dashboard with donut chart | See where your money goes |
-| 7 | Siri Shortcuts in action | "Hey Siri, add a wish" |
-| 8 | Pro features/paywall | One price. Everything. Forever. |
+Carousel order is the `#` column; filenames keep their original numbering so
+existing exports don't have to be renamed.
+
+| # | Screen | Caption | File |
+|---|--------|---------|------|
+| 1 | Home with colorful list cards | All your wishes, one beautiful place | `01-home.html` |
+| 2 | Item detail with the price tracking card | Never pay full price | `09-price-tracking.html` |
+| 3 | Share Extension in Safari | Save from any app in one tap | `02-share-extension.html` |
+| 4 | Shared list web view + claiming | Share with anyone. No app needed. | `03-shared-list.html` |
+| 5 | List detail with items/filters | Filter, sort & organize your way | `04-list-detail.html` |
+| 6 | Widget collection | Widgets for your wishes | `05-widgets.html` |
+| 7 | Stats dashboard with donut chart | See where your money goes | `06-stats.html` |
+| 8 | Siri Shortcuts in action | "Hey Siri, add a wish" | `07-siri.html` |
+| 9 | Pro features/paywall | One price. Everything. Forever. | `08-pro.html` |
+
+Price tracking sits at #2 because only the first three are visible without
+scrolling, and it's the headline feature of 1.1.0. Screenshot 4's caption
+moved off "Track prices" so the two don't claim the same thing.
 
 Sizes: 6.7" (1290x2796) and 6.1" (1179x2556)
 
-Screenshot files: `AppStore/screenshots/01-home.html` through `08-pro.html`
+Screenshot files: `AppStore/screenshots/*.html`
 Open in Safari at 1290x2796 viewport, export as PNG.
 
 ## App Privacy Labels
