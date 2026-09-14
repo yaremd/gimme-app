@@ -12,8 +12,14 @@ import Supabase
 ///    next foreground cycle. Guarantees zero data loss even across app kills.
 ///  • `syncAll` remains as a full-reconcile fallback for pull-to-refresh and
 ///    the manual-sync button. Clears `needsSync` on every record after success.
+///  • Deletions travel as tombstones (`DeletionLog` locally, `deleted_records`
+///    on the server), not as absent rows. The reconcile copies any unmatched
+///    row to the other side, so without a tombstone a deletion is
+///    indistinguishable from a record the other side hasn't seen — and the
+///    surviving copy resurrects the deleted one.
 ///
-/// Conflict resolution is last-write-wins on `updated_at`.
+/// Conflict resolution is last-write-wins on `updated_at`, except for
+/// deletions: a tombstone beats any row, on either side, at any `updated_at`.
 @Observable
 @MainActor
 final class SyncService {
@@ -73,9 +79,14 @@ final class SyncService {
     // MARK: - Foreground sync (pull + outbox drain)
 
     /// Lightweight sync suitable for app foreground / post-login:
-    ///   1. Pull only rows updated after `lastIncrementalSyncAt`.
-    ///   2. Drain the outbox (retry any records with `needsSync == true`).
+    ///   1. Finish any deletion the server hasn't acknowledged.
+    ///   2. Pull deletions made on other devices.
+    ///   3. Pull only rows updated after `lastIncrementalSyncAt`.
+    ///   4. Drain the outbox (retry any records with `needsSync == true`).
     /// Runs fully off MainActor.
+    ///
+    /// Deletions come first and last-write-wins does not apply to them: a
+    /// tombstone beats any row on either side, whatever its `updated_at`.
     func foregroundSync(container: ModelContainer, userID: String) async {
         let sp = Perf.begin("sync-foreground")
         defer { Perf.end("sync-foreground", sp) }
@@ -85,8 +96,11 @@ final class SyncService {
         let since = lastIncrementalSyncAt
         let syncStart = Date()
 
+        await Self.retryDeletions()
+        await Self.pullDeletions(since: since, container: container, userID: userID)
         await Self.pullChangesSince(since, container: container, userID: userID)
         await Self.retryOutbox(container: container, userID: userID)
+        DeletionLog.prune()
 
         lastIncrementalSyncAt = syncStart
         lastSyncDate = .now
@@ -137,25 +151,130 @@ final class SyncService {
 
     // MARK: - Delete
 
+    /// Deletes a list from the server. Cancels any debounced push first — a
+    /// pending upsert from an edit made moments before the delete would land
+    /// after the DELETE and put the row straight back.
+    ///
+    /// Assumes the caller already removed the local row via
+    /// `ModelContext.deleteRecord(_:)`, which is what records the tombstone.
     func deleteList(id: UUID) async {
-        _ = try? await supabase
-            .from("wish_lists")
-            .delete()
-            .eq("id", value: id.uuidString)
-            .execute()
+        pushListDebouncers[id]?.cancel()
+        pushListDebouncers[id] = nil
+        DeletionLog.record(id, entity: .list)
+        await Self.pushDeletion(id: id, entity: .list)
     }
 
+    /// Deletes an item from the server. Same semantics as `deleteList`.
     func deleteItem(id: UUID) async {
+        pushItemDebouncers[id]?.cancel()
+        pushItemDebouncers[id] = nil
+        DeletionLog.record(id, entity: .item)
+        await Self.pushDeletion(id: id, entity: .item)
+    }
+
+    // MARK: - Delete propagation (nonisolated, off-main)
+
+    /// Drops the remote row, then records the tombstone that tells other devices
+    /// it is gone. Only marks the deletion confirmed once the row is actually
+    /// off the server — a failure here (offline, expired token, transient 5xx)
+    /// leaves it in the delete outbox for `retryDeletions` to finish later.
+    private nonisolated static func pushDeletion(id: UUID, entity: DeletionLog.Entity) async {
+        guard let session = try? await supabase.auth.session else { return }
+        let ownerID = session.user.id
+
+        do {
+            try await supabase
+                .from(entity.table)
+                .delete()
+                .eq("id", value: id.uuidString)
+                .execute()
+        } catch {
+            return   // stays unconfirmed — retried on the next sync
+        }
+
+        // Best-effort: the tombstone only matters to other devices, and a
+        // `deleted_records` table that hasn't been migrated yet must not stop
+        // this device from treating the record as deleted.
         _ = try? await supabase
-            .from("wish_items")
-            .delete()
-            .eq("id", value: id.uuidString)
+            .from("deleted_records")
+            .upsert(DeletionRecord(id: id, entity: entity, ownerID: ownerID))
             .execute()
+
+        DeletionLog.markConfirmed(id, entity: entity)
+    }
+
+    /// Re-sends deletions the server never acknowledged. Runs before any push so
+    /// a record the server still holds can't be pulled back down — or pushed
+    /// back up — in the same cycle.
+    private nonisolated static func retryDeletions() async {
+        for entity in DeletionLog.Entity.allCases {
+            for id in DeletionLog.unconfirmedIDs(entity) {
+                await pushDeletion(id: id, entity: entity)
+            }
+        }
+    }
+
+    /// Applies deletions made on other devices: adopts their tombstones, then
+    /// drops the matching local rows. Without this the local reconcile sees rows
+    /// the server no longer has and helpfully re-creates them.
+    private nonisolated static func pullDeletions(
+        since: Date?,
+        container: ModelContainer,
+        userID: String
+    ) async {
+        guard let ownerUUID = UUID(uuidString: userID) else { return }
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let records: [DeletionRecord]
+        do {
+            records = try await supabase
+                .from("deleted_records")
+                .select()
+                .eq("owner_id", value: ownerUUID.uuidString)
+                .gt("deleted_at", value: iso.string(from: since ?? .distantPast))
+                .execute()
+                .value
+        } catch {
+            return   // not migrated yet, or offline — local tombstones still hold
+        }
+
+        guard !records.isEmpty else { return }
+
+        for entity in DeletionLog.Entity.allCases {
+            let ids = records.filter { $0.entity == entity.rawValue }.map(\.id)
+            DeletionLog.adopt(ids, entity: entity)
+        }
+
+        let ctx = ModelContext(container)
+        ctx.autosaveEnabled = false
+        purgeTombstoned(in: ctx)
+        try? ctx.save()
+    }
+
+    /// Removes any local row that carries a tombstone. Sync is a two-way copy,
+    /// so a deleted record left in the store gets pushed straight back to the
+    /// server — this runs before anything else in a cycle reads the store.
+    private nonisolated static func purgeTombstoned(in context: ModelContext) {
+        let deletedLists = DeletionLog.deletedIDs(.list)
+        let deletedItems = DeletionLog.deletedIDs(.item)
+        guard !deletedLists.isEmpty || !deletedItems.isEmpty else { return }
+
+        for list in ((try? context.fetch(FetchDescriptor<WishList>())) ?? [])
+        where deletedLists.contains(list.id) {
+            context.delete(list)
+        }
+        for item in ((try? context.fetch(FetchDescriptor<WishItem>())) ?? [])
+        where deletedItems.contains(item.id) {
+            context.delete(item)
+        }
     }
 
     // MARK: - Targeted push (nonisolated, off-main)
 
     private nonisolated static func pushList(id: UUID, container: ModelContainer, userID: String) async {
+        guard !DeletionLog.isDeleted(id, entity: .list) else { return }
         guard let ownerUUID = UUID(uuidString: userID) else { return }
         let ctx = ModelContext(container)
         ctx.autosaveEnabled = false
@@ -175,6 +294,8 @@ final class SyncService {
     }
 
     private nonisolated static func pushItem(id: UUID, container: ModelContainer, userID: String) async {
+        // A debounced push that outlived its record would re-create it server-side.
+        guard !DeletionLog.isDeleted(id, entity: .item) else { return }
         guard let ownerUUID = UUID(uuidString: userID) else { return }
         let ctx = ModelContext(container)
         ctx.autosaveEnabled = false
@@ -220,6 +341,10 @@ final class SyncService {
 
         let ctx = ModelContext(container)
         ctx.autosaveEnabled = false
+        purgeTombstoned(in: ctx)
+
+        let deletedListIDs = DeletionLog.deletedIDs(.list)
+        let deletedItemIDs = DeletionLog.deletedIDs(.item)
 
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -252,13 +377,20 @@ final class SyncService {
         }()
 
         let (lists, items) = await (remoteLists, remoteItems)
-        guard !lists.isEmpty || !items.isEmpty else { return }
+        guard !lists.isEmpty || !items.isEmpty else {
+            try? ctx.save()   // commit the purge above
+            return
+        }
 
         // Apply lists
         let localLists = (try? ctx.fetch(FetchDescriptor<WishList>())) ?? []
         let localListsByID = Dictionary(uniqueKeysWithValues: localLists.map { ($0.id, $0) })
 
         for remote in lists {
+            // The row is still on the server because our DELETE hasn't landed
+            // yet. Re-inserting it here would undo the user's delete.
+            guard !deletedListIDs.contains(remote.id) else { continue }
+
             if let local = localListsByID[remote.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
                     applyRemote(remote, to: local)
@@ -293,6 +425,8 @@ final class SyncService {
         let listsByID = Dictionary(uniqueKeysWithValues: allLists.map { ($0.id, $0) })
 
         for remote in items {
+            guard !deletedItemIDs.contains(remote.id) else { continue }
+
             if let local = localItemsByID[remote.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
                     applyRemote(remote, to: local)
@@ -381,12 +515,24 @@ final class SyncService {
         let sp = Perf.begin("sync-perform")
         defer { Perf.end("sync-perform", sp) }
 
+        // ── 0. Settle deletions before anything reads a row ───────
+        // This reconcile copies every unmatched row to the other side, so a
+        // record that outlives its own deletion on either side recreates the
+        // other copy. Deletions are resolved first and veto both directions.
+        await retryDeletions()
+        await pullDeletions(since: nil, container: container, userID: userID)
+
+        let deletedListIDs = DeletionLog.deletedIDs(.list)
+        let deletedItemIDs = DeletionLog.deletedIDs(.item)
+
         let context = ModelContext(container)
         context.autosaveEnabled = false
+        purgeTombstoned(in: context)
 
-        // ── 0. Upload pending images (parallel, compressed) ───────
+        // ── 0b. Upload pending images (parallel, compressed) ──────
         let allItems = try context.fetch(FetchDescriptor<WishItem>())
         let pendingUploads: [(WishItem, Data, String)] = allItems.compactMap { item in
+            guard !deletedItemIDs.contains(item.id) else { return nil }
             guard item.imageURL == nil, let data = item.imageData, !data.isEmpty else { return nil }
             let path = "\(ownerUUID.uuidString.lowercased())/\(item.id.uuidString.lowercased()).jpg"
             let compressed = ImageCompressor.compress(data) ?? data
@@ -414,6 +560,12 @@ final class SyncService {
         var listsToPush: [WishListRecord] = []
 
         for local in localLists {
+            // Deleted, but the store handed it to us anyway — never push it back.
+            guard !deletedListIDs.contains(local.id) else {
+                context.delete(local)
+                continue
+            }
+
             if let remote = remoteListsByID[local.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
                     applyRemote(remote, to: local)
@@ -431,9 +583,11 @@ final class SyncService {
             }
         }
 
-        // Pull remote-only lists
+        // Pull remote-only lists — unless we deleted them and the server hasn't
+        // caught up, in which case "remote-only" means "not deleted yet".
         let localListIDs = Set(localLists.map { $0.id })
-        for remote in remoteLists where !localListIDs.contains(remote.id) {
+        for remote in remoteLists
+        where !localListIDs.contains(remote.id) && !deletedListIDs.contains(remote.id) {
             let list = WishList(
                 id: remote.id,
                 name: remote.name,
@@ -455,7 +609,12 @@ final class SyncService {
         var itemsToPush: [WishItemRecord] = []
 
         for local in localItems {
+            guard !deletedItemIDs.contains(local.id) else {
+                context.delete(local)
+                continue
+            }
             guard let parentList = local.list else { continue }
+
             if let remote = remoteItemsByID[local.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
                     applyRemote(remote, to: local)
@@ -476,7 +635,8 @@ final class SyncService {
         let allLocalLists = try context.fetch(FetchDescriptor<WishList>())
         let listsByID = Dictionary(uniqueKeysWithValues: allLocalLists.map { ($0.id, $0) })
 
-        for remote in remoteItems where !localItemIDs.contains(remote.id) {
+        for remote in remoteItems
+        where !localItemIDs.contains(remote.id) && !deletedItemIDs.contains(remote.id) {
             guard let parentList = listsByID[remote.listID] else { continue }
             let item = makeItem(from: remote, list: parentList)
             context.insert(item)
@@ -603,5 +763,15 @@ final class SyncService {
         )
         item.reminders = ReminderOption.decoded(from: record.reminders)
         return item
+    }
+}
+
+private extension DeletionLog.Entity {
+    /// The Supabase table whose rows this entity's tombstones cover.
+    var table: String {
+        switch self {
+        case .list: "wish_lists"
+        case .item: "wish_items"
+        }
     }
 }

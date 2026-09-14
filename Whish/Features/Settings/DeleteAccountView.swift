@@ -47,6 +47,10 @@ struct DeleteAccountView: View {
                     await auth.deleteAccount {
                         try modelContext.delete(model: WishList.self)
                         try modelContext.delete(model: WishItem.self)
+                        // No tombstones here: the account is gone, so there is
+                        // nothing left for them to describe. Leaving them would
+                        // only veto rows in whatever account signs in next.
+                        DeletionLog.removeAll()
                     }
                     if auth.errorMessage == nil { didSucceed = true }
                 }
