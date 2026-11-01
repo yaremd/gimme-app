@@ -58,10 +58,23 @@ struct DeletionLogTests {
     @Test func adoptedTombstonesArriveConfirmed() {
         withFreshLog { _ in
             let ids = [UUID(), UUID()]
-            DeletionLog.adopt(ids, entity: .item)
+            DeletionLog.adopt(Dictionary(uniqueKeysWithValues: ids.map { ($0, Date.now) }), entity: .item)
 
             #expect(DeletionLog.deletedIDs(.item) == Set(ids))
             #expect(DeletionLog.unconfirmedIDs(.item).isEmpty)
+        }
+    }
+
+    @Test func adoptedTombstonesAgeFromTheServerDeletionTime() {
+        withFreshLog { _ in
+            let id = UUID()
+            // Re-pulled today, but deleted on another device long ago. Stamping it
+            // with the pull time would restart its retention on every full sync.
+            DeletionLog.adopt([id: Date(timeIntervalSinceNow: -DeletionLog.retention - 60)], entity: .item)
+
+            DeletionLog.prune()
+
+            #expect(!DeletionLog.isDeleted(id, entity: .item))
         }
     }
 
@@ -123,6 +136,45 @@ struct DeletionLogTests {
         }
     }
 
+    // MARK: - Pull cursor
+
+    @Test func pullCursorOnlyMovesForward() {
+        withFreshLog { _ in
+            let owner = UUID()
+            let later = Date(timeIntervalSince1970: 2_000)
+            #expect(DeletionLog.pullCursor(for: owner) == nil)
+
+            DeletionLog.advancePullCursor(to: later, for: owner)
+            DeletionLog.advancePullCursor(to: Date(timeIntervalSince1970: 1_000), for: owner)
+
+            #expect(DeletionLog.pullCursor(for: owner) == later)
+        }
+    }
+
+    @Test func pullCursorIsPerAccount() {
+        withFreshLog { _ in
+            let first = UUID()
+            DeletionLog.advancePullCursor(to: .now, for: first)
+
+            // Another account on this device has pulled nothing yet.
+            #expect(DeletionLog.pullCursor(for: UUID()) == nil)
+        }
+    }
+
+    @Test func removeAllClearsTombstonesAndCursors() {
+        withFreshLog { _ in
+            let owner = UUID()
+            let id = UUID()
+            DeletionLog.record(id, entity: .list)
+            DeletionLog.advancePullCursor(to: .now, for: owner)
+
+            DeletionLog.removeAll()
+
+            #expect(!DeletionLog.isDeleted(id, entity: .list))
+            #expect(DeletionLog.pullCursor(for: owner) == nil)
+        }
+    }
+
     // MARK: - Deleting through the log
 
     @MainActor
@@ -134,7 +186,7 @@ struct DeletionLogTests {
             )
             let context = ModelContext(container)
 
-            let list = WishList(name: "Birthday")
+            let list = WishList(name: "Birthday", ownerID: UUID().uuidString)
             let item = WishItem(title: "Headphones", list: list)
             context.insert(list)
             context.insert(item)
@@ -152,7 +204,7 @@ struct DeletionLogTests {
     }
 
     @MainActor
-    @Test func deletingAListTombstonesItsItemsToo() throws {
+    @Test func deletingAListTombstonesOnlyTheList() throws {
         try withFreshLog { _ in
             let container = try ModelContainer(
                 for: WishList.self, WishItem.self,
@@ -160,7 +212,7 @@ struct DeletionLogTests {
             )
             let context = ModelContext(container)
 
-            let list = WishList(name: "Wedding")
+            let list = WishList(name: "Wedding", ownerID: UUID().uuidString)
             let first = WishItem(title: "Kettle", list: list)
             let second = WishItem(title: "Towels", list: list)
             context.insert(list)
@@ -170,15 +222,41 @@ struct DeletionLogTests {
             try context.save()
 
             let listID = list.id
-            let itemIDs = [first.id, second.id]
             context.deleteRecord(list)
 
             #expect(DeletionLog.isDeleted(listID, entity: .list))
-            // The cascade removes the rows locally, but another device still
-            // holding them would push them back without their own tombstones.
-            for id in itemIDs {
-                #expect(DeletionLog.isDeleted(id, entity: .item))
-            }
+            // The items go by cascade, locally and on the server, where the
+            // delete trigger tombstones each one. Queuing them here as well
+            // would only send a DELETE per item for rows already gone.
+            #expect(DeletionLog.unconfirmedIDs(.item).isEmpty)
+            #expect(try context.fetch(FetchDescriptor<WishItem>()).isEmpty)
+        }
+    }
+
+    @MainActor
+    @Test func deletingGuestDataLeavesNoTombstone() throws {
+        try withFreshLog { _ in
+            let container = try ModelContainer(
+                for: WishList.self, WishItem.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            )
+            let context = ModelContext(container)
+
+            let list = WishList(name: "Guest list")   // no owner: never synced
+            let item = WishItem(title: "Lamp", list: list)
+            context.insert(list)
+            context.insert(item)
+            list.items.append(item)
+            try context.save()
+
+            context.deleteRecord(item)
+            context.deleteRecord(list)
+
+            // Nothing on the server to delete, so nothing should sit in the
+            // delete outbox waiting for a session that may never come.
+            #expect(DeletionLog.unconfirmedIDs(.item).isEmpty)
+            #expect(DeletionLog.unconfirmedIDs(.list).isEmpty)
+            #expect(try context.fetch(FetchDescriptor<WishList>()).isEmpty)
         }
     }
 }

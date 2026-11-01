@@ -97,7 +97,7 @@ final class SyncService {
         let syncStart = Date()
 
         await Self.retryDeletions()
-        await Self.pullDeletions(since: since, container: container, userID: userID)
+        await Self.pullDeletions(userID: userID)   // pullChangesSince purges what it adopts
         await Self.pullChangesSince(since, container: container, userID: userID)
         await Self.retryOutbox(container: container, userID: userID)
         DeletionLog.prune()
@@ -156,12 +156,13 @@ final class SyncService {
     /// after the DELETE and put the row straight back.
     ///
     /// Assumes the caller already removed the local row via
-    /// `ModelContext.deleteRecord(_:)`, which is what records the tombstone.
+    /// `ModelContext.deleteRecord(_:)`. Records the tombstone again regardless:
+    /// this is the signed-in path, and the deletion is owed to the server.
     func deleteList(id: UUID) async {
         pushListDebouncers[id]?.cancel()
         pushListDebouncers[id] = nil
         DeletionLog.record(id, entity: .list)
-        await Self.pushDeletion(id: id, entity: .list)
+        await Self.pushDeletions([id], entity: .list)
     }
 
     /// Deletes an item from the server. Same semantics as `deleteList`.
@@ -169,89 +170,90 @@ final class SyncService {
         pushItemDebouncers[id]?.cancel()
         pushItemDebouncers[id] = nil
         DeletionLog.record(id, entity: .item)
-        await Self.pushDeletion(id: id, entity: .item)
+        await Self.pushDeletions([id], entity: .item)
     }
 
     // MARK: - Delete propagation (nonisolated, off-main)
 
-    /// Drops the remote row, then records the tombstone that tells other devices
-    /// it is gone. Only marks the deletion confirmed once the row is actually
-    /// off the server — a failure here (offline, expired token, transient 5xx)
-    /// leaves it in the delete outbox for `retryDeletions` to finish later.
-    private nonisolated static func pushDeletion(id: UUID, entity: DeletionLog.Entity) async {
-        guard let session = try? await supabase.auth.session else { return }
-        let ownerID = session.user.id
+    /// Drops the remote rows. The server's delete trigger records the tombstone
+    /// in the same transaction, so a DELETE that succeeded is a deletion other
+    /// devices will hear about — there is no second write to lose. Only marks
+    /// the deletions confirmed once the DELETE succeeds; a failure (offline,
+    /// expired token, transient 5xx) leaves them in the delete outbox for
+    /// `retryDeletions` to finish later.
+    private nonisolated static func pushDeletions(_ ids: [UUID], entity: DeletionLog.Entity) async {
+        guard !ids.isEmpty, (try? await supabase.auth.session) != nil else { return }
 
-        do {
-            try await supabase
-                .from(entity.table)
-                .delete()
-                .eq("id", value: id.uuidString)
-                .execute()
-        } catch {
-            return   // stays unconfirmed — retried on the next sync
-        }
-
-        // Best-effort: the tombstone only matters to other devices, and a
-        // `deleted_records` table that hasn't been migrated yet must not stop
-        // this device from treating the record as deleted.
-        _ = try? await supabase
-            .from("deleted_records")
-            .upsert(DeletionRecord(id: id, entity: entity, ownerID: ownerID))
-            .execute()
-
-        DeletionLog.markConfirmed(id, entity: entity)
-    }
-
-    /// Re-sends deletions the server never acknowledged. Runs before any push so
-    /// a record the server still holds can't be pulled back down — or pushed
-    /// back up — in the same cycle.
-    private nonisolated static func retryDeletions() async {
-        for entity in DeletionLog.Entity.allCases {
-            for id in DeletionLog.unconfirmedIDs(entity) {
-                await pushDeletion(id: id, entity: entity)
+        // Chunked to keep the `id=in.(…)` filter well inside URL length limits.
+        for start in stride(from: 0, to: ids.count, by: 100) {
+            let chunk = Array(ids[start ..< min(start + 100, ids.count)])
+            do {
+                try await supabase
+                    .from(entity.table)
+                    .delete()
+                    .in("id", values: chunk.map(\.uuidString))
+                    .execute()
+            } catch {
+                return   // stays unconfirmed — retried on the next sync
+            }
+            for id in chunk {
+                DeletionLog.markConfirmed(id, entity: entity)
             }
         }
     }
 
-    /// Applies deletions made on other devices: adopts their tombstones, then
-    /// drops the matching local rows. Without this the local reconcile sees rows
-    /// the server no longer has and helpfully re-creates them.
-    private nonisolated static func pullDeletions(
-        since: Date?,
-        container: ModelContainer,
-        userID: String
-    ) async {
+    /// Re-sends deletions the server never acknowledged, one request per table.
+    /// Runs before any push so a record the server still holds can't be pulled
+    /// back down — or pushed back up — in the same cycle.
+    private nonisolated static func retryDeletions() async {
+        for entity in DeletionLog.Entity.allCases {
+            await pushDeletions(DeletionLog.unconfirmedIDs(entity), entity: entity)
+        }
+    }
+
+    /// Adopts deletions made on other devices into the local log. Callers purge
+    /// the matching local rows with `purgeTombstoned(in:)` in the context they
+    /// go on to reconcile — without that the reconcile sees rows the server no
+    /// longer has and helpfully re-creates them.
+    ///
+    /// Pages forward from the server-stamped cursor, which only advances once a
+    /// pull succeeds. The small overlap re-reads tombstones near the cursor:
+    /// `deleted_at` is the deleting transaction's start time, so one that
+    /// commits late can land just behind a cursor already handed out. Adopting
+    /// the same tombstone twice is harmless.
+    private nonisolated static func pullDeletions(userID: String) async {
         guard let ownerUUID = UUID(uuidString: userID) else { return }
 
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let cursor = DeletionLog.pullCursor(for: ownerUUID)
+        let from = cursor.map { $0.addingTimeInterval(-deletionPullOverlap) } ?? .distantPast
 
         let records: [DeletionRecord]
         do {
             records = try await supabase
                 .from("deleted_records")
-                .select()
+                .select("id, entity, deleted_at")
                 .eq("owner_id", value: ownerUUID.uuidString)
-                .gt("deleted_at", value: iso.string(from: since ?? .distantPast))
+                .gt("deleted_at", value: iso.string(from: from))
                 .execute()
                 .value
         } catch {
             return   // not migrated yet, or offline — local tombstones still hold
         }
 
-        guard !records.isEmpty else { return }
-
         for entity in DeletionLog.Entity.allCases {
-            let ids = records.filter { $0.entity == entity.rawValue }.map(\.id)
-            DeletionLog.adopt(ids, entity: entity)
+            let tombstones = records
+                .filter { $0.entity == entity.rawValue }
+                .reduce(into: [UUID: Date]()) { $0[$1.id] = $1.deletedAt }
+            DeletionLog.adopt(tombstones, entity: entity)
         }
-
-        let ctx = ModelContext(container)
-        ctx.autosaveEnabled = false
-        purgeTombstoned(in: ctx)
-        try? ctx.save()
+        if let newest = records.map(\.deletedAt).max() {
+            DeletionLog.advancePullCursor(to: newest, for: ownerUUID)
+        }
     }
+
+    private nonisolated static let deletionPullOverlap: TimeInterval = 5 * 60
 
     /// Removes any local row that carries a tombstone. Sync is a two-way copy,
     /// so a deleted record left in the store gets pushed straight back to the
@@ -320,6 +322,11 @@ final class SyncService {
                 // Image upload failed — push row anyway, retry on next outbox drain.
             }
         }
+
+        // The image upload above can take seconds; the item may have been
+        // deleted meanwhile. The server would drop the upsert anyway (see
+        // `migration_v7_deletions.sql`), but there's no point sending it.
+        guard !DeletionLog.isDeleted(id, entity: .item) else { return }
 
         let record = WishItemRecord(from: item, listID: parentList.id, ownerID: ownerUUID)
         do {
@@ -520,7 +527,7 @@ final class SyncService {
         // record that outlives its own deletion on either side recreates the
         // other copy. Deletions are resolved first and veto both directions.
         await retryDeletions()
-        await pullDeletions(since: nil, container: container, userID: userID)
+        await pullDeletions(userID: userID)
 
         let deletedListIDs = DeletionLog.deletedIDs(.list)
         let deletedItemIDs = DeletionLog.deletedIDs(.item)
@@ -532,7 +539,6 @@ final class SyncService {
         // ── 0b. Upload pending images (parallel, compressed) ──────
         let allItems = try context.fetch(FetchDescriptor<WishItem>())
         let pendingUploads: [(WishItem, Data, String)] = allItems.compactMap { item in
-            guard !deletedItemIDs.contains(item.id) else { return nil }
             guard item.imageURL == nil, let data = item.imageData, !data.isEmpty else { return nil }
             let path = "\(ownerUUID.uuidString.lowercased())/\(item.id.uuidString.lowercased()).jpg"
             let compressed = ImageCompressor.compress(data) ?? data
@@ -560,11 +566,8 @@ final class SyncService {
         var listsToPush: [WishListRecord] = []
 
         for local in localLists {
-            // Deleted, but the store handed it to us anyway — never push it back.
-            guard !deletedListIDs.contains(local.id) else {
-                context.delete(local)
-                continue
-            }
+            // Purged above; skipped in case the fetch still returns it.
+            guard !deletedListIDs.contains(local.id) else { continue }
 
             if let remote = remoteListsByID[local.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
@@ -609,11 +612,7 @@ final class SyncService {
         var itemsToPush: [WishItemRecord] = []
 
         for local in localItems {
-            guard !deletedItemIDs.contains(local.id) else {
-                context.delete(local)
-                continue
-            }
-            guard let parentList = local.list else { continue }
+            guard !deletedItemIDs.contains(local.id), let parentList = local.list else { continue }
 
             if let remote = remoteItemsByID[local.id] {
                 if remote.updatedAt > (local.updatedAt ?? .distantPast) {
@@ -644,6 +643,20 @@ final class SyncService {
         }
 
         // ── 4. Batch push (2 network calls instead of N) ─────────
+        // Anything deleted while this reconcile was on the network is still in
+        // the batches and still in this context. Drop it from both, so it is
+        // neither pushed back up nor written back into the store by the save
+        // below. (The server would refuse the rows anyway; see
+        // `migration_v7_deletions.sql`.)
+        let lateListIDs = DeletionLog.deletedIDs(.list).subtracting(deletedListIDs)
+        let lateItemIDs = DeletionLog.deletedIDs(.item).subtracting(deletedItemIDs)
+        if !lateListIDs.isEmpty || !lateItemIDs.isEmpty {
+            listsToPush.removeAll { lateListIDs.contains($0.id) }
+            itemsToPush.removeAll { lateItemIDs.contains($0.id) || lateListIDs.contains($0.listID) }
+            for list in localLists where lateListIDs.contains(list.id) { context.delete(list) }
+            for item in localItems where lateItemIDs.contains(item.id) { context.delete(item) }
+        }
+
         try await pushRecords(listsToPush, table: "wish_lists")
         try await pushRecords(itemsToPush, table: "wish_items")
 

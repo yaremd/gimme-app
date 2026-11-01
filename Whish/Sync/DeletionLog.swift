@@ -49,12 +49,14 @@ enum DeletionLog {
     }
 
     /// Adopts tombstones pulled from the server — deletions made on another
-    /// device. They arrive confirmed; the server is where they came from.
-    static func adopt(_ ids: [UUID], entity: Entity, at date: Date = .now) {
-        guard !ids.isEmpty else { return }
+    /// device. They arrive confirmed; the server is where they came from. Each
+    /// keeps the server's deletion time, so retention ages it from when it was
+    /// deleted rather than from whenever it was last pulled.
+    static func adopt(_ tombstones: [UUID: Date], entity: Entity) {
+        guard !tombstones.isEmpty else { return }
         mutate(entity) { entries in
-            for id in ids {
-                entries[id.uuidString] = Entry(deletedAt: date, isConfirmed: true)
+            for (id, deletedAt) in tombstones {
+                entries[id.uuidString] = Entry(deletedAt: deletedAt, isConfirmed: true)
             }
         }
     }
@@ -99,14 +101,43 @@ enum DeletionLog {
         }
     }
 
-    /// Clears the whole log. Only for when the account itself goes away — the
-    /// tombstones describe rows that no longer exist anywhere.
+    /// Clears the whole log, pull cursors included. Only for when the account
+    /// itself goes away — the tombstones describe rows that no longer exist
+    /// anywhere.
     static func removeAll() {
         lock.lock()
         defer { lock.unlock() }
         for entity in Entity.allCases {
             defaults.removeObject(forKey: entity.storageKey)
         }
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(cursorKeyPrefix) {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    // MARK: - Pull cursor
+
+    /// The newest server `deleted_at` this device has pulled for `ownerID`.
+    ///
+    /// A server timestamp, never this device's clock: comparing the server's
+    /// `deleted_at` against a local clock skips tombstones whenever the two
+    /// disagree. Only moves forward after a pull succeeds, so a failed pull
+    /// can't step over deletions it never saw. Per account, so signing into a
+    /// different one starts from the beginning.
+    static func pullCursor(for ownerID: UUID) -> Date? {
+        defaults.object(forKey: cursorKey(ownerID)) as? Date
+    }
+
+    static func advancePullCursor(to date: Date, for ownerID: UUID) {
+        lock.lock()
+        defer { lock.unlock() }
+        if let current = defaults.object(forKey: cursorKey(ownerID)) as? Date, current >= date { return }
+        defaults.set(date, forKey: cursorKey(ownerID))
+    }
+
+    private static let cursorKeyPrefix = "sync.tombstones.cursor."
+    private static func cursorKey(_ ownerID: UUID) -> String {
+        cursorKeyPrefix + ownerID.uuidString
     }
 
     // MARK: - Storage
@@ -149,20 +180,26 @@ extension ModelContext {
     /// before any background sync context reads the store. Without the save the
     /// delete sits in the main context until autosave fires, and a sync that
     /// starts in between still sees the row and pushes it back to the server.
+    ///
+    /// Guest data (no owner) never reached the server, so it gets no tombstone:
+    /// there is nothing to delete remotely, and the entry would sit in the
+    /// delete outbox forever.
     func deleteRecord(_ item: WishItem) {
-        DeletionLog.record(item.id, entity: .item)
+        if item.list?.ownerID != nil {
+            DeletionLog.record(item.id, entity: .item)
+        }
         delete(item)
         try? save()
     }
 
-    /// Deletes `list` and, by cascade, its items. SwiftData and the `list_id`
-    /// foreign key both cascade the rows, but the tombstones have to be recorded
-    /// explicitly — otherwise a device that still holds the items pushes them
-    /// back up, and they return as orphans the moment their list is re-created.
+    /// Deletes `list` and, by cascade, its items. Only the list is tombstoned:
+    /// SwiftData cascades the items here, the `list_id` foreign key cascades
+    /// them on the server, and the server's delete trigger tombstones each one
+    /// for other devices. Tombstoning them here too would only queue a DELETE
+    /// per item for rows that are already gone.
     func deleteRecord(_ list: WishList) {
-        DeletionLog.record(list.id, entity: .list)
-        for item in list.items {
-            DeletionLog.record(item.id, entity: .item)
+        if list.ownerID != nil {
+            DeletionLog.record(list.id, entity: .list)
         }
         delete(list)
         try? save()
