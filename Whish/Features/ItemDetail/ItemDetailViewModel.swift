@@ -17,7 +17,7 @@ final class ItemDetailViewModel {
     }
 
     func deleteItem(_ item: WishItem, in context: ModelContext, onDeleted: @MainActor () -> Void) {
-        context.delete(item)
+        context.deleteRecord(item)
         onDeleted()
     }
 }

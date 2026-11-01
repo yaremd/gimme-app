@@ -51,6 +51,28 @@ struct WishListRecord: Codable, Sendable {
     }
 }
 
+// MARK: - DeletionRecord
+
+/// Codable DTO that maps 1:1 to the `deleted_records` Supabase table.
+///
+/// One row per deleted list or item. Dropping the row from `wish_lists` /
+/// `wish_items` only removes it here — a device that still holds a copy has no
+/// way to tell that from a row it hasn't pulled yet, and pushes it back. This is
+/// how the deletion itself travels between devices.
+///
+/// Read-only for the app: a trigger writes these rows in the same transaction
+/// as the DELETE, stamped with the server's clock (`migration_v7_deletions.sql`).
+struct DeletionRecord: Decodable, Sendable {
+    let id: UUID
+    let entity: String
+    let deletedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, entity
+        case deletedAt = "deleted_at"
+    }
+}
+
 // MARK: - WishItemRecord
 
 /// Codable DTO that maps 1:1 to the `wish_items` Supabase table.

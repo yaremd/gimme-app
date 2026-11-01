@@ -26,7 +26,7 @@ final class HomeViewModel {
         context.insert(list)
     }
 
-    func deleteList(_ list: WishList, in context: ModelContext) { context.delete(list) }
+    func deleteList(_ list: WishList, in context: ModelContext) { context.deleteRecord(list) }
     func archiveList(_ list: WishList)   { list.isArchived = true }
     func unarchiveList(_ list: WishList) { list.isArchived = false }
     func pinList(_ list: WishList)       { list.isPinned.toggle() }
