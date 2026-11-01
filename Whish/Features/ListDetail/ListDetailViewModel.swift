@@ -59,7 +59,7 @@ final class ListDetailViewModel {
     func pinItem(_ item: WishItem)         { item.isPinned.toggle() }
 
     func deleteItem(_ item: WishItem, in context: ModelContext) {
-        context.delete(item)
+        context.deleteRecord(item)
     }
 
     func showAddItem() {
