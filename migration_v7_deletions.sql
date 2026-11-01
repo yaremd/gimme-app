@@ -132,6 +132,12 @@ create trigger wish_items_skip_deleted
   before insert or update on public.wish_items
   for each row execute function public.skip_deleted_item();
 
+-- Trigger-only: keep them off the REST API's /rpc surface. EXECUTE is checked
+-- when a trigger is created, not when it fires, so the triggers keep working.
+revoke execute on function public.record_deletion()   from public, anon, authenticated;
+revoke execute on function public.skip_deleted_list() from public, anon, authenticated;
+revoke execute on function public.skip_deleted_item() from public, anon, authenticated;
+
 -- Optional housekeeping: tombstones only need to outlive the slowest device's
 -- sync gap. The client keeps its own for 90 days; matching that server-side is
 -- safe once every device has synced at least once inside the window.
