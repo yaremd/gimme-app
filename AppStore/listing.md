@@ -54,6 +54,14 @@ Free: unlimited lists, items, iCloud sync, Share Extension, widgets, price track
 
 Download Gimme and start saving what you want.
 
+## What's New (Version 1.1.1)
+
+Deleting now sticks.
+
+- Fixed lists and items reappearing after you deleted them, especially after pulling to refresh
+- Deletions now sync reliably to all your devices and to lists you've shared
+- Deleting works offline too — Gimme finishes the job the next time you're online
+
 ## What's New (Version 1.1.0)
 
 Price drop alerts are here.
