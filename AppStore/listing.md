@@ -50,7 +50,7 @@ PRIVACY FIRST
 No ads. No tracking SDKs. No spam. Works fully offline in local-only mode. Your data stays on your device unless you choose to sync.
 
 GIMME PRO — UNLOCK EVERYTHING
-Free: unlimited lists, items, iCloud sync, Share Extension, widgets, price tracking on 3 items, and share up to 2 lists with friends. Pro unlocks price tracking on everything, unlimited sharing, the full Stats dashboard with charts and currency conversion, all widget sizes, and every future feature we ship. A single lifetime purchase — no subscriptions, no recurring charges. Pay once, own it forever.
+Free: unlimited lists, items, sync across devices, Share Extension, widgets, price tracking on 3 items, and share up to 2 lists with friends. Pro unlocks price tracking on everything, unlimited sharing, the full Stats dashboard with charts and currency conversion, all widget sizes, and every future feature we ship. A single lifetime purchase — no subscriptions, no recurring charges. Pay once, own it forever.
 
 Download Gimme and start saving what you want.
 
@@ -92,35 +92,41 @@ Welcome to Gimme! Your new favorite wishlist app.
 
 ## App Review Notes
 
-DEMO ACCOUNT
-Email: demo@gimme-app.com
-Password: GimmeDemo2026!
+Sign-in required: yes (to test sync and sharing).
+User name: reviewer@gimmelist.com
+Password: kept in App Store Connect, not in the repo. Reset it in Supabase
+(Authentication → Users) if it is lost.
 
-The app works fully without an account (local-only mode). The demo account has pre-populated wishlists to demonstrate sync and sharing features.
+Paste into App Store Connect → App Review Information → Notes:
+
+```
+WHAT'S NEW IN 1.1.1
+Bug fix: deleted lists and items could reappear after a refresh or come back from another device. To verify: sign in, delete an item, then pull to refresh on the list — it stays deleted.
+
+DEMO ACCOUNT
+The app works fully without an account (local-only mode). Sign in with the credentials above to test sync and sharing; the account has sample wishlists.
 
 SHARING
-To test wishlist sharing: open any list -> tap the share icon -> copy the link. The link opens a web page where anyone can view the list and claim items without an account.
+Open any list -> tap the share icon -> copy the link. The link opens a web page where anyone can view the list and reserve items without an account.
 
 SHARE EXTENSION
-To test "Save to Gimme": open Safari, navigate to any product page (e.g., amazon.com), tap the Share button, select "Save to Gimme". The URL, title, image, and price will be auto-extracted.
+In Safari, open any product page, tap Share, choose "Save to Gimme". Title, image and price are extracted automatically.
 
-WIDGETS
-Home Screen widgets (small, medium) and Lock Screen widget are available. To test: long-press the Home Screen -> "+" -> search "Gimme".
+WIDGETS AND SIRI
+Home Screen and Lock Screen widgets: long-press the Home Screen -> "+" -> search "Gimme". Siri: "Hey Siri, add wish in Gimme".
 
-SIRI SHORTCUTS
-5 Siri Shortcuts are provided. Test via the Shortcuts app or say "Hey Siri, add wish in Gimme".
-
-PRICE TRACKING (new in 1.1.0)
-Open any item saved with a product URL and switch on "Price tracking" in the item detail. Tap "Check now" to re-fetch the price on demand rather than waiting for a scheduled check. Prices are re-read from the same product page the user saved, through the same metadata pipeline used when an item is first added (the app's own Supabase edge function, falling back to a direct request) — no third-party price API, and nothing is fetched that the user hasn't explicitly saved. Price history is stored on-device only; it is not synced or uploaded.
+PRICE TRACKING
+Open an item saved with a product URL and switch on "Price tracking". "Check now" re-fetches the price from the page the user saved, via the app's own Supabase function; no third-party price API. Price history stays on-device.
 
 BACKGROUND REFRESH
-The app declares the "fetch" background mode and a BGAppRefreshTask (com.yaremchuk.app.price-refresh). It is used solely to re-check prices for items the user has enabled tracking on: at most once per app foreground per 4 hours, and per item no more than once per 20 hours. No background location, audio, or other background activity.
+The "fetch" background mode and BGAppRefreshTask (com.yaremchuk.app.price-refresh) are used only to re-check prices of tracked items: at most once per 4 hours, and per item at most once per 20 hours.
 
 NOTIFICATIONS
-Price drop alerts are local notifications, scheduled on-device. Authorization is requested when the user turns on price tracking or the "Price Drop Alerts" toggle in Settings; if it is declined the feature still shows price history in-app but sends nothing.
+Price drop alerts are local notifications. Permission is requested when price tracking is turned on.
 
 IN-APP PURCHASE
-One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2. Free users can track prices on 3 items; Pro removes the limit.
+"Gimme Pro" one-time lifetime purchase ($4.99), non-consumable, StoreKit 2. Free users can track 3 items; Pro removes the limit.
+```
 
 ## App Store Connect Configuration
 
@@ -169,20 +175,31 @@ Open in Safari at 1290x2796 viewport, export as PNG.
 
 ## App Privacy Labels
 
+Nothing is collected in local-only mode. Once the user creates an account,
+wishlists sync to Supabase, so the labels cover what sync stores. Earlier
+versions of this file listed User Content and Purchases as "not collected",
+which was wrong once sync shipped: synced item titles, notes, links and
+photos, and the Pro status (`syncProToSupabase`), are all stored server-side
+against the user's account.
+
 **Data Used to Track You:** None
-**Data Linked to You:**
 
-| Category | Data Type | Purpose |
-|----------|-----------|---------|
-| Contact Info | Email Address | App Functionality (account creation) |
-| Identifiers | User ID | App Functionality (cloud sync) |
+**Data Linked to You** (all for App Functionality only):
 
-**Data Not Linked to You:** None collected
-**Data Not Collected:** Location, Health & Fitness, Financial Info, Sensitive Info, Contacts, User Content, Browsing History, Search History, Diagnostics, Usage Data, Purchases
+| Category | Data Type | What it is |
+|----------|-----------|------------|
+| Contact Info | Email Address | Account sign-in |
+| Identifiers | User ID | Cloud sync |
+| User Content | Photos or Videos | Item photos the user adds, uploaded when syncing |
+| User Content | Other User Content | Synced lists and items: names, notes, links, prices |
+| Purchases | Purchase History | Gimme Pro status, so it follows the account |
+
+**Data Not Linked to You:** None
+
+**Data Not Collected:** Location, Health & Fitness, Financial Info, Sensitive Info, Contacts, Browsing History, Search History, Diagnostics, Usage Data
 
 Notes:
-- No IDFA usage
-- No third-party analytics or tracking SDKs
-- No advertising frameworks
-- App works fully offline without collecting any data
-- Data is only collected when user voluntarily creates an account
+- No IDFA usage, no third-party analytics, tracking or advertising SDKs
+- Works fully offline without collecting anything
+- Data is collected only when the user chooses to create an account
+- Not used for tracking, third-party advertising or analytics
