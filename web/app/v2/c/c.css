@@ -1,0 +1,661 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Option C · Glass bento
+   The whole product in one grid of smoked-glass tiles over a lit backdrop.
+   Tiles are dark enough for text; the fragments inside them are flat, so
+   glass is never stacked on glass. A soft highlight follows the pointer.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.opt-c {
+  --font-display: var(--font-unbounded), "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-text: var(--font-geist), "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  position: relative;
+  font-family: var(--font-text);
+  background: var(--night-0);
+}
+
+/* two lights only: violet and a little coral */
+.c-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 520px at 16% 120px, rgba(108, 99, 255, 0.55), transparent 70%),
+    radial-gradient(38% 460px at 90% 520px, rgba(255, 138, 92, 0.2), transparent 70%),
+    radial-gradient(50% 620px at 58% 1500px, rgba(108, 99, 255, 0.34), transparent 70%),
+    radial-gradient(40% 520px at 8% 2300px, rgba(255, 138, 92, 0.14), transparent 70%),
+    radial-gradient(50% 600px at 80% 2900px, rgba(108, 99, 255, 0.3), transparent 70%);
+}
+.c-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  -webkit-mask-image: linear-gradient(#000, transparent 1400px);
+  mask-image: linear-gradient(#000, transparent 1400px);
+}
+.c-page {
+  max-width: 1240px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+/* ── Nav ── */
+.c-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: max(16px, env(safe-area-inset-top)) 18px;
+}
+.c-nav__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+  color: var(--lavender);
+}
+.c-nav__logo img {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+.c-nav__logo svg {
+  width: 64px;
+  height: 21px;
+}
+.c-nav nav {
+  display: none;
+  gap: 2px;
+}
+.c-nav nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 500 14.5px/1 var(--font-text);
+  color: var(--muted);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+.c-nav nav a:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Grid ── */
+.c-bento {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.c-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  min-width: 0;
+  padding: 22px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(30, 29, 41, 0.76), rgba(15, 15, 21, 0.84));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  scroll-margin-top: 24px;
+  animation: c-in 0.8s var(--soft) backwards;
+}
+.c-tile:nth-child(2) {
+  animation-delay: 70ms;
+}
+.c-tile:nth-child(3) {
+  animation-delay: 140ms;
+}
+.c-tile:nth-child(4) {
+  animation-delay: 210ms;
+}
+@keyframes c-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
+  }
+}
+/* the pointer's highlight, in each tile's own coordinates */
+.c-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, -40%), rgba(171, 164, 255, 0.2), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+.c-bento:hover .c-tile::before {
+  opacity: 1;
+}
+.c-tile > * {
+  position: relative;
+}
+/* fragments sit flat inside a tile: glass is never stacked on glass */
+.opt-c .c-tile .g-glass {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .c-tile {
+    background: #16151d;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.c-label {
+  font: 500 11.5px/1.4 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lavender);
+}
+.c-h2 {
+  font: 600 clamp(17px, 1.5vw, 20px) / 1.25 var(--font-display);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.c-p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.c-art {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 170px;
+  padding-block: 10px 14px;
+}
+
+/* ── Hero tile ── */
+.c-hero {
+  gap: 18px;
+  justify-content: flex-end;
+  padding: clamp(24px, 3.4vw, 40px);
+  background:
+    radial-gradient(90% 80% at 0% 0%, rgba(108, 99, 255, 0.42), transparent 64%),
+    linear-gradient(180deg, rgba(30, 29, 41, 0.76), rgba(15, 15, 21, 0.84));
+}
+.c-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 34px;
+  margin-bottom: auto;
+  padding: 0 13px 0 10px;
+  border-radius: 999px;
+  font: 500 13.5px/1 var(--font-text);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.c-chip svg {
+  width: 14px;
+  height: 14px;
+}
+.c-h1 {
+  margin-top: 40px;
+  font: 800 clamp(34px, 10.4vw, 52px) / 1 var(--font-display);
+  letter-spacing: -0.05em;
+}
+.c-sub {
+  max-width: 40ch;
+  font-size: clamp(16px, 1.5vw, 18px);
+  line-height: 1.5;
+  color: var(--muted);
+}
+.c-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  margin-top: 4px;
+}
+.c-cta__qr {
+  display: none;
+}
+.c-note {
+  font-size: 14px;
+  color: var(--dim);
+}
+
+/* ── Phone tile ── */
+.c-phone {
+  min-height: 560px;
+  padding-bottom: 0;
+}
+.c-phone__stage {
+  position: relative;
+  display: grid;
+  flex: 1;
+  justify-items: center;
+  align-items: start;
+  padding-top: 18px;
+  perspective: 1400px;
+}
+.c-phone__glow {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  width: 150%;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  background: radial-gradient(closest-side, rgba(108, 99, 255, 0.5), transparent 70%);
+  pointer-events: none;
+}
+.c-phone .g-phone {
+  --w: clamp(240px, 62vw, 270px);
+  margin-bottom: -34%;
+  transform: rotateY(calc(var(--px, 0) * 6deg)) rotateX(calc(var(--py, 0) * -4deg));
+  will-change: transform;
+}
+.c-phone__chip {
+  position: absolute;
+  z-index: 2;
+  background: rgba(24, 23, 33, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 16px 34px -12px rgba(0, 0, 0, 0.7);
+  transform: translate3d(calc(var(--px, 0) * var(--k, 14) * 1px), calc(var(--py, 0) * var(--k, 14) * 0.6px), 0);
+}
+/* chips sit low on the phone, clear of the total and the first rows */
+.c-phone__chip--1 {
+  --k: 18;
+  left: 0;
+  bottom: 138px;
+}
+.c-phone__chip--2 {
+  --k: -14;
+  right: 0;
+  bottom: 62px;
+}
+
+/* ── Share + claim ── */
+.c-share__art {
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Widgets ── */
+.c-widgets__art {
+  zoom: 0.82;
+}
+.c-widgets__art .g-widget {
+  rotate: -2.5deg;
+}
+
+/* ── Lock Screen ── */
+.c-lockscreen {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font-family: var(--font-app);
+  color: #fff;
+}
+.c-lockscreen__inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 13.5px/1.2 var(--font-app);
+  color: rgba(255, 255, 255, 0.82);
+}
+.c-lockscreen__inline svg {
+  width: 14px;
+  height: 14px;
+}
+.c-lockscreen__time {
+  font: 600 clamp(64px, 7vw, 86px) / 1 var(--font-app-round);
+  letter-spacing: -0.03em;
+}
+.c-lock {
+  background:
+    radial-gradient(110% 80% at 50% 0%, rgba(108, 99, 255, 0.4), transparent 66%),
+    linear-gradient(180deg, rgba(30, 29, 41, 0.76), rgba(15, 15, 21, 0.84));
+}
+
+/* ── Spotlight ── */
+.c-spot .g-spot {
+  max-width: 320px;
+}
+.opt-c .c-spot .g-spot__bar {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Stats ── */
+.c-stats__art {
+  justify-items: stretch;
+  align-content: center;
+  gap: 4px;
+}
+.c-stats__big {
+  font: 700 clamp(40px, 4.4vw, 56px) / 1 var(--font-app-round);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.c-stats__cap {
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.c-stats__bars {
+  display: grid;
+  gap: 8px;
+}
+.c-stats__bars li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  font: 600 12.5px/1 var(--font-app-round);
+  color: var(--muted);
+}
+.c-stats__bars .g-emoji {
+  font-size: 15px;
+}
+.c-stats__bars i {
+  display: block;
+  width: calc(var(--v) * 100%);
+  min-width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--c);
+}
+.c-stats__bars b {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ── Private ── */
+.c-private__list {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  gap: 16px;
+}
+.c-private__list li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font: 600 15.5px/1.2 var(--font-text);
+}
+.c-private__list svg {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  color: var(--lavender);
+}
+
+/* ── Pricing ── */
+.c-plans {
+  display: grid;
+  gap: 12px;
+}
+.c-plan {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.c-plan--pro {
+  background: linear-gradient(160deg, rgba(108, 99, 255, 0.42), rgba(108, 99, 255, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(171, 164, 255, 0.4);
+}
+.c-plan__name {
+  font: 500 11.5px/1.4 var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lavender);
+}
+.c-plan--pro .c-plan__name {
+  color: var(--text);
+}
+.c-plan__price {
+  font: 800 clamp(34px, 3.6vw, 46px) / 1.1 var(--font-display);
+  letter-spacing: -0.05em;
+}
+.c-plan__price span {
+  font: 500 15px/1 var(--font-text);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.c-plan ul {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+.c-plan li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+.c-plan li svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--lavender);
+  stroke-width: 2.6;
+}
+.c-plan--pro li svg {
+  color: var(--text);
+}
+
+/* ── Final call ── */
+.c-final {
+  gap: 16px;
+  justify-content: flex-end;
+  padding: clamp(24px, 3.4vw, 40px);
+  background:
+    radial-gradient(100% 90% at 100% 100%, rgba(255, 138, 92, 0.34), transparent 62%),
+    radial-gradient(90% 80% at 0% 0%, rgba(108, 99, 255, 0.4), transparent 64%),
+    linear-gradient(180deg, rgba(30, 29, 41, 0.76), rgba(15, 15, 21, 0.84));
+}
+.c-final__spark {
+  width: 44px;
+  height: 44px;
+  margin-bottom: auto;
+}
+.c-final__title {
+  margin-top: 30px;
+  font: 800 clamp(40px, 5vw, 68px) / 0.98 var(--font-display);
+  letter-spacing: -0.05em;
+}
+
+/* ── Footer ── */
+.c-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-top: 26px;
+  font-size: 14.5px;
+  color: var(--dim);
+}
+.c-foot nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+.c-foot nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.c-foot nav a:hover {
+  color: var(--text);
+}
+
+/* ══ Tablet: six columns ══ */
+@media (min-width: 700px) {
+  .c-nav nav {
+    display: flex;
+  }
+  .c-bento {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .c-tile {
+    padding: 24px;
+  }
+  .c-hero,
+  .c-phone,
+  .c-share,
+  .c-pricing,
+  .c-final {
+    grid-column: 1 / -1;
+  }
+  .c-h1 {
+    font-size: clamp(48px, 7.4vw, 60px);
+  }
+  .c-save,
+  .c-price,
+  .c-siri,
+  .c-stats {
+    grid-column: span 3;
+  }
+  .c-widgets,
+  .c-spot {
+    grid-column: span 4;
+  }
+  .c-lock,
+  .c-private {
+    grid-column: span 2;
+  }
+  .c-share__art {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .c-plans {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .c-phone .g-phone {
+    --w: 280px;
+  }
+  .c-phone__chip--1 {
+    left: 8%;
+  }
+  .c-phone__chip--2 {
+    right: 8%;
+  }
+}
+
+/* ══ Desktop: twelve columns ══ */
+@media (min-width: 1060px) {
+  .c-bento {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .c-hero {
+    grid-column: 1 / 9;
+    min-height: 500px;
+  }
+  .c-h1 {
+    font-size: clamp(54px, 5.3vw, 78px);
+  }
+  .c-phone {
+    grid-column: 9 / 13;
+    grid-row: span 2;
+  }
+  .c-phone .g-phone {
+    --w: clamp(250px, 20vw, 290px);
+    margin-bottom: -8%;
+  }
+  .c-phone__chip--1 {
+    left: -8px;
+    bottom: 196px;
+  }
+  .c-phone__chip--2 {
+    right: -8px;
+    bottom: 112px;
+  }
+  .c-save {
+    grid-column: 1 / 5;
+  }
+  .c-price {
+    grid-column: 5 / 9;
+  }
+  .c-share {
+    grid-column: 1 / 7;
+  }
+  .c-widgets {
+    grid-column: 7 / 11;
+  }
+  .c-lock {
+    grid-column: 11 / 13;
+  }
+  .c-siri {
+    grid-column: 1 / 4;
+  }
+  .c-spot {
+    grid-column: 4 / 8;
+  }
+  .c-stats {
+    grid-column: 8 / 11;
+  }
+  .c-private {
+    grid-column: 11 / 13;
+  }
+  .c-pricing {
+    grid-column: 1 / 8;
+  }
+  .c-final {
+    grid-column: 8 / 13;
+  }
+  .c-lockscreen__time {
+    font-size: 58px;
+  }
+  .c-lockscreen__inline {
+    font-size: 12px;
+  }
+}
+@media (min-width: 1060px) and (hover: hover) and (pointer: fine) {
+  .c-cta__qr {
+    display: inline-flex;
+  }
+  .c-tile {
+    transition:
+      box-shadow 0.35s var(--ease-out),
+      translate 0.35s var(--ease-out);
+  }
+  .c-tile:hover {
+    translate: 0 -3px;
+    box-shadow:
+      inset 0 0 0 1px rgba(171, 164, 255, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 26px 50px -30px rgba(0, 0, 0, 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-tile {
+    animation: none;
+    transition: none;
+  }
+  .c-tile:hover {
+    translate: none;
+  }
+}
