@@ -1,7 +1,8 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Gimme site redesign: shared foundation for the landing options (/v2/*).
+   Gimme site: the shared foundation for every page.
    Tokens come from the iOS app (Whish/Design/Theme.swift) and the icon artwork.
-   Everything here is prefixed g- so it cannot collide with the live pages.
+   Everything here is prefixed g-. It is unlayered, so it wins over Tailwind
+   utilities on the same element.
    ───────────────────────────────────────────────────────────────────────── */
 
 .g-root {
@@ -58,9 +59,6 @@
   -webkit-text-size-adjust: 100%;
 }
 
-.g-root :where(a) {
-  color: inherit;
-}
 .g-root :where(a, button):focus-visible {
   outline: 2px solid var(--coral);
   outline-offset: 3px;
@@ -1181,7 +1179,7 @@ html.js .g-hand[data-inview="true"] path {
   color: var(--text);
 }
 
-/* option switcher: scaffolding for comparing the options, not part of any design */
+/* option switcher: only on the saved design options at /options (local preview) */
 .g-switch {
   position: fixed;
   left: 50%;
@@ -1247,5 +1245,536 @@ html.js .g-hand[data-inview="true"] path {
   .g-phone__screen img {
     transform: none;
     transition: opacity 0.3s ease;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   Site chrome and inner pages
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* faint stars behind every page: two tile sizes so the pattern never lines up */
+.g-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.3px 1.3px at 12% 9%, rgba(255, 255, 255, 0.8), transparent 70%),
+    radial-gradient(1px 1px at 28% 31%, rgba(255, 255, 255, 0.5), transparent 70%),
+    radial-gradient(1.2px 1.2px at 46% 14%, rgba(255, 255, 255, 0.65), transparent 70%),
+    radial-gradient(1px 1px at 63% 42%, rgba(255, 255, 255, 0.45), transparent 70%),
+    radial-gradient(1.4px 1.4px at 78% 18%, rgba(255, 255, 255, 0.7), transparent 70%),
+    radial-gradient(1px 1px at 91% 55%, rgba(255, 255, 255, 0.5), transparent 70%),
+    radial-gradient(1.2px 1.2px at 8% 62%, rgba(255, 255, 255, 0.5), transparent 70%),
+    radial-gradient(1px 1px at 37% 78%, rgba(255, 255, 255, 0.45), transparent 70%),
+    radial-gradient(1.3px 1.3px at 57% 88%, rgba(255, 255, 255, 0.6), transparent 70%),
+    radial-gradient(1px 1px at 84% 84%, rgba(255, 255, 255, 0.4), transparent 70%);
+  background-size:
+    640px 640px,
+    640px 640px,
+    640px 640px,
+    640px 640px,
+    640px 640px,
+    910px 910px,
+    910px 910px,
+    910px 910px,
+    910px 910px,
+    910px 910px;
+}
+
+.g-skip {
+  position: fixed;
+  left: 16px;
+  top: max(12px, env(safe-area-inset-top));
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font: 600 14.5px/1 var(--font-text);
+  color: var(--night-0);
+  background: var(--cream-hi);
+  text-decoration: none;
+  transform: translateY(-220%);
+}
+.g-skip:focus-visible {
+  transform: none;
+}
+
+/* ── Nav: one floating glass pill ── */
+.g-nav {
+  position: fixed;
+  inset: max(14px, env(safe-area-inset-top)) 0 auto;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding-inline: 16px;
+  pointer-events: none;
+}
+.g-nav__pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 6px 6px 20px;
+  border-radius: 999px;
+  pointer-events: auto;
+}
+.g-nav__logo {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  margin-right: 10px;
+  color: var(--lavender);
+}
+.g-nav__logo svg {
+  width: 58px;
+  height: 19px;
+}
+.g-nav__link {
+  display: none;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: 500 14.5px/1 var(--font-text);
+  color: var(--muted);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+.g-nav__link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+.g-nav .g-btn {
+  margin-left: 8px;
+}
+@media (min-width: 700px) {
+  .g-nav__link {
+    display: inline-flex;
+  }
+}
+
+/* ── Footer ── */
+.g-foot {
+  position: relative;
+  padding-block: 30px calc(30px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hair);
+  font-size: 14.5px;
+  color: var(--dim);
+}
+.g-foot__in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 28px;
+}
+.g-foot__logo {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  color: var(--lavender);
+}
+.g-foot__logo svg {
+  width: 64px;
+  height: 21px;
+}
+.g-foot nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-inline: -10px;
+}
+.g-foot nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.g-foot nav a:hover {
+  color: var(--text);
+}
+
+/* ── Hand-drawn marks on a word ── */
+.g-under,
+.g-ringed {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+.g-under .g-hand {
+  position: absolute;
+  left: -2%;
+  bottom: -0.2em;
+  width: 104%;
+  height: 0.26em;
+  color: var(--coral);
+  --sw: 5;
+}
+.g-ringed .g-hand {
+  position: absolute;
+  left: -9%;
+  top: -13%;
+  width: 118%;
+  height: 132%;
+  color: var(--coral);
+  --sw: 5;
+}
+
+/* ── Inner pages (support, contact, legal) ── */
+.g-page {
+  position: relative;
+}
+.g-page__glow {
+  position: absolute;
+  left: 50%;
+  top: -470px;
+  z-index: -1;
+  width: min(1100px, 190vw);
+  aspect-ratio: 1;
+  translate: -50% 0;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(108, 99, 255, 0.36), rgba(108, 99, 255, 0.11) 48%, transparent 72%);
+}
+.g-page__in {
+  width: 100%;
+  max-width: 856px;
+  margin-inline: auto;
+  padding: clamp(128px, 19vh, 188px) clamp(20px, 5vw, 48px) clamp(84px, 11vw, 140px);
+}
+.g-page__head {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  margin-bottom: clamp(44px, 6.4vw, 72px);
+}
+.g-page__title {
+  font: 800 clamp(44px, 8.4vw, 84px) / 0.96 var(--font-display);
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.g-page__sub {
+  max-width: 44ch;
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* long-form text */
+.g-doc {
+  display: grid;
+  gap: clamp(36px, 4.8vw, 52px);
+}
+.g-doc__sec {
+  display: grid;
+  gap: 14px;
+  scroll-margin-top: 96px;
+}
+.g-doc__body {
+  display: grid;
+  gap: 13px;
+}
+.g-doc h2 {
+  font: 700 clamp(22px, 2.5vw, 27px) / 1.2 var(--font-display);
+  letter-spacing: -0.015em;
+  color: var(--text);
+  text-wrap: balance;
+}
+.g-doc h3 {
+  font: 600 17.5px/1.35 var(--font-text);
+  color: var(--text);
+}
+.g-doc p,
+.g-doc li {
+  max-width: 68ch;
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.g-doc strong {
+  font-weight: 600;
+  color: var(--text);
+}
+.g-doc :where(p, li, dd) a {
+  color: var(--lavender);
+  text-decoration: underline;
+  text-decoration-color: rgba(171, 164, 255, 0.42);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease;
+}
+.g-doc :where(p, li, dd) a:hover {
+  text-decoration-color: currentColor;
+}
+.g-doc ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+.g-doc li::marker {
+  color: var(--dim);
+}
+
+/* questions with their answers in the open (support page) */
+.g-qa {
+  display: grid;
+  border-top: 1px solid var(--hair);
+}
+.g-qa > div {
+  display: grid;
+  gap: 8px;
+  padding-block: 22px;
+  border-bottom: 1px solid var(--hair);
+}
+
+/* facts in two columns (app information) */
+.g-facts {
+  display: grid;
+  gap: 2px 28px;
+  grid-template-columns: auto minmax(0, 1fr);
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+.g-facts dt {
+  color: var(--dim);
+}
+.g-facts dd {
+  color: var(--text);
+}
+
+/* a tile you can tap (contact options) */
+.g-cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .g-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.g-cardlink {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 24px;
+  border-radius: 28px;
+  color: var(--text);
+  text-decoration: none;
+  background: linear-gradient(180deg, #16151d, #0f0f15);
+  box-shadow:
+    inset 0 0 0 1px var(--hair),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  transition:
+    transform 0.25s var(--ease-out),
+    box-shadow 0.35s var(--ease-out);
+}
+.g-cardlink:active {
+  transform: scale(0.985);
+}
+@media (hover: hover) {
+  .g-cardlink:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 0 0 1px rgba(171, 164, 255, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09),
+      0 26px 60px -30px rgba(108, 99, 255, 0.7);
+  }
+  .g-cardlink:hover:active {
+    transform: scale(0.985);
+  }
+}
+.g-cardlink__ic {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  color: var(--lavender);
+  background: rgba(171, 164, 255, 0.14);
+}
+.g-cardlink__ic svg {
+  width: 21px;
+  height: 21px;
+}
+.g-cardlink b {
+  font: 700 20px/1.25 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.g-cardlink small {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.g-cardlink span:last-child {
+  margin-top: 10px;
+  font: 600 15px/1.4 var(--font-text);
+  color: var(--lavender);
+  overflow-wrap: anywhere;
+}
+
+/* ── Questions that open (home page) ── */
+.g-faq {
+  display: grid;
+  border-top: 1px solid var(--hair);
+}
+.g-faq details {
+  border-bottom: 1px solid var(--hair);
+}
+.g-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 68px;
+  padding-block: 18px;
+  cursor: pointer;
+  list-style: none;
+  font: 600 clamp(17px, 1.7vw, 19.5px) / 1.35 var(--font-text);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.g-faq summary::-webkit-details-marker {
+  display: none;
+}
+.g-faq__ic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--lavender);
+  background: rgba(171, 164, 255, 0.12);
+  transition:
+    rotate 0.35s var(--ease-out),
+    background-color 0.2s ease;
+}
+.g-faq__ic svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.4;
+}
+.g-faq details[open] .g-faq__ic {
+  rotate: 45deg;
+  background: rgba(171, 164, 255, 0.22);
+}
+.g-faq__a {
+  max-width: 64ch;
+  padding: 0 46px 24px 0;
+  font-size: 16.5px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+@supports (interpolate-size: allow-keywords) {
+  .g-faq details {
+    interpolate-size: allow-keywords;
+  }
+  .g-faq details::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 0.42s var(--soft),
+      content-visibility 0.42s allow-discrete;
+  }
+  .g-faq details[open]::details-content {
+    block-size: auto;
+  }
+}
+
+/* ── A page with one message (404, password reset) ── */
+.g-solo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: clamp(120px, 18vh, 170px) clamp(20px, 5vw, 48px) clamp(72px, 10vw, 110px);
+  text-align: center;
+}
+.g-solo__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -1;
+  width: min(900px, 170vw);
+  aspect-ratio: 1;
+  translate: -50% -56%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(108, 99, 255, 0.4), rgba(108, 99, 255, 0.12) 50%, transparent 72%);
+}
+.g-solo__in {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  max-width: 560px;
+}
+.g-solo__spark {
+  width: 40px;
+  height: 40px;
+}
+.g-solo__title {
+  font: 800 clamp(44px, 9vw, 84px) / 0.96 var(--font-display);
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.g-solo__sub {
+  max-width: 36ch;
+  font-size: clamp(17px, 1.7vw, 20px);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: balance;
+}
+.g-solo__acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.g-solo__logo {
+  position: absolute;
+  left: 50%;
+  top: max(28px, calc(env(safe-area-inset-top) + 12px));
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  translate: -50% 0;
+  color: var(--lavender);
+}
+.g-solo__logo svg {
+  width: 70px;
+  height: 23px;
+}
+.g-solo__ic {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  color: var(--lavender);
+  background: rgba(171, 164, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(171, 164, 255, 0.26);
+}
+.g-solo__ic svg {
+  width: 32px;
+  height: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g-cardlink,
+  .g-faq__ic,
+  .g-skip {
+    transition: none;
+  }
+  .g-faq details::details-content {
+    transition: none;
   }
 }

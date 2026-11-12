@@ -407,6 +407,38 @@ function Card({
   );
 }
 
+/* Product photos live on shops' servers. Left to the renderer, one shop that is
+   slow to answer takes the whole preview down, and a format the renderer cannot
+   decode (WebP, AVIF) leaves an empty tile. So the few photos the card shows are
+   fetched here first, briefly, and only PNG, JPEG and GIF are kept. Anything else
+   falls back to the card's own placeholder tile. */
+async function loadPhoto(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length < 4 || bytes.length > 5_000_000) return null;
+    // go by the file's first bytes; shops often send the wrong content type
+    const type =
+      bytes[0] === 0x89 && bytes[1] === 0x50
+        ? "image/png"
+        : bytes[0] === 0xff && bytes[1] === 0xd8
+          ? "image/jpeg"
+          : bytes[0] === 0x47 && bytes[1] === 0x49
+            ? "image/gif"
+            : null;
+    if (!type) return null;
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return `data:${type};base64,${btoa(binary)}`;
+  } catch {
+    return null;
+  }
+}
+
 /* ── Image route ── */
 export default async function Image({
   params,
@@ -473,7 +505,11 @@ export default async function Image({
     .order("created_at", { ascending: false })
     .returns<WishItem[]>();
 
-  const items = allItems ?? [];
+  const allFetched = allItems ?? [];
+
+  // The card draws at most the first four wishes (see Card).
+  const photos = await Promise.all(allFetched.slice(0, 4).map((item) => loadPhoto(item.image_url)));
+  const items = allFetched.map((item, i) => (i < photos.length ? { ...item, image_url: photos[i] } : item));
 
   return new ImageResponse(
     <Card list={list} items={items} accent={list.color_hex} />,

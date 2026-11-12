@@ -1,11 +1,11 @@
 "use client";
 
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { AppStoreButton, HandRing, Icon, Sparkle } from "../_shared/brand";
-import { SCREENS, STEPS, WISHES } from "../_shared/data";
-import { LinkPreview, Phone, QRCard, WishCard } from "../_shared/fragments";
-import { AutoFill, ClaimCard, PriceCard, Reveal, Tilt } from "../_shared/live";
+import { AppStoreButton, HandRing, Icon, Sparkle } from "../_site/brand";
+import { SCREENS, STEPS, WISHES } from "../_site/data";
+import { LinkPreview, Phone, QRCard, WishCard } from "../_site/fragments";
+import { AutoFill, ClaimCard, PriceCard, Reveal, Tilt } from "../_site/live";
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties;
 
@@ -20,15 +20,17 @@ const ORBIT = [
   { x: 196, y: 488, k: -20, dur: 8, delay: -5.2 },
 ];
 
+/* Reduced motion is handled in home.css, not here: the server cannot know the
+   visitor's setting, so branching on it in the markup makes the first client render
+   disagree with the server's, and React then leaves the server's version in place. */
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
-  const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   // wishes hold their orbit until the phone is centred, then fall into it as it leaves
   const s = useTransform(scrollYProgress, [0.3, 0.8], [0, 1], { clamp: true });
 
   return (
-    <motion.section ref={ref} className="a-hero" style={{ "--s": reduce ? 0 : s } as never}>
+    <motion.section ref={ref} className="a-hero" style={{ "--s": s } as never}>
       <div className="g-wrap a-hero__copy">
         <a className="a-pill g-glass" href="#track">
           <Sparkle still />
@@ -81,7 +83,6 @@ const STATEMENT = "Every birthday, someone asks what you want. Gimme is the answ
 
 export function Statement() {
   const ref = useRef<HTMLParagraphElement>(null);
-  const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.88", "end 0.42"] });
   const words = STATEMENT.split(" ");
 
@@ -91,7 +92,7 @@ export function Statement() {
         <motion.p
           ref={ref}
           className="a-statement__text"
-          style={{ "--p": reduce ? 1 : scrollYProgress, "--n": words.length } as never}
+          style={{ "--p": scrollYProgress, "--n": words.length } as never}
         >
           {words.map((word, i) => (
             <span key={i} style={vars({ "--i": i })}>

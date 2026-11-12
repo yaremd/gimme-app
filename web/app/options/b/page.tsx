@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { AppStoreButton, HandArrow, HandRing, HandUnderline, Icon, Sparkle, Wordmark } from "../_shared/brand";
-import { FOOTER_LINKS, PLANS, SCREENS } from "../_shared/data";
-import { Phone, QRCard, SiriPhrase, Spotlight, WidgetMedium, WidgetSmall } from "../_shared/fragments";
-import { AutoFill, ClaimCard, PriceCard, Reveal } from "../_shared/live";
+import { AppStoreButton, HandArrow, HandRing, HandUnderline, Icon, Sparkle, Wordmark } from "../../_site/brand";
+import { FOOTER_LINKS, PLANS, SCREENS } from "../../_site/data";
+import { Phone, QRCard, SiriPhrase, Spotlight, WidgetMedium, WidgetSmall } from "../../_site/fragments";
+import { AutoFill, ClaimCard, PriceCard, Reveal } from "../../_site/live";
 import "./b.css";
 import { Chat, HeroStage, Nav } from "./parts";
 
@@ -23,7 +23,7 @@ export default function OptionB() {
             <div className="g-wrap b-hero__grid">
               <div className="b-hero__copy">
                 <p className="b-kicker">
-                  <img src="/v2/icon-light.png" alt="" width={28} height={28} />
+                  <img src="/img/icon-light.png" alt="" width={28} height={28} />
                   Wishlist for iPhone
                 </p>
                 <h1 className="b-h1">
@@ -131,7 +131,7 @@ export default function OptionB() {
                   for it.
                 </p>
                 <div className="b-note g-glass" role="img" aria-label="Notification from Gimme: Nike Free running shoes dropped to $99, the lowest price yet">
-                  <img src="/v2/icon-dark.png" alt="" width={38} height={38} loading="lazy" />
+                  <img src="/img/icon-dark.png" alt="" width={38} height={38} loading="lazy" />
                   <span>
                     <b>
                       Price drop <small>now</small>

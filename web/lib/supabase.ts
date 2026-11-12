@@ -12,6 +12,8 @@ export interface WishList {
   color_hex: string;
   is_shared: boolean;
   share_token: string | null;
+  /** Owner's switch: hide who reserves what from everyone (migration v5). */
+  anonymous_reservations?: boolean;
   created_at: string;
 }
 

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { AppStoreButton, Icon, Sparkle, Wordmark } from "../_shared/brand";
-import { FOOTER_LINKS, LISTS, NAV, PLANS, SCREENS } from "../_shared/data";
-import { LinkPreview, Phone, QRCard, SiriPhrase, Spotlight, WidgetMedium } from "../_shared/fragments";
-import { AutoFill, ClaimCard, PriceCard, Reveal, Tilt } from "../_shared/live";
+import { AppStoreButton, Icon, Sparkle, Wordmark } from "../../_site/brand";
+import { FOOTER_LINKS, LISTS, NAV, PLANS, SCREENS } from "../../_site/data";
+import { LinkPreview, Phone, QRCard, SiriPhrase, Spotlight, WidgetMedium } from "../../_site/fragments";
+import { AutoFill, ClaimCard, PriceCard, Reveal, Tilt } from "../../_site/live";
 import "./c.css";
 import { Bento, CountUp } from "./parts";
 
@@ -22,12 +22,12 @@ export default function OptionC() {
       <div className="g-wrap c-page">
         <header className="c-nav">
           <a href="#top" className="c-nav__logo" aria-label="Gimme, back to top">
-            <img src="/v2/icon-dark.png" alt="" width={34} height={34} />
+            <img src="/img/icon-dark.png" alt="" width={34} height={34} />
             <Wordmark />
           </a>
           <nav aria-label="Main">
             {NAV.map((item) => (
-              <a key={item.href} href={item.href}>
+              <a key={item.href} href={item.href.replace("/#", "#")}>
                 {item.label}
               </a>
             ))}

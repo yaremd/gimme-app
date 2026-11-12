@@ -201,12 +201,12 @@ export function Spotlight({ query = "nike", className }: { query?: string; class
         <span className="g-spot__caret" />
       </div>
       <div className="g-spot__hit">
-        <Tile image="/v2/products/shoes.webp" size={38} />
+        <Tile image="/img/products/shoes.webp" size={38} />
         <span>
           <b>Nike Free running shoes</b>
           <small>Birthday · $99</small>
         </span>
-        <img src="/v2/icon-dark.png" alt="" width={22} height={22} />
+        <img src="/img/icon-dark.png" alt="" width={22} height={22} />
       </div>
     </div>
   );
@@ -237,7 +237,7 @@ export function LinkPreview({ className, style }: { className?: string; style?: 
 export function QRCard({ className }: { className?: string }) {
   return (
     <div className={cx("g-qr g-glass", className)}>
-      <img src="/v2/qr.svg" alt="QR code that opens Gimme on the App Store" width={74} height={74} />
+      <img src="/img/qr.svg" alt="QR code that opens Gimme on the App Store" width={74} height={74} />
       <span>
         <b>On a computer?</b>
         Scan to get Gimme

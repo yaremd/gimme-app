@@ -1,59 +1,30 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { AppStoreButton } from "@/app/_site/brand";
+import { Sky, SiteFooter, SiteNav } from "@/app/_site/chrome";
+import { pageMeta } from "@/app/_site/meta";
 
-export const metadata: Metadata = {
+const meta = pageMeta({
   title: "Case Study — Gimme Wishlist & Gifting App",
   description:
     "From personal frustration to production iOS app. The story of how design decisions became engineering decisions.",
-  openGraph: {
-    title: "Case Study — Gimme Wishlist & Gifting App",
-    description:
-      "From personal frustration to production iOS app. The story of how design decisions became engineering decisions.",
-    type: "article",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Case Study — Gimme Wishlist & Gifting App",
-    description:
-      "From personal frustration to production iOS app. The story of how design decisions became engineering decisions.",
-  },
-};
+  path: "/case-study",
+});
+
+export const metadata: Metadata = { ...meta, openGraph: { ...meta.openGraph, type: "article" } };
 
 /* ─────────────────────────────────────────────
    Page
 ───────────────────────────────────────────── */
 export default function CaseStudy() {
   return (
-    <main className="landing min-h-[100dvh] overflow-x-hidden">
-      {/* ── Nav ── */}
-      <nav className="max-w-[1400px] mx-auto px-4 md:px-12 pt-5 l-anim">
-        <div
-          className="w-full flex items-center justify-between rounded-full px-5 py-3 bg-white/60 border border-[#18181B]/[0.04] shadow-[0_2px_12px_rgba(24,24,27,0.04)]"
-          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
-        >
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 no-underline"
-            style={{ color: "var(--l-text)" }}
-          >
-            <img src="/app-icon.png" alt="Gimme" width={28} height={28} className="rounded-lg" />
-            <span className="text-[15px] font-semibold tracking-tight">Gimme</span>
-          </Link>
-          <Link
-            href="/"
-            className="text-sm font-medium no-underline hover:opacity-60 transition-opacity flex items-center gap-1.5"
-            style={{ color: "var(--l-muted)" }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Back
-          </Link>
-        </div>
-      </nav>
+    <>
+      <Sky />
+      <SiteNav />
+      <main id="main" className="landing g-page">
+      <div className="g-page__glow" aria-hidden="true" />
 
       {/* ── Hero ── */}
-      <header className="max-w-[760px] mx-auto px-6 md:px-8 pt-20 md:pt-32 pb-0">
+      <header className="max-w-[760px] mx-auto px-6 md:px-8 pt-32 md:pt-44 pb-0">
         <div className="l-anim l-d1 mb-6">
           <span className="l-eyebrow">Case Study</span>
         </div>
@@ -595,39 +566,12 @@ export default function CaseStudy() {
         <p className="text-base mb-8" style={{ color: "var(--l-muted)" }}>
           Create your first wishlist in seconds.
         </p>
-        <a
-          href="https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group inline-flex items-center gap-3 rounded-full pl-6 pr-2 py-2 text-[15px] font-semibold l-cta no-underline"
-        >
-          <svg width="14" height="18" viewBox="0 0 16 20" fill="currentColor" className="shrink-0">
-            <path d="M11.86 10.36c-.03-2.3 1.88-3.4 1.97-3.46-1.07-1.57-2.74-1.78-3.34-1.81-1.42-.14-2.77.84-3.49.84s-1.83-.82-3.01-.8c-1.55.03-2.98.9-3.78 2.29-1.61 2.79-.41 6.93 1.16 9.19.77 1.11 1.68 2.36 2.88 2.31 1.16-.05 1.6-.75 3-.75s1.79.75 3.01.73c1.24-.03 2.04-1.13 2.8-2.24.88-1.29 1.24-2.53 1.27-2.6-.03-.01-2.44-.94-2.47-3.7zM9.53 3.5c.64-.77 1.07-1.85.95-2.92-.92.04-2.03.61-2.69 1.38-.59.68-1.11 1.77-.97 2.82 1.02.08 2.07-.52 2.71-1.28z" />
-          </svg>
-          <span>Download on the App Store</span>
-          <span className="l-cta-arrow w-8 h-8 rounded-full bg-white/10 flex items-center justify-center ml-1">
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <path d="M3 9L9 3M9 3H4.5M9 3V7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-        </a>
+        <AppStoreButton />
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t" style={{ borderColor: "var(--l-border)" }}>
-        <div className="max-w-[1400px] mx-auto px-6 md:px-12 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-6 text-sm" style={{ color: "var(--l-muted)" }}>
-            <a href="/support" className="no-underline hover:opacity-70 transition-opacity" style={{ color: "var(--l-muted)" }}>Support</a>
-            <a href="/privacy" className="no-underline hover:opacity-70 transition-opacity" style={{ color: "var(--l-muted)" }}>Privacy</a>
-            <a href="/terms" className="no-underline hover:opacity-70 transition-opacity" style={{ color: "var(--l-muted)" }}>Terms</a>
-            <a href="/contact" className="no-underline hover:opacity-70 transition-opacity" style={{ color: "var(--l-muted)" }}>Contact</a>
-          </div>
-          <p className="text-sm" style={{ color: "var(--l-muted)", opacity: 0.5 }}>
-            Dmytro Yaremchuk 2026
-          </p>
-        </div>
-      </footer>
-    </main>
+      </main>
+      <SiteFooter />
+    </>
   );
 }
 
@@ -652,7 +596,7 @@ function Section({
       <span
         aria-hidden="true"
         className="absolute -top-3 -left-2 text-[7rem] md:text-[9rem] font-bold leading-none select-none pointer-events-none tabular-nums"
-        style={{ color: "var(--l-accent)", opacity: 0.04, letterSpacing: "-0.05em" }}
+        style={{ color: "var(--l-accent)", opacity: 0.09, letterSpacing: "-0.05em" }}
       >
         {number}
       </span>
@@ -706,7 +650,7 @@ function PullQuote({ children }: { children: React.ReactNode }) {
   return (
     <blockquote
       className="my-8 pl-5 border-l-2 text-base md:text-lg leading-[1.7] italic"
-      style={{ borderColor: "var(--l-accent)", color: "var(--l-text)", opacity: 0.75 }}
+      style={{ borderColor: "var(--l-accent)", color: "var(--l-text)", opacity: 0.9 }}
     >
       {children}
     </blockquote>
@@ -741,7 +685,7 @@ function DataTable({
       {caption && (
         <p
           className="text-[11px] font-semibold uppercase tracking-widest px-4 pt-3 pb-1"
-          style={{ color: "var(--l-muted)", opacity: 0.6 }}
+          style={{ color: "var(--l-muted)" }}
         >
           {caption}
         </p>
@@ -815,13 +759,13 @@ function DarkCard({
     <div className="doppel-outer-dark">
       <div className="doppel-inner-dark p-5">
         <p
-          className="text-[10px] font-bold uppercase tracking-[0.2em] mb-3"
-          style={{ color: "rgba(255,255,255,0.25)" }}
+          className="text-[11px] font-bold uppercase tracking-[0.2em] mb-3"
+          style={{ color: "rgba(255,255,255,0.6)" }}
         >
           {n}
         </p>
         <p className="text-[15px] font-semibold mb-2">{title}</p>
-        <p className="text-[13px] leading-relaxed" style={{ color: "rgba(255,255,255,0.45)" }}>
+        <p className="text-[13.5px] leading-relaxed" style={{ color: "rgba(255,255,255,0.76)" }}>
           {children}
         </p>
       </div>
@@ -886,7 +830,7 @@ function PricingRow({ text, light }: { text: string; light?: boolean }) {
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0">
         <path
           d="M3 7.5l2.5 2.5L11 4"
-          stroke={light ? "rgba(255,255,255,0.35)" : "var(--l-accent)"}
+          stroke={light ? "rgba(255,255,255,0.7)" : "var(--l-accent)"}
           strokeWidth="1.2"
           strokeLinecap="round"
           strokeLinejoin="round"

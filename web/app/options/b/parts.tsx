@@ -2,10 +2,10 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { AppStoreButton, Wordmark } from "../_shared/brand";
-import { NAV, SCREENS, WISHES } from "../_shared/data";
-import { Phone } from "../_shared/fragments";
-import { Tilt, useInView } from "../_shared/live";
+import { AppStoreButton, Wordmark } from "../../_site/brand";
+import { NAV, SCREENS, WISHES } from "../../_site/data";
+import { Phone } from "../../_site/fragments";
+import { Tilt, useInView } from "../../_site/live";
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties;
 
@@ -41,7 +41,7 @@ export function Nav() {
           <Wordmark />
         </a>
         {NAV.map((item) => (
-          <a key={item.href} href={item.href} className="b-nav__link">
+          <a key={item.href} href={item.href.replace("/#", "#")} className="b-nav__link">
             {item.label}
           </a>
         ))}

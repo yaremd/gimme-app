@@ -103,7 +103,12 @@ type IconName =
   | "eye-off"
   | "mic"
   | "layout"
-  | "arrow-up-right";
+  | "arrow-up-right"
+  | "arrow-left"
+  | "mail"
+  | "key"
+  | "tag"
+  | "lightbulb";
 
 const ICONS: Record<IconName, string[]> = {
   plus: ["M12 5v14M5 12h14"],
@@ -141,6 +146,21 @@ const ICONS: Record<IconName, string[]> = {
   mic: ["M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v3"],
   layout: ["M3 3h7v9H3z", "M14 3h7v5h-7z", "M14 12h7v9h-7z", "M3 16h7v5H3z"],
   "arrow-up-right": ["M7 17 17 7", "M7 7h10v10"],
+  "arrow-left": ["M19 12H5", "M12 19l-7-7 7-7"],
+  mail: ["M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", "M22 7l-10 6L2 7"],
+  key: [
+    "M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4z",
+    "M16.5 7.5h.01",
+  ],
+  tag: [
+    "M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z",
+    "M7.5 7.5h.01",
+  ],
+  lightbulb: [
+    "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5",
+    "M9 18h6",
+    "M10 22h4",
+  ],
 };
 
 export function Icon({ name, className, style }: SvgProps & { name: IconName }) {

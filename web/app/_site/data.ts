@@ -1,11 +1,13 @@
-/* Shared content for the landing options. The wishes and lists mirror the demo data
-   seeded into the Simulator for the screenshots, so page copy and screens agree. */
+/* Shared content for the site. The wishes and lists mirror the demo data seeded into
+   the Simulator for the screenshots, so page copy and screens agree. */
+
+export const SITE_URL = "https://gimmelist.com";
 
 export type Screen = { src: string; alt: string };
 
 /* Bump when the captures are re-shot, so browsers don't show a cached older set. */
 const CAPTURE_SET = "2026-11-12b";
-const screen = (name: string, alt: string): Screen => ({ src: `/v2/screens/${name}.webp?v=${CAPTURE_SET}`, alt });
+const screen = (name: string, alt: string): Screen => ({ src: `/img/screens/${name}.webp?v=${CAPTURE_SET}`, alt });
 
 export const SCREENS = {
   homeDark: screen("home-dark", "Gimme home screen with five wishlists and what is left to buy"),
@@ -14,7 +16,7 @@ export const SCREENS = {
   listLight: screen("list-light", "Birthday wishlist in light mode with Nike Free shoes, Sony headphones, a Polaroid camera and a Chemex"),
   itemDark: screen("item-dark", "Nike Free running shoes with price history and a lowest-price-yet verdict"),
   itemLight: screen("item-light", "Nike Free running shoes in light mode with price history"),
-  statsDark: screen("stats-dark", "Stats dashboard with totals across every wishlist"),
+  statsDark: screen("stats-dark", "Statistics screen: $2,154 across five lists, 4 of 21 wishes fulfilled, with a breakdown by priority"),
   statsLight: screen("stats-light", "Stats dashboard in light mode"),
   addDark: screen("add-dark", "New wish sheet with name, price and list filled in"),
   shareDark: screen("share-dark", "Sharing a wishlist from Gimme with one link"),
@@ -40,7 +42,7 @@ export type Wish = {
      kindle      a-tablet-and-a-cup-of-coffee-Y-l8j8na0TQ                     (@adryantos)
      bottle      yellow-and-black-sports-bottle-YDRrskIdMDw                   (Jamaal Cooks)
    The licence covers the photographs, not the brands' trademarks. */
-const product = (key: Wish["key"]) => `/v2/products/${key}.webp`;
+const product = (key: Wish["key"]) => `/img/products/${key}.webp`;
 
 export const WISHES: Wish[] = [
   { key: "shoes", name: "Nike Free running shoes", short: "Nike Free", price: "$99", image: product("shoes"), badge: { kind: "drop", text: "−23%" } },
@@ -129,10 +131,11 @@ export const STEPS = [
   },
 ] as const;
 
+/* Section links work from every page, so they carry the home path. */
 export const NAV = [
-  { href: "#how", label: "How it works" },
-  { href: "#iphone", label: "On iPhone" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#iphone", label: "On iPhone" },
+  { href: "/#pricing", label: "Pricing" },
 ] as const;
 
 export const FOOTER_LINKS = [
@@ -140,4 +143,34 @@ export const FOOTER_LINKS = [
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/contact", label: "Contact" },
+] as const;
+
+/* Each answer is checked against the app: SharedListView (claiming and anonymous
+   reservations), PriceTrackingService (on-device checks, 3 free), HomeView (sharing
+   needs a sign-in), and the project's iOS 17 deployment target. */
+export const FAQS = [
+  {
+    q: "Do my friends need the app?",
+    a: "No. They open your link in any browser and reserve a gift right there. Nothing to download, no account to make.",
+  },
+  {
+    q: "Is Gimme really free?",
+    a: "Yes. Lists and wishes are unlimited, and you can share two lists and track the price of three wishes. Gimme Pro is a single $4.99 purchase that lifts those limits. There is no subscription.",
+  },
+  {
+    q: "Will I see who is buying what?",
+    a: "That is your call, list by list. By default you can see who reserved a gift. Turn on anonymous reservations and nobody can, you included, so the surprise survives.",
+  },
+  {
+    q: "How does price tracking work?",
+    a: "Save a wish from a product link and Gimme checks that page again from your iPhone, keeps the price history, and sends a notification when the price drops.",
+  },
+  {
+    q: "Do I need an account?",
+    a: "Not to start. Gimme works offline and keeps everything on your iPhone. Sign in when you want to sync across devices or share a list.",
+  },
+  {
+    q: "What do I need to run it?",
+    a: "An iPhone with iOS 17 or later.",
+  },
 ] as const;

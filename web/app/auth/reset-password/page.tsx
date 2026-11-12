@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Icon, Wordmark } from "../../_site/brand";
+import { Sky } from "../../_site/chrome";
 
+/* The link in a password-reset email lands here; this page hands the token to the app. */
 export default function ResetPasswordPage() {
   const [status, setStatus] = useState<"redirecting" | "no-token" | "done">("redirecting");
 
@@ -18,56 +22,39 @@ export default function ResetPasswordPage() {
   }, []);
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        background: "var(--l-bg)",
-        color: "var(--l-text)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "1.5rem",
-        padding: "2rem",
-        fontFamily: "var(--font-outfit), system-ui, sans-serif",
-        textAlign: "center",
-      }}
-    >
-      {status === "no-token" ? (
-        <>
-          <p style={{ fontSize: "1.125rem", fontWeight: 600 }}>
-            Invalid or expired reset link.
-          </p>
-          <p style={{ color: "var(--l-muted)", fontSize: "0.9rem" }}>
-            Please request a new password reset from the Gimme app.
-          </p>
-        </>
-      ) : (
-        <>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 18,
-              background: "var(--l-accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 36,
-            }}
-          >
-            🔑
-          </div>
-          <div>
-            <p style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "0.5rem" }}>
-              Opening Gimme…
-            </p>
-            <p style={{ color: "var(--l-muted)", fontSize: "0.9rem" }}>
-              If the app doesn&apos;t open automatically, make sure Gimme is installed on your device.
-            </p>
-          </div>
-        </>
-      )}
-    </main>
+    <>
+      <Sky />
+      <main id="main" className="g-solo">
+        <div className="g-solo__glow" aria-hidden="true" />
+        <Link href="/" className="g-solo__logo" aria-label="Gimme, home">
+          <Wordmark />
+        </Link>
+        <div className="g-solo__in" aria-live="polite">
+          {status === "no-token" ? (
+            <>
+              <span className="g-solo__ic">
+                <Icon name="link" />
+              </span>
+              <h1 className="g-solo__title" style={{ fontSize: "clamp(34px, 6vw, 52px)" }}>
+                Invalid or expired reset link.
+              </h1>
+              <p className="g-solo__sub">Please request a new password reset from the Gimme app.</p>
+            </>
+          ) : (
+            <>
+              <span className="g-solo__ic">
+                <Icon name="key" />
+              </span>
+              <h1 className="g-solo__title" style={{ fontSize: "clamp(34px, 6vw, 52px)" }}>
+                Opening Gimme…
+              </h1>
+              <p className="g-solo__sub">
+                If the app doesn&apos;t open automatically, make sure Gimme is installed on your device.
+              </p>
+            </>
+          )}
+        </div>
+      </main>
+    </>
   );
 }

@@ -1,93 +1,9 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   Option A · Night sky
+   Home page · "Night sky"
    One light source (violet) per scene, coral only for the sparkle, the ring and
    the thing to tap. Text sits on solid night; glass is kept for floating chrome.
+   The nav, footer and star field are shared and live in site.css.
    ───────────────────────────────────────────────────────────────────────── */
-
-.opt-a {
-  --font-display: var(--font-gabarito), "Avenir Next", "Segoe UI", system-ui, sans-serif;
-  position: relative;
-}
-
-/* faint stars: two tiles of different size so the pattern never lines up */
-.a-sky {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    radial-gradient(1.3px 1.3px at 12% 9%, rgba(255, 255, 255, 0.8), transparent 70%),
-    radial-gradient(1px 1px at 28% 31%, rgba(255, 255, 255, 0.5), transparent 70%),
-    radial-gradient(1.2px 1.2px at 46% 14%, rgba(255, 255, 255, 0.65), transparent 70%),
-    radial-gradient(1px 1px at 63% 42%, rgba(255, 255, 255, 0.45), transparent 70%),
-    radial-gradient(1.4px 1.4px at 78% 18%, rgba(255, 255, 255, 0.7), transparent 70%),
-    radial-gradient(1px 1px at 91% 55%, rgba(255, 255, 255, 0.5), transparent 70%),
-    radial-gradient(1.2px 1.2px at 8% 62%, rgba(255, 255, 255, 0.5), transparent 70%),
-    radial-gradient(1px 1px at 37% 78%, rgba(255, 255, 255, 0.45), transparent 70%),
-    radial-gradient(1.3px 1.3px at 57% 88%, rgba(255, 255, 255, 0.6), transparent 70%),
-    radial-gradient(1px 1px at 84% 84%, rgba(255, 255, 255, 0.4), transparent 70%);
-  background-size:
-    640px 640px,
-    640px 640px,
-    640px 640px,
-    640px 640px,
-    640px 640px,
-    910px 910px,
-    910px 910px,
-    910px 910px,
-    910px 910px,
-    910px 910px;
-}
-
-/* ── Nav ── */
-.a-nav {
-  position: fixed;
-  inset: max(14px, env(safe-area-inset-top)) 0 auto;
-  z-index: 50;
-  display: flex;
-  justify-content: center;
-  padding-inline: 16px;
-  pointer-events: none;
-}
-.a-nav__pill {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 6px 6px 20px;
-  border-radius: 999px;
-  pointer-events: auto;
-}
-.a-nav__logo {
-  display: grid;
-  place-items: center;
-  min-height: 40px;
-  margin-right: 10px;
-  color: var(--lavender);
-}
-.a-nav__logo svg {
-  width: 58px;
-  height: 19px;
-}
-.a-nav__link {
-  display: none;
-  align-items: center;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font: 500 14.5px/1 var(--font-text);
-  color: var(--muted);
-  text-decoration: none;
-  transition:
-    color 0.2s ease,
-    background-color 0.2s ease;
-}
-.a-nav__link:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
-}
-.a-nav .g-btn {
-  margin-left: 8px;
-}
 
 /* ── Hero ── */
 .a-hero {
@@ -285,6 +201,7 @@ html.js .a-statement__text span {
 /* ── Story ── */
 .a-story {
   position: relative;
+  scroll-margin-top: 24px;
 }
 .a-story__grid {
   display: grid;
@@ -380,6 +297,7 @@ html.js .a-statement__text span {
 /* ── Native bento ── */
 .a-native {
   position: relative;
+  scroll-margin-top: -24px;
   padding-block: clamp(96px, 14vw, 190px) clamp(72px, 10vw, 130px);
 }
 .a-bento {
@@ -500,32 +418,36 @@ html.js .a-statement__text span {
   max-width: 300px;
 }
 .a-sheet {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 18px 20px 26px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 5%, 16px);
+  width: 100%;
+  max-width: 300px;
+  padding: 18px 18px 32px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.06);
 }
+/* the row scales with its tile, so it is never cut off at in-between widths */
 .a-sheet__app {
   position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  aspect-ratio: 1;
+  border-radius: 25%;
   background: rgba(255, 255, 255, 0.1);
 }
 .a-sheet__app--gimme {
   background: none;
 }
 .a-sheet__app--gimme img {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 25%;
 }
 .a-sheet__app--gimme small {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 7px);
+  translate: -50% 0;
   font: 500 12px/1 var(--font-app);
   color: var(--text);
 }
@@ -539,8 +461,163 @@ html.js .a-statement__text span {
   --sw: 4;
 }
 
+/* ── Stats (Pro) ── */
+.a-stats {
+  position: relative;
+  padding-top: clamp(64px, 10vw, 150px);
+}
+.a-stats__grid {
+  display: grid;
+  gap: clamp(36px, 6vw, 72px);
+}
+.a-stats__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.a-stats__eyebrow svg {
+  width: 13px;
+  height: 13px;
+}
+.a-nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px clamp(26px, 4vw, 46px);
+  margin-top: 12px;
+}
+.a-nums div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+}
+.a-nums dd {
+  font: 800 clamp(36px, 4.6vw, 56px) / 1 var(--font-display);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.a-nums dt {
+  font: 500 12px/1.4 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.a-stats__stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+.a-stats__halo {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(760px, 160vw);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(108, 99, 255, 0.44), rgba(108, 99, 255, 0.13) 50%, transparent 72%);
+}
+/* phone width: the screen is cropped and the two findings rest on the fade */
+.a-stats__crop {
+  position: relative;
+  height: 430px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 58%, transparent 96%);
+  mask-image: linear-gradient(#000 58%, transparent 96%);
+}
+.a-stats__phone {
+  --w: 252px;
+}
+.a-stats__chips {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  translate: -50% 0;
+}
+.a-stats__chip {
+  animation: a-bob 7.4s ease-in-out infinite;
+}
+.a-stats__chip--2 {
+  animation-duration: 8.6s;
+  animation-delay: -3s;
+}
+
+/* ── Privacy facts ── */
+.a-trust {
+  padding-block: clamp(40px, 6vw, 80px) clamp(24px, 4vw, 50px);
+}
+.a-h2--sm {
+  font-size: clamp(36px, 4.8vw, 60px);
+}
+.a-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-top: clamp(32px, 4.4vw, 54px);
+}
+.a-fact {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 8px;
+  padding: 24px;
+  border-radius: 30px;
+  background: linear-gradient(180deg, #16151d, #0f0f15);
+  box-shadow:
+    inset 0 0 0 1px var(--hair),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+.a-fact__ic {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  color: var(--lavender);
+  background: rgba(171, 164, 255, 0.14);
+}
+.a-fact__ic svg {
+  width: 21px;
+  height: 21px;
+}
+.a-fact h3 {
+  font: 700 22px/1.2 var(--font-display);
+  letter-spacing: -0.01em;
+}
+.a-fact p {
+  max-width: 34ch;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ── Questions ── */
+.a-faq {
+  scroll-margin-top: 8px;
+  padding-block: clamp(48px, 7vw, 100px) clamp(24px, 4vw, 60px);
+}
+.a-faq__in {
+  display: grid;
+  gap: clamp(28px, 4vw, 48px);
+}
+.a-faq .a-lede a {
+  color: var(--lavender);
+  text-decoration: underline;
+  text-decoration-color: rgba(171, 164, 255, 0.42);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.a-faq .a-lede a:hover {
+  text-decoration-color: currentColor;
+}
+
 /* ── Pricing ── */
 .a-pricing {
+  scroll-margin-top: 8px;
   padding-block: clamp(72px, 10vw, 130px);
 }
 .a-plans {
@@ -650,47 +727,8 @@ html.js .a-statement__text span {
   letter-spacing: -0.04em;
 }
 
-/* ── Footer ── */
-.a-foot {
-  padding-block: 34px calc(92px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--hair);
-  font-size: 14.5px;
-  color: var(--dim);
-}
-.a-foot__in {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px 28px;
-}
-.a-foot__logo {
-  width: 64px;
-  height: 21px;
-  color: var(--lavender);
-}
-.a-foot nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
-}
-.a-foot nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 10px;
-  color: var(--muted);
-  text-decoration: none;
-}
-.a-foot nav a:hover {
-  color: var(--text);
-}
-
 /* ══ From tablet up ══ */
 @media (min-width: 700px) {
-  .a-nav__link {
-    display: inline-flex;
-  }
   .a-bento {
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 16px;
@@ -704,17 +742,24 @@ html.js .a-statement__text span {
   .a-tile--lock {
     grid-column: span 5;
   }
+  /* three across needs a wider screen; until then two, with the last one full width */
   .a-tile--siri,
-  .a-tile--spot,
-  .a-tile--ext {
-    grid-column: span 4;
+  .a-tile--spot {
+    grid-column: span 6;
   }
-  .a-widgets {
-    zoom: 0.8;
+  .a-tile--ext {
+    grid-column: span 12;
   }
   .a-plans {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+  }
+  .a-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .a-fact {
+    padding: 28px;
   }
 }
 
@@ -764,8 +809,10 @@ html.js .a-statement__text span {
     --y: 488px !important;
   }
 
-  .a-widgets {
-    zoom: 1;
+  .a-tile--siri,
+  .a-tile--spot,
+  .a-tile--ext {
+    grid-column: span 4;
   }
   .a-story__grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
@@ -837,6 +884,99 @@ html.js .a-statement__text span {
     color: var(--night-0);
     background: var(--text);
   }
+
+  .a-stats__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+    align-items: center;
+    gap: clamp(32px, 6vw, 100px);
+  }
+  .a-stats__crop {
+    height: auto;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .a-stats__phone {
+    --w: clamp(250px, 21vw, 300px);
+  }
+  .a-stats__chips {
+    position: static;
+    display: contents;
+    translate: none;
+  }
+  .a-stats__chip {
+    position: absolute;
+    z-index: 2;
+  }
+  /* each finding is pulled out of its own row on the screen, like a magnifier:
+     76.5% and 84.6% are where those two rows sit on the phone */
+  .a-stats__chip--1 {
+    left: -44px;
+    top: calc(76.5% - 29px);
+  }
+  .a-stats__chip--2 {
+    right: -52px;
+    top: calc(84.6% - 12px);
+  }
+
+  .a-faq__in {
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    align-items: start;
+    gap: clamp(40px, 6vw, 96px);
+  }
+  .a-faq .a-head {
+    position: sticky;
+    top: 118px;
+  }
+}
+
+/* The two widgets are drawn at their real size and scaled as one piece. Their tile
+   is 7 of 12 columns, so the scale follows the screen in small steps and the pair
+   always sits inside the tile instead of being cut off by it. */
+@media (min-width: 700px) {
+  .a-widgets {
+    zoom: 0.52;
+  }
+}
+@media (min-width: 760px) {
+  .a-widgets {
+    zoom: 0.57;
+  }
+}
+@media (min-width: 820px) {
+  .a-widgets {
+    zoom: 0.63;
+  }
+}
+@media (min-width: 880px) {
+  .a-widgets {
+    zoom: 0.68;
+  }
+}
+@media (min-width: 940px) {
+  .a-widgets {
+    zoom: 0.74;
+  }
+}
+@media (min-width: 1000px) {
+  .a-widgets {
+    zoom: 0.8;
+  }
+}
+@media (min-width: 1060px) {
+  .a-widgets {
+    zoom: 0.86;
+  }
+}
+@media (min-width: 1120px) {
+  .a-widgets {
+    zoom: 0.92;
+  }
+}
+@media (min-width: 1200px) {
+  .a-widgets {
+    zoom: 1;
+  }
 }
 
 /* a QR code only helps someone reading on a computer */
@@ -847,8 +987,17 @@ html.js .a-statement__text span {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .a-orb {
+  .a-orb,
+  .a-stats__chip {
     animation: none;
+  }
+  /* scroll-linked motion is switched off here rather than in the components:
+     the wishes keep their orbit and the statement is simply lit */
+  .a-hero {
+    --s: 0 !important;
+  }
+  html.js .a-statement__text span {
+    opacity: 1;
   }
   .a-step {
     transition: none;

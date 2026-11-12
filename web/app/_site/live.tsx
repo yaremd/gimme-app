@@ -6,77 +6,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { Icon } from "./brand";
 import { Tile } from "./fragments";
+import { useInView } from "./reveal";
 
 const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" ");
 
-/* ── In-view tracking ─────────────────────────────────────────────────── */
-export function useInView<T extends Element>({
-  once = true,
-  threshold = 0.18,
-  margin = "0px 0px -6% 0px",
-}: { once?: boolean; threshold?: number; margin?: string } = {}) {
-  const ref = useRef<T>(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setInView(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          if (once) io.disconnect();
-        } else if (!once) {
-          setInView(false);
-        }
-      },
-      { threshold, rootMargin: margin },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [once, threshold, margin]);
-  return [ref, inView] as const;
-}
-
-type RevealTag = "div" | "section" | "li" | "p" | "h2" | "h3" | "span" | "figure" | "header";
-
-/** Fades and lifts its content in once, and triggers hand-drawn strokes inside it.
- *  With `plain` it only marks itself in view (for strokes) and stays put. */
-export function Reveal({
-  as = "div",
-  className,
-  delay,
-  plain,
-  style,
-  id,
-  children,
-}: {
-  as?: RevealTag;
-  className?: string;
-  delay?: number;
-  plain?: boolean;
-  style?: CSSProperties;
-  id?: string;
-  children: ReactNode;
-}) {
-  const [ref, inView] = useInView<HTMLElement>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Tag = as as any;
-  return (
-    <Tag
-      ref={ref}
-      id={id}
-      className={cx(!plain && "g-reveal", className)}
-      data-inview={inView}
-      style={{ ...(delay ? ({ "--d": `${delay}ms` } as CSSProperties) : null), ...style }}
-    >
-      {children}
-    </Tag>
-  );
-}
+export { Reveal, useInView } from "./reveal";
 
 /* ── Pointer-reactive stage: exposes --px / --py (−1…1) to its children ── */
 export function Tilt({
@@ -152,7 +86,7 @@ export function PriceCard({ className, style }: { className?: string; style?: CS
   return (
     <div ref={ref} className={cx("g-price g-glass", className)} style={style} data-run={run > 0}>
       <div className="g-price__head">
-        <Tile image="/v2/products/shoes.webp" />
+        <Tile image="/img/products/shoes.webp" />
         <span>
           <span className="g-price__name">Nike Free running shoes</span>
           <span className="g-price__store">Tracked for 6 weeks</span>
@@ -223,7 +157,7 @@ export function ClaimCard({ className, style }: { className?: string; style?: CS
   return (
     <div ref={host} className={cx("g-claim g-glass", className)} style={style}>
       <div className="g-claim__item">
-        <Tile image="/v2/products/chemex.webp" size={52} />
+        <Tile image="/img/products/chemex.webp" size={52} />
         <span>
           <span className="g-claim__name">Chemex coffee maker</span>
           <span className="g-claim__meta">$64 · Birthday</span>
@@ -260,7 +194,7 @@ export function AutoFill({ className, style }: { className?: string; style?: CSS
       </div>
       <div className="g-fill__body">
         <span className="g-fill__in">
-          <Tile image="/v2/products/shoes.webp" size={58} />
+          <Tile image="/img/products/shoes.webp" size={58} />
         </span>
         <div className="g-fill__rows">
           <div className="g-fill__row">
@@ -281,19 +215,57 @@ export function AutoFill({ className, style }: { className?: string; style?: CSS
   );
 }
 
-/* ── Scaffolding for comparing the options; removed once one is chosen ── */
+/* ── A number that counts up the first time it scrolls into view ── */
+export function CountUp({ to, prefix = "", suffix = "" }: { to: number; prefix?: string; suffix?: string }) {
+  const [ref, inView] = useInView<HTMLSpanElement>({ once: true, threshold: 0.6, margin: "0px" });
+  const reduce = useReducedMotion();
+  const [value, setValue] = useState(to);
+
+  useEffect(() => {
+    if (!inView || reduce) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / 1300);
+      const eased = 1 - Math.pow(1 - k, 4);
+      setValue(Math.round(to * eased));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, reduce, to]);
+
+  return (
+    <span ref={ref}>
+      <span className="g-sr">
+        {prefix}
+        {to.toLocaleString("en-US")}
+        {suffix}
+      </span>
+      <span aria-hidden="true">
+        {prefix}
+        {value.toLocaleString("en-US")}
+        {suffix}
+      </span>
+    </span>
+  );
+}
+
+/* ── Switcher for the saved design options at /options (local preview only) ── */
 export function OptionSwitcher() {
   const path = usePathname();
+  // the social-card and share-page previews are shown bare
+  if (path?.startsWith("/options/og") || path?.startsWith("/options/share")) return null;
   const options = [
-    ["a", "A"],
-    ["b", "B"],
-    ["c", "C"],
+    ["/", "A"],
+    ["/options/b", "B"],
+    ["/options/c", "C"],
   ];
   return (
     <nav className="g-switch" aria-label="Design options">
       <span>Option</span>
-      {options.map(([slug, label]) => (
-        <Link key={slug} href={`/v2/${slug}`} aria-current={path === `/v2/${slug}` ? "page" : undefined}>
+      {options.map(([href, label]) => (
+        <Link key={href} href={href} aria-current={path === href ? "page" : undefined}>
           {label}
         </Link>
       ))}
