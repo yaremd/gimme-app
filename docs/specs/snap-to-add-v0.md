@@ -6,7 +6,7 @@ Photograph or screenshot something you want; Gimme recognises it and fills in th
 |---|---|
 | Status | Built, tested, backend deployed (Nov 13, 2026). **Live only after `ANTHROPIC_API_KEY` is set** — see [Go-live checklist](#go-live-checklist). Not in an App Store build yet. |
 | Branch | `claude/snap-to-add-v0-spec` |
-| Out of scope (V1+) | Shopping results and price comparison, affiliate links, barcode scanning, identify in `FirstItemView` |
+| Out of scope (V1+) | Shopping results and price comparison, affiliate links, barcode scanning |
 
 ## What the user sees
 
@@ -20,6 +20,8 @@ Photograph or screenshot something you want; Gimme recognises it and fills in th
    - **Unclear / not a product** — "Couldn't make it out" / "No product spotted", with **Try another**.
    - **Errors** — quota (free users get **Upgrade** → paywall), signed out (**Sign In**), offline / server (**Try again**), not configured.
 4. A photo already attached shows *Identify this photo* instead (with "N of 5 left this month" once known). Emoji images and product images from links never show the card; neither does an item whose details came from a link.
+
+**First run (Add Your First Wish)** — the same card and flow, so a brand-new user's very first wish can start from a photo. Both forms share `IdentifyController`, and consent given in one carries over to the other.
 
 **From other apps** — the Share Extension now accepts images (Photos, screenshots, Safari images). A web link still wins when both are shared. Gimme picks the photo up on next open → list picker → New Wish with the photo, identified automatically (consent sheet first if not granted). Shares older than 24 h are dropped.
 
@@ -87,6 +89,19 @@ Errors are `{ "code", "error", "usage"? }`:
 - Tuning without redeploying (Supabase → Edge Functions → Secrets): `IDENTIFY_MODEL` (e.g. `claude-haiku-5-5` for ~20× cheaper calls — validate accuracy first), `IDENTIFY_EFFORT`, `IDENTIFY_FREE_MONTHLY_LIMIT` (5), `IDENTIFY_PRO_MONTHLY_LIMIT` (100), `IDENTIFY_GLOBAL_DAILY_LIMIT` (300). Keep the paywall copy in `PaywallView` in step with the limits.
 - Cost estimate: ~1.5k image tokens + ~1k prompt/schema tokens in, a few hundred out → roughly **2¢ per photo** on Opus 5.5 ($4/$20 per MTok). The global cap bounds the worst day at ~300 calls (~$6–8). Real numbers: `select model, avg(input_tokens), avg(output_tokens), avg(latency_ms) from ai_identify_requests group by 1;`
 
+### Model cost comparison (Nov 13, 2026 list prices; ~2.5k tokens in, ~400 out per photo)
+
+| Model | $ / MTok in · out | Per photo | Per 1,000 photos | Switch cost |
+|---|---|---|---|---|
+| Claude Opus 5.5 (default) | 4 · 20 | ~1.8¢ | ~$18 | — |
+| Claude Sonnet 5.5 | 2 · 10 | ~0.9¢ | ~$9 | `IDENTIFY_MODEL` secret |
+| Claude Haiku 5.5 | 0.10 · 0.50 | ~0.05¢ | ~$0.45 | `IDENTIFY_MODEL` secret |
+| Gemini 3.6 Flash | 1.50 · 7.50 | ~0.7¢ | ~$7 | new integration + privacy copy |
+| Gemini 3.5 Flash-Lite | 0.30 · 2.50 | ~0.2¢ | ~$1.75 | new integration + privacy copy |
+| Gemini 3.1 Flash-Lite | 0.25 · 1.50 | ~0.1¢ | ~$1.25 | new integration + privacy copy |
+
+Estimates only: providers count image tokens differently and thinking adds output. Claude Haiku 5.5 is the cheapest option and needs no code change; moving to Gemini would mean a second API integration and naming Google in the consent screen and privacy policy. Decide on accuracy first: run the same real photos through Opus 5.5 and Haiku 5.5 (switch the secret, no redeploy) and keep the cheapest one that gets them right.
+
 ## Quotas
 
 `claim_identify_slot(user, monthly_limit, global_daily_limit)` takes a per-user advisory lock, counts this calendar month's non-failed requests (UTC), checks the rolling 24 h global count, then inserts a `pending` row. The function marks it `ok`, `not_product`, `refused` or `failed`; `failed` rows stop counting, so outages don't burn allowance. Only `service_role` can execute it (same hygiene as v8).
@@ -107,7 +122,7 @@ Errors are `{ "code", "error", "usage"? }`:
 | Backend | `supabase/functions/identify-product/{index,handler,prompt}.ts`, `migration_v9_identify_requests.sql`, `supabase/config.toml` |
 | iOS service | `Whish/Services/ProductIdentificationService.swift` (model, live service, response decoder, prefill rules, debug mock) |
 | Hand-off | `Whish/Services/SharedImageInbox.swift` (compiled into app + GimmeShare), `GimmeShare/ShareViewController.swift`, `project.yml` activation rule |
-| UI | `Whish/Features/ListDetail/IdentifyPhotoCard.swift` (card + consent sheet), `AddItemView.swift`, `HomeView.swift`, `SettingsView.swift`, `PaywallView.swift` |
+| UI | `Whish/Features/ListDetail/IdentifyController.swift` (shared flow: sign-in gate, consent, request, stale results), `IdentifyPhotoCard.swift` (card + consent sheet), `AddItemView.swift`, `HomeView.swift` (share hand-off + `FirstItemView`), `SettingsView.swift`, `PaywallView.swift` |
 | Privacy | `Whish/PrivacyInfo.xcprivacy` |
 | Tests | `supabase/functions/identify-product/handler_test.ts`, `supabase/tests/migration_v9_test.ts`, `WhishTests/ProductIdentificationTests.swift` |
 
@@ -125,8 +140,8 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 
 - **Edge Function (19)** — auth, validation, size limit, quota and global cap, Pro limit, refusal, failed-call refund, unreadable output, result normalisation.
 - **Migration (7)**, on in-process Postgres (PGlite) — re-runnable, monthly counting, failed refund, month rollover, global cap, execute privileges, RLS.
-- **iOS (16 new, 52 total)** — response decoding and every error code, prefill never overwriting typed text, estimate midpoint and locale formatting, shopping URL, share hand-off (once-only, stale drop, link vs photo precedence), memory-safe downscale.
-- **Simulator walkthrough** with `-mockIdentify identified|similar|not_product|quota|offline` (Debug only): card → source menu → library → consent → result → Use price → save; Photos → Share → Gimme → list → auto-identify; quota → paywall; signed-out live path → Sign In; Settings switch.
+- **iOS (21 new, 57 total)** — response decoding and every error code, prefill never overwriting typed text, estimate midpoint and locale formatting, shopping URL, share hand-off (once-only, stale drop, link vs photo precedence), memory-safe downscale, and the shared controller (sign-in gate, consent then run, quota usage, dropping a replaced photo's result).
+- **Simulator walkthrough** with `-mockIdentify identified|similar|not_product|quota|offline` (Debug only): card → source menu → library → consent → result → Use price → save, on both New Wish and the first-run screen (fresh install); Photos → Share → Gimme → list → auto-identify; quota → paywall; signed-out live path → Sign In; Settings switch.
 - **Production smoke test**: 405 / 401 for wrong method, missing, publishable-key and forged tokens; no rows written; no new security advisor findings.
 - **Not yet tested**: a real Claude call (needs the API key) and a signed-in request against production (needs an account) — the first two items of the checklist below.
 
@@ -145,5 +160,4 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 ## Follow-ups
 
 - **Pro can be self-granted (pre-existing, security)** — `profiles` RLS lets a signed-in user update their own `is_pro`, and `WhishApp` grants Pro when it's true. Fix with a verify-purchase Edge Function (StoreKit signed transactions) as the only writer of `is_pro`. Until then the Pro identify limit is spoofable (bounded by the global cap).
-- Add the identify card to `FirstItemView` (first-run "Add your first wish") — the highest-impact place for a new user's first impression.
 - V1: shopping results → pick an offer → existing metadata + price tracking. V2: multi-store price comparison, affiliate links, VisionKit barcode scan.

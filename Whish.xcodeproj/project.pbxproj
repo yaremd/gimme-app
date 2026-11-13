@@ -41,6 +41,7 @@
 		5884095BCD45DDBABFE4DB98 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3860D9DE418AD07290DCF274 /* SettingsView.swift */; };
 		5B5AD064AB18361098647992 /* GimmeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C410B53F8DB40A69FFE5A7D /* GimmeWidget.swift */; };
 		5B9F35062B60F4A14A806DE7 /* LiveMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B6DFC6E9082C702131E2F0A /* LiveMetadataService.swift */; };
+		5D6BD3615BCE6D8E66160F5A /* IdentifyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E1888EE2DBA3D280626420 /* IdentifyController.swift */; };
 		64AB09462A3A72AEF0F581D5 /* ConfettiView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8D2ABE06F18B9748A7FC17 /* ConfettiView.swift */; };
 		67A92170DFB6BA30A4B84358 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC96C823FC44FCAE22587C81 /* NotificationService.swift */; };
 		7230778C13D828F99EC76A68 /* ReminderOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3236690D7C613DE3670EFF7D /* ReminderOption.swift */; };
@@ -165,6 +166,7 @@
 		30C2DBA8454C8E50172D334E /* WhishTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WhishTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		30C817E02AC58BE17B504BC0 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		3236690D7C613DE3670EFF7D /* ReminderOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderOption.swift; sourceTree = "<group>"; };
+		32E1888EE2DBA3D280626420 /* IdentifyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentifyController.swift; sourceTree = "<group>"; };
 		34FEF9863DA43E39AB68295E /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		3860D9DE418AD07290DCF274 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		395BDD9ABE3E84104B96FD0C /* MockMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockMetadataService.swift; sourceTree = "<group>"; };
@@ -488,6 +490,7 @@
 			isa = PBXGroup;
 			children = (
 				3C4FFF4A96BE63D7B035AF6A /* AddItemView.swift */,
+				32E1888EE2DBA3D280626420 /* IdentifyController.swift */,
 				759AD481471A3053464B2BB8 /* IdentifyPhotoCard.swift */,
 				6772106EBAA07392A4D6A021 /* ListDetailViewModel.swift */,
 				03B43BD8984FCBA84787BB24 /* WishItemCard.swift */,
@@ -751,6 +754,7 @@
 				14740217743D593DD6B495DC /* Haptics.swift in Sources */,
 				789BC809DC8EE5060556FE74 /* HomeView.swift in Sources */,
 				964C421D50D3A088DA5E250F /* HomeViewModel.swift in Sources */,
+				5D6BD3615BCE6D8E66160F5A /* IdentifyController.swift in Sources */,
 				9199AFFDAF5390A85152BDF3 /* IdentifyPhotoCard.swift in Sources */,
 				58418DEAE2F8F9B11EB88E60 /* ImageCompressor.swift in Sources */,
 				CDC355AF0D59D2A662308243 /* ImageLoader.swift in Sources */,

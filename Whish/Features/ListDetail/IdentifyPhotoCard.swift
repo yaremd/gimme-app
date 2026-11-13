@@ -8,8 +8,9 @@ enum IdentifyPhase: Equatable {
     case failed(ProductIdentificationError)
 }
 
-/// The "Identify from a photo" card in Add Item. Stateless: AddItemView owns the
-/// phase and performs the actions.
+/// The "Identify from a photo" card in the add-item forms. Stateless: the form's
+/// `IdentifyController` owns the phase, and the form performs the actions and
+/// supplies the card background (solid in Add Item, glass in the first-wish form).
 struct IdentifyPhotoCard: View {
     let phase: IdentifyPhase
     let hasPhoto: Bool
@@ -64,8 +65,6 @@ struct IdentifyPhotoCard: View {
                 failureRow(error)
             }
         }
-        .background(Theme.Colors.surface,
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .animation(Theme.spring, value: phase)
     }
 
@@ -317,6 +316,8 @@ struct IdentifyConsentSheet: View {
                                   onTakePhoto: {}, onChooseFromLibrary: {}, onIdentify: {},
                                   onUseEstimate: { _ in }, onFindOnline: { _ in },
                                   onUpgrade: {}, onSignIn: {})
+                .background(Theme.Colors.surface,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }
         }
         .padding()

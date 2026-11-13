@@ -55,17 +55,12 @@ struct AddItemView: View {
     // Photo identification (snap to add)
     /// True when the image is a photo of the item (camera, library, share), not an emoji or a product image from a link.
     @State private var localImageIsPhoto = false
-    @State private var identifyPhase: IdentifyPhase = .idle
-    @State private var identifyUsage: IdentifyUsage? = nil
-    /// Results for an older photo are ignored once this changes.
-    @State private var identifyRequestID = UUID()
+    @State private var identify = IdentifyController()
     /// Set when a photo is picked from the identify card, so it's identified right away.
     @State private var identifyAfterPick = false
     @State private var didApplyInitialImage = false
-    @State private var isShowingIdentifyConsent = false
     @State private var isShowingPaywall = false
     @State private var isShowingAuth = false
-    @AppStorage("photoIdentifyConsent") private var photoIdentifyConsent = false
 
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case title, notes, url, listName }
@@ -83,7 +78,6 @@ struct AddItemView: View {
     private var activeLists: [WishList] { allLists.filter { !$0.isArchived } }
 
     private let metadataService: any MetadataService = LiveMetadataService()
-    private let identifier: any ProductIdentificationService = ProductIdentifier.makeService()
     private let currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "UAH"]
 
     var isEditing: Bool { itemToEdit != nil }
@@ -289,19 +283,8 @@ struct AddItemView: View {
                     selectedPhotoItem = nil
                 }
             }
-            .onChange(of: auth.isSignedIn) { _, signedIn in
-                if signedIn && identifyPhase == .failed(.notSignedIn) { identifyPhase = .idle }
-            }
-            .sheet(isPresented: $isShowingIdentifyConsent) {
-                IdentifyConsentSheet(accentColor: accentColor) {
-                    photoIdentifyConsent = true
-                    runIdentify()
-                }
-                .presentationDetents([.height(540), .large])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(Theme.Radius.sheet)
-                .pageSheet()
-            }
+            .onChange(of: auth.isSignedIn) { _, signedIn in identify.signedInChanged(signedIn) }
+            .identifyConsentSheet(identify, accentColor: accentColor)
             .sheet(isPresented: $isShowingPaywall) { PaywallView().pageSheet() }
             .sheet(isPresented: $isShowingAuth) { AuthView().pageSheet() }
         }
@@ -321,9 +304,9 @@ struct AddItemView: View {
 
     private var identifyCard: some View {
         IdentifyPhotoCard(
-            phase: identifyPhase,
+            phase: identify.phase,
             hasPhoto: localImageData != nil && localImageIsPhoto,
-            usage: identifyUsage,
+            usage: identify.usage,
             isPro: purchaseService.isPro,
             accentColor: accentColor,
             onTakePhoto: UIImagePickerController.isSourceTypeAvailable(.camera)
@@ -336,6 +319,8 @@ struct AddItemView: View {
             onUpgrade: { isShowingPaywall = true },
             onSignIn: { isShowingAuth = true }
         )
+        .background(Theme.Colors.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
     }
 
     /// Puts a photo shared from another app into the form, once.
@@ -366,50 +351,13 @@ struct AddItemView: View {
     }
 
     private func resetIdentify() {
-        identifyRequestID = UUID()
-        identifyPhase = .idle
+        identify.reset()
     }
 
     private func startIdentify() {
-        guard localImageData != nil, localImageIsPhoto else { return }
-        if identifier.requiresSignIn && !auth.isSignedIn {
-            withAnimation(Theme.spring) { identifyPhase = .failed(.notSignedIn) }
-            return
-        }
-        guard photoIdentifyConsent else {
-            isShowingIdentifyConsent = true
-            return
-        }
-        runIdentify()
-    }
-
-    private func runIdentify() {
-        guard let data = localImageData else { return }
-        let requestID = UUID()
-        identifyRequestID = requestID
-        withAnimation(Theme.spring) { identifyPhase = .running }
-        let currencyCode = currency
-
-        Task {
-            let phase: IdentifyPhase
-            do {
-                let response = try await identifier.identify(imageData: data, currency: currencyCode)
-                guard identifyRequestID == requestID else { return }
-                if let usage = response.usage { identifyUsage = usage }
-                applyIdentification(response.result)
-                phase = .done(response.result)
-                if response.result.foundProduct { Haptics.success() } else { Haptics.warning() }
-            } catch let error as ProductIdentificationError {
-                guard identifyRequestID == requestID else { return }
-                if case .quotaExceeded(let usage?) = error { identifyUsage = usage }
-                phase = .failed(error)
-                Haptics.error()
-            } catch {
-                guard identifyRequestID == requestID else { return }
-                phase = .failed(.network)
-                Haptics.error()
-            }
-            withAnimation(Theme.spring) { identifyPhase = phase }
+        guard let data = localImageData, localImageIsPhoto else { return }
+        identify.start(imageData: data, currency: currency, isSignedIn: auth.isSignedIn) { result in
+            applyIdentification(result)
         }
     }
 

@@ -132,6 +132,115 @@ struct IdentifyPrefillTests {
     }
 }
 
+// MARK: - Identify flow shared by both add-item forms
+
+private final class FakeIdentifyService: ProductIdentificationService, @unchecked Sendable {
+    let requiresSignIn: Bool
+    let outcome: Result<ProductIdentificationResponse, ProductIdentificationError>
+    private(set) var calls = 0
+
+    init(requiresSignIn: Bool = true,
+         outcome: Result<ProductIdentificationResponse, ProductIdentificationError>) {
+        self.requiresSignIn = requiresSignIn
+        self.outcome = outcome
+    }
+
+    func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse {
+        calls += 1
+        return try outcome.get()
+    }
+}
+
+@MainActor
+@Suite(.serialized)
+struct IdentifyControllerTests {
+
+    private let usage = IdentifyUsage(used: 2, limit: 5, remaining: 3, periodEnd: .distantFuture)
+    private let photo = Data([0xFF, 0xD8, 0xFF])
+
+    private func freshDefaults(consent: Bool = false) -> UserDefaults {
+        let defaults = UserDefaults(suiteName: "IdentifyControllerTests.\(UUID().uuidString)")!
+        if consent { defaults.set(true, forKey: IdentifyController.consentKey) }
+        return defaults
+    }
+
+    private func success() -> Result<ProductIdentificationResponse, ProductIdentificationError> {
+        .success(ProductIdentificationResponse(result: MockProductIdentificationService.sneakers, usage: usage))
+    }
+
+    /// The request runs in a Task; give it a moment to land.
+    private func settle(_ controller: IdentifyController) async {
+        for _ in 0..<200 where controller.phase == .running {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        try? await Task.sleep(for: .milliseconds(20))
+    }
+
+    @Test func signedOutUsersAreAskedToSignInFirst() async {
+        let service = FakeIdentifyService(outcome: success())
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
+        await settle(controller)
+        #expect(controller.phase == .failed(.notSignedIn))
+        #expect(!controller.isShowingConsent)
+        #expect(service.calls == 0)
+
+        controller.signedInChanged(true)
+        #expect(controller.phase == .idle)
+    }
+
+    @Test func asksForConsentThenRunsTheWaitingRequest() async {
+        let service = FakeIdentifyService(outcome: success())
+        let defaults = freshDefaults()
+        let controller = IdentifyController(service: service, defaults: defaults)
+        var applied: [ProductIdentification] = []
+
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { applied.append($0) }
+        #expect(controller.isShowingConsent)
+        #expect(controller.phase == .idle)
+        #expect(service.calls == 0)
+
+        controller.grantConsent()
+        await settle(controller)
+        #expect(defaults.bool(forKey: IdentifyController.consentKey))
+        #expect(controller.phase == .done(MockProductIdentificationService.sneakers))
+        #expect(applied == [MockProductIdentificationService.sneakers])
+        #expect(controller.usage == usage)
+        #expect(service.calls == 1)
+    }
+
+    @Test func quotaErrorsKeepTheReportedAllowance() async {
+        let exhausted = IdentifyUsage(used: 5, limit: 5, remaining: 0, periodEnd: .distantFuture)
+        let service = FakeIdentifyService(outcome: .failure(.quotaExceeded(exhausted)))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        var appliedCount = 0
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in appliedCount += 1 }
+        await settle(controller)
+        #expect(controller.phase == .failed(.quotaExceeded(exhausted)))
+        #expect(controller.usage == exhausted)
+        #expect(appliedCount == 0)
+    }
+
+    @Test func aResultForAReplacedPhotoIsDropped() async {
+        let service = FakeIdentifyService(outcome: success())
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        var appliedCount = 0
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in appliedCount += 1 }
+        controller.reset()   // the photo changed before the response arrived
+        await settle(controller)
+        #expect(controller.phase == .idle)
+        #expect(appliedCount == 0)
+    }
+
+    @Test func servicesThatDontNeedSignInSkipTheGate() async {
+        let service = FakeIdentifyService(requiresSignIn: false, outcome: success())
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
+        await settle(controller)
+        #expect(controller.phase == .done(MockProductIdentificationService.sneakers))
+    }
+}
+
 // MARK: - Share Extension photo hand-off
 
 @Suite(.serialized)
