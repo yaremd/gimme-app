@@ -136,7 +136,7 @@ Both 24 h caps also count `failed` rows that have output tokens, i.e. calls the 
 
 | Area | Files |
 |---|---|
-| Backend | `supabase/functions/identify-product/{index,handler,prompt,devicecheck}.ts`, `migration_v9_identify_requests.sql`, `migration_v11_identify_trials.sql` (v10 is reserved for the Pro fix in PR #6), `supabase/config.toml` |
+| Backend | `supabase/functions/identify-product/{index,handler,prompt,devicecheck}.ts`, `migration_v9_identify_requests.sql`, `migration_v11_identify_trials.sql` (v10 is the Pro fix from PR #6), `supabase/config.toml` |
 | iOS service | `Whish/Services/ProductIdentificationService.swift` (model, live service, response decoder, prefill rules, debug mock) |
 | Hand-off | `Whish/Services/SharedImageInbox.swift` (compiled into app + GimmeShare), `GimmeShare/ShareViewController.swift`, `project.yml` activation rule |
 | UI | `Whish/Features/ListDetail/IdentifyController.swift` (shared flow: sign-in gate, consent, request, stale results), `IdentifyPhotoCard.swift` (card + consent sheet), `AddItemView.swift`, `HomeView.swift` (share hand-off + `FirstItemView`), `SettingsView.swift`, `PaywallView.swift` |
@@ -184,7 +184,8 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
    Without these, signed-out users who tap the card are asked to sign in. So set them before shipping a build that shows "Your first one is free".
 4. On a physical iPhone, test the free try. A Debug build from Xcode sends development tokens, so for that test also set `DEVICECHECK_ALLOW_DEVELOPMENT=true`, and remove it afterwards; TestFlight and App Store builds don't need it. Sign out, identify one photo, check that the next one asks you to sign in, then delete and reinstall the app and check that the try is still spent.
 5. Update the privacy policy and App Store privacy answers (above).
-6. Merge the branch, bump the version, TestFlight, then ship with a "Snap to add" screenshot.
+6. Ship this in the same build as the Pro fix (PR #6), or in a later one. Since migration v10, an account becomes Pro only through verify-purchase, and only PR #6's app build calls it. In a build without it, people who buy Pro get Pro on their device but not on their account, so they get the free 5 photos a month, not 100. Merging this branch after PR #6 conflicts in two files where both branches added entries side by side: in `supabase/config.toml` keep both function sections, and in `Whish.xcodeproj/project.pbxproj` keep both sides or run `xcodegen generate`.
+7. Merge the branch, bump the version, TestFlight, then ship with a "Snap to add" screenshot.
 
 ## Also fixed on this branch
 
@@ -192,6 +193,6 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 
 ## Follow-ups
 
-- **Pro can be self-granted (pre-existing, security)** — `profiles` RLS lets a signed-in user update their own `is_pro`, and `WhishApp` grants Pro when it's true. The fix is in PR #6 (`claude/verify-purchase`: a verify-purchase Edge Function becomes the only writer of `is_pro`, migration v10), but it isn't applied or deployed yet. Until then the Pro identify limit is spoofable (bounded by the global cap).
+- **Pro could be self-granted (pre-existing, security): closed in production on Nov 13, 2026.** `profiles` RLS let a signed-in user update their own `is_pro`, which `WhishApp` turns into Pro and identify-product into the 100-a-month limit. Migration v10 sections 1–3 and the verify-purchase Edge Function from PR #6 (`claude/verify-purchase`) are now live, so clients can't write `profiles` and only `record_pro_transaction()` sets `is_pro`. Checked in production: no client write privilege or policy on `profiles`. Still open: PR #6 isn't merged or shipped (checklist item 6), and v10 section 4, which clears `is_pro` on accounts without a verified purchase, is on hold, so the 3 existing Pro accounts keep Pro for now.
 - **Free try: replayed tokens.** Someone who captures their own request can replay its DeviceCheck token; the in-flight limit holds a burst to 3 tries and the free-try daily cap bounds the rest. If abuse ever shows up in `ai_identify_requests`, move the free try to App Attest, which proves each request comes from the genuine app.
 - V1: shopping results → pick an offer → existing metadata + price tracking. V2: multi-store price comparison, affiliate links, VisionKit barcode scan.
