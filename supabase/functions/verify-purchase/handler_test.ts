@@ -1,13 +1,8 @@
-// Run: deno test --node-modules-dir=none -A supabase/functions/verify-purchase/
+// Run: deno test --node-modules-dir=none -A supabase/functions/
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import {
-  type Deps,
-  handleVerifyPurchase,
-  MAX_JWS_LENGTH,
-  type RecordInput,
-  type RecordResult,
-  type VerifyResult,
-} from "./handler.ts";
+import type { VerifyResult } from "../_shared/apple_jws.ts";
+import type { RecordInput, RecordResult } from "../_shared/pro_purchases.ts";
+import { type Deps, handleVerifyPurchase, MAX_JWS_LENGTH } from "./handler.ts";
 
 const SIGNED = Date.parse("2026-11-13T10:00:00Z");
 const JWS = "header.payload.signature"; // the fake verifier never parses it

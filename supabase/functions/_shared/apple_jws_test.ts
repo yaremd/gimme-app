@@ -1,22 +1,35 @@
-// Run: deno test --node-modules-dir=none -A supabase/functions/verify-purchase/
+// Run: deno test --node-modules-dir=none -A supabase/functions/
 //
-// The positive cases use a test PKI shaped like Apple's: P-384 root and
-// intermediate, a P-256 leaf signed with SHA-384, and Apple's marker
-// extensions. The real Apple root and WWDR G6 intermediate cover the attack
-// that matters most: copying Apple's genuine certificates into the header
-// next to a leaf the attacker signed.
+// The positive cases use the test PKI in apple_test_pki.ts, shaped like
+// Apple's: P-384 root and intermediate, a P-256 leaf signed with SHA-384, and
+// Apple's marker extensions. The real Apple root and WWDR G6 intermediate cover
+// the attack that matters most: copying Apple's genuine certificates into the
+// header next to a leaf the attacker signed.
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import * as x509 from "npm:@peculiar/x509@1.14.3";
 import {
+  appleJwsVerifier,
   appleRootCertificates,
   base64ToBytes,
   INTERMEDIATE_MARKER_OID,
   type JwsFailure,
   JwsVerificationError,
-  LEAF_MARKER_OID,
   verifyAppleJws,
 } from "./apple_jws.ts";
 import { APPLE_ROOT_CA_G3_SHA256 } from "./apple_root.ts";
+import {
+  ec,
+  encodeJson,
+  makeIntermediate,
+  makeLeaf,
+  makeRoot,
+  P256,
+  P384,
+  signJws,
+  testPki,
+  toBase64,
+  toBase64Url,
+} from "./apple_test_pki.ts";
 
 x509.cryptoProvider.set(crypto);
 
@@ -36,10 +49,6 @@ const APPLE_WWDR_G6_DER_BASE64 =
   "iCtOnuMTbXVXmxxcxfkCMQDTSPxarZXvNrkxU3TkUMI33yzvFVVRT4wxWJC994OsdcZ4+RGNsYDyR5gmdr0nDGg=";
 
 const SIGNED = Date.parse("2026-11-13T10:00:00Z");
-const P384 = { name: "ECDSA", namedCurve: "P-384" } as const;
-const P256 = { name: "ECDSA", namedCurve: "P-256" } as const;
-const SIGN_SHA384 = { name: "ECDSA", hash: "SHA-384" } as const;
-const ASN1_NULL = new Uint8Array([0x05, 0x00]);
 
 const payload = (overrides: Record<string, unknown> = {}) => ({
   transactionId: "2000000123456789",
@@ -53,113 +62,8 @@ const payload = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-// ── Test PKI ────────────────────────────────────────────────────────────────
-
-const ec = (curve: typeof P384 | typeof P256) =>
-  crypto.subtle.generateKey(curve, true, ["sign", "verify"]) as Promise<CryptoKeyPair>;
-
-interface Issuer {
-  cert: x509.X509Certificate;
-  keys: CryptoKeyPair;
-}
-
-async function makeRoot(name = "CN=Test Root CA - G3, O=Test, C=US"): Promise<Issuer> {
-  const keys = await ec(P384);
-  const cert = await x509.X509CertificateGenerator.createSelfSigned({
-    serialNumber: "01",
-    name,
-    notBefore: new Date("2014-01-01T00:00:00Z"),
-    notAfter: new Date("2039-01-01T00:00:00Z"),
-    keys,
-    signingAlgorithm: SIGN_SHA384,
-    extensions: [new x509.BasicConstraintsExtension(true, undefined, true)],
-  });
-  return { cert, keys };
-}
-
-async function makeIntermediate(
-  issuer: Issuer,
-  opts: { ca?: boolean; marker?: boolean; subject?: string } = {},
-): Promise<Issuer> {
-  const keys = await ec(P384);
-  const ca = opts.ca ?? true;
-  const extensions: x509.Extension[] = [new x509.BasicConstraintsExtension(ca, ca ? 0 : undefined, true)];
-  if (opts.marker ?? true) extensions.push(new x509.Extension(INTERMEDIATE_MARKER_OID, false, ASN1_NULL));
-  const cert = await x509.X509CertificateGenerator.create({
-    serialNumber: "02",
-    subject: opts.subject ?? "CN=Test WWDR CA, OU=G6, O=Test, C=US",
-    issuer: issuer.cert.subject,
-    notBefore: new Date("2021-01-01T00:00:00Z"),
-    notAfter: new Date("2036-01-01T00:00:00Z"),
-    publicKey: keys.publicKey,
-    signingKey: issuer.keys.privateKey,
-    signingAlgorithm: SIGN_SHA384,
-    extensions,
-  });
-  return { cert, keys };
-}
-
-async function makeLeaf(
-  issuer: { subject: string; signingKey: CryptoKey },
-  opts: { marker?: boolean; notBefore?: string; notAfter?: string; curve?: typeof P384 | typeof P256 } = {},
-): Promise<Issuer> {
-  const keys = await ec(opts.curve ?? P256);
-  const extensions: x509.Extension[] = [];
-  if (opts.marker ?? true) extensions.push(new x509.Extension(LEAF_MARKER_OID, false, ASN1_NULL));
-  const cert = await x509.X509CertificateGenerator.create({
-    serialNumber: "03",
-    subject: "CN=Test ECC App Store Receipt Signing, O=Test, C=US",
-    issuer: issuer.subject,
-    notBefore: new Date(opts.notBefore ?? "2025-01-01T00:00:00Z"),
-    notAfter: new Date(opts.notAfter ?? "2027-01-01T00:00:00Z"),
-    publicKey: keys.publicKey,
-    signingKey: issuer.signingKey,
-    signingAlgorithm: SIGN_SHA384,
-    extensions,
-  });
-  return { cert, keys };
-}
-
-const root = await makeRoot();
-const intermediate = await makeIntermediate(root);
-const leaf = await makeLeaf({ subject: intermediate.cert.subject, signingKey: intermediate.keys.privateKey });
+const { root, intermediate, leaf } = testPki;
 const trusted = [root.cert];
-
-// ── JWS helpers ─────────────────────────────────────────────────────────────
-
-function toBase64(bytes: ArrayBuffer | Uint8Array): string {
-  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  let binary = "";
-  for (const byte of view) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-const toBase64Url = (bytes: ArrayBuffer | Uint8Array) =>
-  toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const encodeJson = (value: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(value)));
-
-async function signJws(
-  body: unknown,
-  opts: {
-    key?: CryptoKey;
-    chain?: Array<x509.X509Certificate | string>;
-    header?: Record<string, unknown>;
-  } = {},
-): Promise<string> {
-  const chain = opts.chain ?? [leaf.cert, intermediate.cert, root.cert];
-  const header = {
-    alg: "ES256",
-    x5c: chain.map((cert) => typeof cert === "string" ? cert : toBase64(cert.rawData)),
-    ...opts.header,
-  };
-  const signingInput = `${encodeJson(header)}.${encodeJson(body)}`;
-  const signature = await crypto.subtle.sign(
-    { name: "ECDSA", hash: "SHA-256" },
-    opts.key ?? leaf.keys.privateKey,
-    new TextEncoder().encode(signingInput),
-  );
-  return `${signingInput}.${toBase64Url(signature)}`;
-}
 
 async function assertFails(
   jws: string,
@@ -334,4 +238,19 @@ Deno.test("rejects strings that aren't compact JWS", async () => {
   // A signature that isn't valid base64url, on an otherwise good JWS.
   const [header, body] = (await signJws(payload())).split(".");
   await assertFails(`${header}.${body}.A`, "malformed");
+});
+
+// ── appleJwsVerifier ────────────────────────────────────────────────────────
+
+Deno.test("appleJwsVerifier returns the payload, or why the JWS was refused", async () => {
+  const verify = appleJwsVerifier(trusted);
+  const body = payload();
+  assertEquals(await verify(await signJws(body)), { ok: true, payload: body });
+
+  const stranger = await ec(P256);
+  const refused = await verify(await signJws(body, { key: stranger.privateKey }));
+  assertEquals(refused.ok ? "accepted" : refused.reason, "bad_signature");
+
+  const forged = await appleJwsVerifier(appleRootCertificates())(await signJws(body));
+  assertEquals(forged.ok ? "accepted" : forged.reason, "untrusted_chain");
 });
