@@ -82,18 +82,34 @@ private final class FakeVerifier: ProPurchaseVerifying, @unchecked Sendable {
     }
 }
 
+/// This device's StoreKit, faked: the Pro entitlement it holds, if any.
+private struct FakeStoreKit: ProEntitlementChecking {
+    var entitlement: String?
+    /// Runs while an entitlement check is in flight.
+    var whileChecking: (@MainActor @Sendable () -> Void)?
+
+    func currentEntitlementJWS() async -> String? {
+        if let whileChecking { await whileChecking() }
+        return entitlement
+    }
+
+    func syncWithAppStore() async throws {}
+}
+
 @MainActor
 struct PurchaseServiceSyncTests {
 
     private static let user = "user-1"
     private static let jws = "header.payload.signature"
 
-    /// A PurchaseService on a throwaway defaults suite, never touching StoreKit.
+    /// A PurchaseService on a throwaway defaults suite, with a fake StoreKit
+    /// (no entitlement unless one is given).
     private func withService(
         _ verifier: FakeVerifier,
         startingPro: Bool = false,
         claimedBy: String? = nil,
         signedInAs: String? = user,
+        storeKit: FakeStoreKit = FakeStoreKit(),
         _ body: @MainActor (PurchaseService, UserDefaults) async throws -> Void
     ) async rethrows {
         let suiteName = "PurchaseServiceSyncTests.\(UUID().uuidString)"
@@ -102,7 +118,9 @@ struct PurchaseServiceSyncTests {
         defaults.set(startingPro, forKey: "isPro")
         if let claimedBy { defaults.set(claimedBy, forKey: "proClaimedByUserID") }
 
-        let service = PurchaseService(defaults: defaults, verifier: verifier, observesStoreKit: false)
+        let service = PurchaseService(
+            defaults: defaults, verifier: verifier, entitlements: storeKit, observesStoreKit: false
+        )
         service.currentUserID = signedInAs
         try await body(service, defaults)
     }
@@ -195,6 +213,143 @@ struct PurchaseServiceSyncTests {
         }
         await withService(FakeVerifier(.unavailable), startingPro: false) { service, _ in
             #expect(!service.isPro)
+        }
+    }
+
+    // MARK: Account Pro and this device's StoreKit
+    //
+    // Pro bought on another device or Apple ID belongs to the account, so it
+    // holds on a device whose StoreKit has no entitlement. Only the server
+    // (or signing out) takes it away.
+
+    @Test func aLaunchStoreKitCheckFinishingLastKeepsAccountPro() async {
+        // bootstrap()'s StoreKit check is still in flight when WhishApp's
+        // sign-in flow hears from the server that the account is Pro.
+        final class Box: @unchecked Sendable { var service: PurchaseService? }
+        let box = Box()
+        let storeKit = FakeStoreKit { box.service?.grantPro(for: Self.user) }
+        await withService(FakeVerifier(.unavailable), storeKit: storeKit) { service, _ in
+            box.service = service
+            await service.verifyEntitlement()
+
+            #expect(service.isPro)
+        }
+    }
+
+    @Test func aStoreKitRecheckAfterSignInKeepsAccountPro() async {
+        // HomeView.postLoginSync() re-checks StoreKit after WhishApp granted Pro.
+        await withService(FakeVerifier(.unavailable)) { service, _ in
+            service.grantPro(for: Self.user)
+            await service.refreshEntitlement()
+
+            #expect(service.isPro)
+        }
+    }
+
+    @Test func restoringWithNothingOnThisAppleIDKeepsAccountPro() async {
+        await withService(FakeVerifier(.unavailable)) { service, _ in
+            service.grantPro(for: Self.user)
+            await service.restorePurchases()
+
+            #expect(service.isPro)
+        }
+    }
+
+    @Test(arguments: [ProVerificationResult.verified(isPro: false), .claimedByOtherAccount])
+    func theServersNoEndsAccountPro(_ answer: ProVerificationResult) async {
+        await withService(FakeVerifier(answer)) { service, _ in
+            service.grantPro(for: Self.user)
+            await service.syncProToSupabase(jws: Self.jws)
+
+            #expect(!service.isPro)
+        }
+    }
+
+    @Test(arguments: [ProVerificationResult.verified(isPro: false), .claimedByOtherAccount])
+    func theServersNoOutlastsThisDevicesEntitlement(_ answer: ProVerificationResult) async {
+        // Refunded, or another account's purchase, while StoreKit here still lists it.
+        let storeKit = FakeStoreKit(entitlement: Self.jws)
+        await withService(FakeVerifier(answer), claimedBy: Self.user, storeKit: storeKit) { service, _ in
+            await service.refreshEntitlement()
+            #expect(service.isPro)
+
+            await service.syncProToSupabase(jws: Self.jws)
+            await service.refreshEntitlement()
+
+            #expect(!service.isPro)
+        }
+    }
+
+    @Test func thisDevicesOwnPurchaseUnlocksPro() async {
+        let storeKit = FakeStoreKit(entitlement: Self.jws)
+        let cases: [(signedInAs: String?, claimedBy: String?)] = [
+            (nil, nil),              // signed out
+            (Self.user, nil),        // signed in, purchase not claimed yet
+            (Self.user, Self.user),  // claimed by this account
+        ]
+        for (signedInAs, claimedBy) in cases {
+            await withService(
+                FakeVerifier(.unavailable), claimedBy: claimedBy, signedInAs: signedInAs, storeKit: storeKit
+            ) { service, _ in
+                await service.refreshEntitlement()
+
+                #expect(service.isPro, "signed in as \(signedInAs ?? "nobody"), claimed by \(claimedBy ?? "nobody")")
+            }
+        }
+    }
+
+    @Test func aPurchaseAnotherAccountClaimedHereStaysTheirs() async {
+        // WhishApp keeps this account free on sign-in; a StoreKit check after that mustn't undo it.
+        let storeKit = FakeStoreKit(entitlement: Self.jws)
+        await withService(FakeVerifier(.unavailable), claimedBy: "user-2", storeKit: storeKit) { service, _ in
+            service.resetProStatus()
+            await service.refreshEntitlement()
+
+            #expect(!service.isPro)
+            #expect(service.claimedByUserID() == "user-2")
+        }
+    }
+
+    @Test func signingOutEndsAccountPro() async {
+        await withService(FakeVerifier(.unavailable)) { service, _ in
+            service.grantPro(for: Self.user)
+
+            // WhishApp on sign-out.
+            service.currentUserID = nil
+            service.resetProStatus()
+            #expect(!service.isPro)
+
+            // A StoreKit check doesn't bring it back, and the next account doesn't inherit it.
+            await service.refreshEntitlement()
+            #expect(!service.isPro)
+            service.currentUserID = "user-2"
+            await service.refreshEntitlement()
+            #expect(!service.isPro)
+        }
+    }
+
+    @Test func signingOutTurnsOffProFromThisDevicesPurchaseToo() async {
+        let storeKit = FakeStoreKit(entitlement: Self.jws)
+        await withService(FakeVerifier(.unavailable), claimedBy: Self.user, storeKit: storeKit) { service, _ in
+            await service.refreshEntitlement()
+            #expect(service.isPro)
+
+            service.currentUserID = nil
+            service.resetProStatus()
+
+            #expect(!service.isPro)
+            #expect(service.claimedByUserID() == Self.user)
+        }
+    }
+
+    @Test func accountProCountsOnlyWhileThatAccountIsSignedIn() async {
+        // The profile fetch for user-1 lands after user-1 signed out.
+        for signedInAs in [nil, "user-2"] as [String?] {
+            await withService(FakeVerifier(.unavailable), signedInAs: signedInAs) { service, _ in
+                service.grantPro(for: Self.user)
+
+                #expect(!service.isPro, "signed in as \(signedInAs ?? "nobody")")
+            }
         }
     }
 }
