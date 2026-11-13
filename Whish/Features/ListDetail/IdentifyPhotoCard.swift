@@ -16,6 +16,10 @@ struct IdentifyPhotoCard: View {
     let hasPhoto: Bool
     let usage: IdentifyUsage?
     let isPro: Bool
+    /// Signed out, with this device's free try still unused.
+    var trialAvailable: Bool = false
+    /// The current result was the free try; invite the user to sign in for more.
+    var wasTrial: Bool = false
     let accentColor: Color
     /// nil when the device has no camera.
     let onTakePhoto: (() -> Void)?
@@ -32,7 +36,9 @@ struct IdentifyPhotoCard: View {
             case .idle:
                 if hasPhoto {
                     actionRow(icon: "sparkles", title: "Identify this photo",
-                              subtitle: allowanceText ?? "Fills in the name and details",
+                              subtitle: trialAvailable
+                                  ? "Free try, no account needed"
+                                  : allowanceText ?? "Fills in the name and details",
                               action: onIdentify)
                 } else {
                     // A menu, not a dialog: it anchors to the card, and presenting the
@@ -40,7 +46,9 @@ struct IdentifyPhotoCard: View {
                     // the sheet on iOS 26.
                     photoSourceMenu {
                         row(icon: "sparkles", title: "Identify from a photo",
-                            subtitle: "Snap or pick a photo and Gimme fills in the details") {
+                            subtitle: trialAvailable
+                                ? "Your first one is free, no account needed"
+                                : "Snap or pick a photo and Gimme fills in the details") {
                             chevron("chevron.right")
                         }
                         .contentShape(Rectangle())
@@ -91,7 +99,18 @@ struct IdentifyPhotoCard: View {
                       subtitle: "Paste a store link above to track its price",
                       trailingSymbol: "arrow.up.right") { onFindOnline(url) }
         }
+
+        if wasTrial {
+            divider
+            row(icon: "person.crop.circle.badge.plus", title: "That was your free try",
+                subtitle: Self.keepGoing) {
+                trailingButton("Sign In", action: onSignIn)
+            }
+        }
     }
+
+    // Keep the number in step with IDENTIFY_FREE_MONTHLY_LIMIT on the identify-product function.
+    private static let keepGoing = "Sign in to keep going, with 5 free a month"
 
     @ViewBuilder
     private func failureRow(_ error: ProductIdentificationError) -> some View {
@@ -107,6 +126,11 @@ struct IdentifyPhotoCard: View {
         case .notSignedIn:
             row(icon: "person.crop.circle", title: "Sign in to identify photos",
                 subtitle: "Free, and your lists sync across devices") {
+                trailingButton("Sign In", action: onSignIn)
+            }
+        case .trialUsed:
+            row(icon: "person.crop.circle", title: "You've used your free try",
+                subtitle: Self.keepGoing) {
                 trailingButton("Sign In", action: onSignIn)
             }
         default:

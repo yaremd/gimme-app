@@ -1,16 +1,24 @@
 // identify-product: identifies the product in a photo so Gimme can pre-fill a wish.
 //
 // POST { image: <base64>, mediaType?: "image/jpeg", currency?: "USD" }
-// Auth: the signed-in user's access token (Authorization: Bearer <jwt>).
-// Returns { result, usage } or { code, error, usage? }. Photos are never stored;
-// only a per-request usage row (status, model, token counts) is kept for quotas.
+// Auth: the signed-in user's access token (Authorization: Bearer <jwt>), or, for a
+// signed-out device's one free try, { deviceToken, deviceCheckEnvironment } in the body.
+// Returns { result, usage } (signed in), { result, trial: true } (free try) or
+// { code, error, usage? }. Photos are never stored; only a per-request usage row
+// (status, model, token counts) is kept for quotas.
 //
 // Secrets: ANTHROPIC_API_KEY (required). Optional tuning, no redeploy needed:
 // IDENTIFY_MODEL, IDENTIFY_EFFORT, IDENTIFY_FREE_MONTHLY_LIMIT,
-// IDENTIFY_PRO_MONTHLY_LIMIT, IDENTIFY_GLOBAL_DAILY_LIMIT.
+// IDENTIFY_PRO_MONTHLY_LIMIT, IDENTIFY_TRIAL_DAILY_LIMIT, IDENTIFY_GLOBAL_DAILY_LIMIT.
+//
+// Signed-out free try (one per device) needs Apple DeviceCheck: DEVICECHECK_KEY_ID,
+// DEVICECHECK_PRIVATE_KEY (.p8 contents), APPLE_TEAM_ID. Set
+// DEVICECHECK_ALLOW_DEVELOPMENT=true while testing Debug builds from Xcode.
+// Without them, signed-out users are simply asked to sign in.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk@1.3.0";
+import { createDeviceCheckClient } from "./devicecheck.ts";
 import { handleIdentify, type Deps } from "./handler.ts";
 import { IDENTIFY_SCHEMA, IDENTIFY_SYSTEM_PROMPT } from "./prompt.ts";
 
@@ -35,6 +43,26 @@ const admin = createClient(
 
 const anthropic = apiKey ? new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 }) : null;
 
+const deviceCheckKeyId = Deno.env.get("DEVICECHECK_KEY_ID") ?? "";
+const deviceCheckKey = Deno.env.get("DEVICECHECK_PRIVATE_KEY") ?? "";
+const appleTeamId = Deno.env.get("APPLE_TEAM_ID") ?? "";
+const deviceCheck = deviceCheckKeyId && deviceCheckKey && appleTeamId
+  ? createDeviceCheckClient({
+    keyId: deviceCheckKeyId,
+    teamId: appleTeamId,
+    privateKeyPem: deviceCheckKey,
+    allowDevelopment: Deno.env.get("DEVICECHECK_ALLOW_DEVELOPMENT") === "true",
+  })
+  : undefined;
+
+type ClaimRow = { allowed: boolean; request_id: string | null; used: number; reason: string };
+
+function toClaim(row: ClaimRow) {
+  const reasons = ["ok", "monthly_limit", "trial_limit", "in_flight", "global_limit"] as const;
+  const reason = reasons.find((r) => r === row.reason) ?? "global_limit";
+  return { allowed: row.allowed, requestId: row.request_id, used: row.used, reason };
+}
+
 const deps: Deps = {
   async getUserId(accessToken) {
     const { data, error } = await admin.auth.getUser(accessToken);
@@ -56,13 +84,18 @@ const deps: Deps = {
       })
       .single();
     if (error) throw error;
-    const row = data as { allowed: boolean; request_id: string | null; used: number; reason: string };
-    return {
-      allowed: row.allowed,
-      requestId: row.request_id,
-      used: row.used,
-      reason: row.reason === "global_limit" ? "global_limit" : row.reason === "monthly_limit" ? "monthly_limit" : "ok",
-    };
+    return toClaim(data as ClaimRow);
+  },
+
+  async claimTrialSlot(trialDailyLimit, globalDailyLimit) {
+    const { data, error } = await admin
+      .rpc("claim_identify_trial_slot", {
+        p_trial_daily_limit: trialDailyLimit,
+        p_global_daily_limit: globalDailyLimit,
+      })
+      .single();
+    if (error) throw error;
+    return toClaim(data as ClaimRow);
   },
 
   async finishRequest(requestId, outcome, details) {
@@ -127,10 +160,13 @@ const deps: Deps = {
     };
   },
 
+  deviceCheck,
+
   config: {
     apiKeyConfigured: apiKey.length > 0,
     freeMonthlyLimit: intEnv("IDENTIFY_FREE_MONTHLY_LIMIT", 5),
     proMonthlyLimit: intEnv("IDENTIFY_PRO_MONTHLY_LIMIT", 100),
+    trialDailyLimit: intEnv("IDENTIFY_TRIAL_DAILY_LIMIT", 100),
     globalDailyLimit: intEnv("IDENTIFY_GLOBAL_DAILY_LIMIT", 300),
     maxImageBytes: 4 * 1024 * 1024,
   },

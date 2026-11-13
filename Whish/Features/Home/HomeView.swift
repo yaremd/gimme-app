@@ -1764,6 +1764,8 @@ struct FirstItemView: View {
             hasPhoto: localImageData != nil && localImageIsPhoto,
             usage: identify.usage,
             isPro: purchaseService.isPro,
+            trialAvailable: !auth.isSignedIn && identify.offersTrial,
+            wasTrial: identify.lastWasTrial,
             accentColor: accentColor,
             onTakePhoto: UIImagePickerController.isSourceTypeAvailable(.camera)
                 ? { identifyAfterPick = true; isShowingCamera = true }
@@ -1829,6 +1831,10 @@ struct FirstItemView: View {
         modelContext.insert(item)
         // First-ever item — all free tracking slots are open
         PriceTrackingService.autoEnroll(item, isPro: false, in: modelContext)
+        // Save now so the list's persistentModelID is permanent before Home navigates to it.
+        // A temporary ID stops matching after the next autosave (e.g. when the photo picker
+        // opens), which sent users back to Home and closed whatever sheet was open.
+        try? modelContext.save()
         dismiss()
         onCreated?(list)
     }

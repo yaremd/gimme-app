@@ -308,6 +308,8 @@ struct AddItemView: View {
             hasPhoto: localImageData != nil && localImageIsPhoto,
             usage: identify.usage,
             isPro: purchaseService.isPro,
+            trialAvailable: !auth.isSignedIn && identify.offersTrial,
+            wasTrial: identify.lastWasTrial,
             accentColor: accentColor,
             onTakePhoto: UIImagePickerController.isSourceTypeAvailable(.camera)
                 ? { identifyAfterPick = true; isShowingCamera = true }
@@ -852,6 +854,9 @@ struct AddItemView: View {
         }
 
         Haptics.success()
+        // A list created inline has a temporary persistentModelID until saved; Home navigates
+        // by that ID, so make it permanent first (see FirstItemView.saveAndDismiss).
+        try? modelContext.save()
         onSaved?(targetList)
         dismiss()
     }

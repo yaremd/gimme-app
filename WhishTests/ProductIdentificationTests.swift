@@ -72,6 +72,31 @@ struct IdentifyResponseDecoderTests {
         }
     }
 
+    @Test func decodesAFreeTryResult() throws {
+        let response = try decode(200, """
+        {"result":{"status":"similar","title":"Orange shell jacket","brand":null,"model":null,"color":"Orange",
+         "category":"Jackets","description":"Hooded waterproof shell.","estimatedPrice":null,
+         "searchQuery":"orange hooded shell jacket","confidence":0.6},"trial":true}
+        """)
+        #expect(response.trial == true)
+        #expect(response.usage == nil)
+        #expect(throws: ProductIdentificationError.trialUsed) {
+            try decode(401, #"{"code":"trial_used","error":"x"}"#)
+        }
+    }
+
+    /// Mirrors identify-product: a refusal keeps the free try spent, failures give it back.
+    @Test func aRefusalSpendsTheFreeTryButFailuresGiveItBack() {
+        #expect(LiveProductIdentificationService.spendsFreeTry(.trialUsed))
+        #expect(LiveProductIdentificationService.spendsFreeTry(.refused))
+        let givenBack: [ProductIdentificationError] = [
+            .network, .busy, .notSignedIn, .notConfigured, .invalidImage, .server("Couldn't read the result. Try again."),
+        ]
+        for error in givenBack {
+            #expect(!LiveProductIdentificationService.spendsFreeTry(error), "\(error)")
+        }
+    }
+
     @Test func onlyTransientErrorsOfferRetry() {
         #expect(ProductIdentificationError.network.isRetryable)
         #expect(ProductIdentificationError.busy.isRetryable)
@@ -136,12 +161,15 @@ struct IdentifyPrefillTests {
 
 private final class FakeIdentifyService: ProductIdentificationService, @unchecked Sendable {
     let requiresSignIn: Bool
+    let offersTrial: Bool
     let outcome: Result<ProductIdentificationResponse, ProductIdentificationError>
     private(set) var calls = 0
 
     init(requiresSignIn: Bool = true,
+         offersTrial: Bool = false,
          outcome: Result<ProductIdentificationResponse, ProductIdentificationError>) {
         self.requiresSignIn = requiresSignIn
+        self.offersTrial = offersTrial
         self.outcome = outcome
     }
 
@@ -230,6 +258,41 @@ struct IdentifyControllerTests {
         await settle(controller)
         #expect(controller.phase == .idle)
         #expect(appliedCount == 0)
+    }
+
+    @Test func signedOutUsersGetTheFreeTryAndAreInvitedToSignIn() async {
+        let freeTry = FakeIdentifyService(offersTrial: true, outcome: .success(
+            ProductIdentificationResponse(result: MockProductIdentificationService.sneakers, usage: nil, trial: true)
+        ))
+        let controller = IdentifyController(service: freeTry, defaults: freshDefaults(consent: true))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
+        await settle(controller)
+        #expect(controller.phase == .done(MockProductIdentificationService.sneakers))
+        #expect(controller.lastWasTrial)
+        #expect(freeTry.calls == 1)
+
+        controller.signedInChanged(true)
+        #expect(!controller.lastWasTrial)
+    }
+
+    @Test func aSpentFreeTryAsksToSignIn() async {
+        let service = FakeIdentifyService(offersTrial: true, outcome: .failure(.trialUsed))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
+        await settle(controller)
+        #expect(controller.phase == .failed(.trialUsed))
+
+        controller.signedInChanged(true)
+        #expect(controller.phase == .idle)
+    }
+
+    @Test func noFreeTryLeftMeansSignInWithoutARequest() async {
+        let service = FakeIdentifyService(offersTrial: false, outcome: success())
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
+        await settle(controller)
+        #expect(controller.phase == .failed(.notSignedIn))
+        #expect(service.calls == 0)
     }
 
     @Test func servicesThatDontNeedSignInSkipTheGate() async {

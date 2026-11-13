@@ -1,3 +1,4 @@
+import DeviceCheck
 import Foundation
 import Supabase
 
@@ -87,13 +88,18 @@ struct IdentifyUsage: Codable, Sendable, Equatable {
 
 struct ProductIdentificationResponse: Decodable, Sendable, Equatable {
     let result: ProductIdentification
+    /// Signed-in requests only.
     let usage: IdentifyUsage?
+    /// True when this was a signed-out user's one free try.
+    var trial: Bool? = nil
 }
 
 // MARK: - Errors
 
 enum ProductIdentificationError: LocalizedError, Equatable {
     case notSignedIn
+    /// A signed-out user already used this device's free try.
+    case trialUsed
     case quotaExceeded(IdentifyUsage?)
     case notConfigured
     case busy
@@ -106,6 +112,7 @@ enum ProductIdentificationError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .notSignedIn:   return "Sign in to identify photos."
+        case .trialUsed:     return "You've used your free try. Sign in to keep identifying photos."
         case .quotaExceeded: return "You've used all your photo identifications for this month."
         case .notConfigured: return "Photo identification isn't available yet."
         case .busy:          return "Photo identification is busy right now. Try again later."
@@ -131,11 +138,14 @@ enum ProductIdentificationError: LocalizedError, Equatable {
 protocol ProductIdentificationService: Sendable {
     /// Whether the user has to be signed in (the live service sends their access token).
     var requiresSignIn: Bool { get }
+    /// Whether a signed-out user can still use this device's one free try.
+    var offersTrial: Bool { get }
     func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse
 }
 
 extension ProductIdentificationService {
     var requiresSignIn: Bool { true }
+    var offersTrial: Bool { false }
 }
 
 enum ProductIdentifier {
@@ -163,9 +173,33 @@ struct LiveProductIdentificationService: ProductIdentificationService {
     /// Gimme already stores, which keeps each request around 1–2k image tokens.
     static let maxDimension: CGFloat = 1200
 
+    /// Set once this device's free try is spent. A hint only: Apple DeviceCheck,
+    /// checked by the server, is what actually enforces one try per device.
+    static let trialUsedKey = "photoIdentifyTrialUsed"
+
+    /// DeviceCheck tokens from Xcode builds are only valid on Apple's development server.
+    private static var deviceCheckEnvironment: String {
+        #if DEBUG
+        return "development"
+        #else
+        return "production"
+        #endif
+    }
+
+    /// DeviceCheck isn't available in the Simulator, so there's no free try there.
+    var offersTrial: Bool {
+        DCDevice.current.isSupported && !UserDefaults.standard.bool(forKey: Self.trialUsedKey)
+    }
+
     func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse {
-        guard let session = try? await supabase.auth.session else {
-            throw ProductIdentificationError.notSignedIn
+        let session = try? await supabase.auth.session
+        var deviceToken: String?
+        if session == nil {
+            // Signed out: this is the free try, proven with a DeviceCheck token.
+            guard offersTrial, let token = try? await DCDevice.current.generateToken() else {
+                throw ProductIdentificationError.notSignedIn
+            }
+            deviceToken = token.base64EncodedString()
         }
         guard let jpeg = ImageCompressor.compress(imageData, maxDimension: Self.maxDimension, quality: 0.8) else {
             throw ProductIdentificationError.invalidImage
@@ -175,12 +209,16 @@ struct LiveProductIdentificationService: ProductIdentificationService {
         request.httpMethod = "POST"
         request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        if let session {
+            request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        }
         request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
         request.httpBody = try JSONEncoder().encode(RequestBody(
             image: jpeg.base64EncodedString(),
             mediaType: "image/jpeg",
-            currency: currency
+            currency: currency,
+            deviceToken: deviceToken,
+            deviceCheckEnvironment: deviceToken == nil ? nil : Self.deviceCheckEnvironment
         ))
 
         let data: Data
@@ -191,13 +229,33 @@ struct LiveProductIdentificationService: ProductIdentificationService {
             throw ProductIdentificationError.network
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        return try IdentifyResponseDecoder.decode(status: status, data: data)
+        do {
+            let decoded = try IdentifyResponseDecoder.decode(status: status, data: data)
+            if decoded.trial == true { Self.markTrialUsed() }
+            return decoded
+        } catch let error as ProductIdentificationError {
+            if deviceToken != nil && Self.spendsFreeTry(error) { Self.markTrialUsed() }
+            throw error
+        }
+    }
+
+    /// Whether a signed-out request that failed with `error` still used up the free try.
+    /// The server keeps the try spent after a refusal (the model call was paid for) and
+    /// gives it back after failures it caused, like an outage or unreadable output.
+    static func spendsFreeTry(_ error: ProductIdentificationError) -> Bool {
+        error == .trialUsed || error == .refused
+    }
+
+    private static func markTrialUsed() {
+        UserDefaults.standard.set(true, forKey: trialUsedKey)
     }
 
     private struct RequestBody: Encodable {
         let image: String
         let mediaType: String
         let currency: String
+        let deviceToken: String?
+        let deviceCheckEnvironment: String?
     }
 }
 
@@ -223,6 +281,7 @@ enum IdentifyResponseDecoder {
         let failure = try? decoder.decode(FailureBody.self, from: data)
         switch failure?.code {
         case "unauthorized":    throw ProductIdentificationError.notSignedIn
+        case "trial_used":      throw ProductIdentificationError.trialUsed
         case "quota_exceeded":  throw ProductIdentificationError.quotaExceeded(failure?.usage)
         case "not_configured":  throw ProductIdentificationError.notConfigured
         case "busy":            throw ProductIdentificationError.busy
@@ -279,7 +338,9 @@ struct IdentifyPrefill: Equatable {
 
 #if DEBUG
 /// Canned results for previews, UI checks and working without the backend.
-/// Launch with `-mockIdentify identified` (or similar, not_product, quota, offline).
+/// Launch with `-mockIdentify identified` (or similar, not_product, quota, offline,
+/// trial, trial_used). `trial` behaves like a signed-out device's one free try:
+/// it needs sign-in afterwards, until the app is reinstalled.
 struct MockProductIdentificationService: ProductIdentificationService {
 
     enum Scenario: String {
@@ -288,10 +349,19 @@ struct MockProductIdentificationService: ProductIdentificationService {
         case notProduct = "not_product"
         case quota
         case offline
+        case trial
+        case trialUsed = "trial_used"
     }
 
     let scenario: Scenario
-    var requiresSignIn: Bool { false }
+    var requiresSignIn: Bool { scenario == .trial || scenario == .trialUsed }
+    var offersTrial: Bool {
+        switch scenario {
+        case .trial: return !UserDefaults.standard.bool(forKey: LiveProductIdentificationService.trialUsedKey)
+        case .trialUsed: return true   // the app thinks there's a try left; the server says otherwise
+        default: return false
+        }
+    }
 
     static let sneakers = ProductIdentification(
         status: .identified,
@@ -332,6 +402,11 @@ struct MockProductIdentificationService: ProductIdentificationService {
             )
         case .offline:
             throw ProductIdentificationError.network
+        case .trial:
+            UserDefaults.standard.set(true, forKey: LiveProductIdentificationService.trialUsedKey)
+            return .init(result: Self.sneakers, usage: nil, trial: true)
+        case .trialUsed:
+            throw ProductIdentificationError.trialUsed
         }
     }
 }

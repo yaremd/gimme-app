@@ -13,6 +13,8 @@ final class IdentifyController {
     private(set) var phase: IdentifyPhase = .idle
     /// The latest monthly allowance the server reported.
     private(set) var usage: IdentifyUsage?
+    /// The current result came from a signed-out user's free try, so the card invites them to sign in.
+    private(set) var lastWasTrial = false
     /// Drives the consent sheet (see `identifyConsentSheet(_:accentColor:)`).
     var isShowingConsent = false
 
@@ -37,23 +39,30 @@ final class IdentifyController {
     /// Same key as the Settings switch, which reads it through `@AppStorage`.
     var hasConsent: Bool { defaults.bool(forKey: Self.consentKey) }
 
+    /// A signed-out user can still identify one photo on this device.
+    var offersTrial: Bool { service.offersTrial }
+
     /// Forgets the current result, e.g. when the photo changes or is removed.
     func reset() {
         requestID = UUID()
         pending = nil
+        lastWasTrial = false
         phase = .idle
     }
 
-    /// Clears the sign-in prompt once the user has signed in.
+    /// Clears the sign-in prompts once the user has signed in.
     func signedInChanged(_ signedIn: Bool) {
-        if signedIn && phase == .failed(.notSignedIn) { phase = .idle }
+        guard signedIn else { return }
+        lastWasTrial = false
+        if phase == .failed(.notSignedIn) || phase == .failed(.trialUsed) { phase = .idle }
     }
 
     /// Identifies `imageData`, asking to sign in or for consent first when needed.
+    /// Signed-out users get one free try per device before they're asked to sign in.
     /// `apply` receives the result before the card shows it, so the form can fill its fields.
     func start(imageData: Data, currency: String, isSignedIn: Bool,
                apply: @escaping (ProductIdentification) -> Void) {
-        if service.requiresSignIn && !isSignedIn {
+        if service.requiresSignIn && !isSignedIn && !service.offersTrial {
             withAnimation(Theme.spring) { phase = .failed(.notSignedIn) }
             return
         }
@@ -84,6 +93,7 @@ final class IdentifyController {
                 let response = try await service.identify(imageData: imageData, currency: currency)
                 guard requestID == thisRequest else { return }
                 if let reported = response.usage { usage = reported }
+                lastWasTrial = response.trial == true
                 apply(response.result)
                 next = .done(response.result)
                 if response.result.foundProduct { Haptics.success() } else { Haptics.warning() }
