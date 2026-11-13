@@ -1,28 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Figtree, Gabarito, Geist_Mono, Nunito } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { APP_STORE_URL } from "./_site/brand";
+import { SITE_URL } from "./_site/data";
+import { OG_IMAGE } from "./_site/meta";
 import "./globals.css";
+import "./site.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-outfit",
-});
+/* Figtree for text and Gabarito for headlines are on every page, so they preload.
+   The mono face (small labels) and Nunito (a fallback for the rounded system face
+   off Apple devices) load only where they are used. */
+const figtree = Figtree({ subsets: ["latin"], display: "swap", variable: "--font-figtree" });
+const gabarito = Gabarito({ subsets: ["latin"], display: "swap", variable: "--font-gabarito" });
+const geistMono = Geist_Mono({ subsets: ["latin"], display: "swap", variable: "--font-geist-mono", preload: false });
+const nunito = Nunito({ subsets: ["latin"], display: "swap", variable: "--font-nunito", preload: false });
 
 export const viewport: Viewport = {
-  themeColor: "#0D0D0F",
+  themeColor: "#0C0C11",
+  colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
 };
 
-const siteUrl = "https://gimmelist.com";
 const title = "Gimme — Wishlist App for iPhone";
 const description =
   "Create and share wishlists on iPhone. Friends claim gifts from a web link — no download needed. Paste any URL and price, image, title auto-fill. Free with optional Pro upgrade.";
@@ -43,12 +43,13 @@ export const metadata: Metadata = {
     "wish list for gifts",
     "gimme app",
   ],
-  metadataBase: new URL(siteUrl),
-  alternates: { canonical: siteUrl },
+  metadataBase: new URL(SITE_URL),
+  // No site-wide canonical here: each page declares its own (see _site/meta.ts),
+  // otherwise every page would point search engines at the home page.
   appLinks: {
     ios: {
       app_store_id: "6762543923",
-      url: siteUrl,
+      url: SITE_URL,
     },
   },
   other: {
@@ -64,12 +65,14 @@ export const metadata: Metadata = {
     description,
     siteName: "Gimme",
     type: "website",
-    url: siteUrl,
+    url: SITE_URL,
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
+    images: [OG_IMAGE.url],
   },
 };
 
@@ -80,9 +83,9 @@ const jsonLd = {
   operatingSystem: "iOS",
   applicationCategory: "LifestyleApplication",
   description,
-  url: siteUrl,
-  downloadUrl:
-    "https://apps.apple.com/app/gimme-wishlist-gift-ideas/id6762543923",
+  url: SITE_URL,
+  downloadUrl: APP_STORE_URL,
+  image: `${SITE_URL}/og.jpg`,
   offers: [
     { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
     { "@type": "Offer", price: "4.99", priceCurrency: "USD", name: "Gimme Pro" },
@@ -90,25 +93,23 @@ const jsonLd = {
   author: {
     "@type": "Person",
     name: "Dmytro Yaremchuk",
-    url: siteUrl,
+    url: SITE_URL,
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const fonts = [figtree, gabarito, geistMono, nunito].map((f) => f.variable).join(" ");
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+    // The inline script below adds a class to <html> before React hydrates.
+    <html lang="en" className={fonts} suppressHydrationWarning>
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        {/* Scroll reveals only hide content once scripting is known to work. */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
-      <body className="font-sans text-white antialiased min-h-dvh selection:bg-[#5B54E0]/30">
+      <body className="g-root">
         {children}
+        <Analytics />
       </body>
     </html>
   );
