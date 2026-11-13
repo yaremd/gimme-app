@@ -2,30 +2,14 @@
 // index.ts wires the real Supabase client and Apple's root certificate into `Deps`;
 // handler_test.ts drives the same code with fakes.
 
-/** What the database made of a verified transaction, for the caller. */
-export type RecordOutcome = "active" | "revoked" | "claimed_by_other_account";
-
-export interface RecordInput {
-  userId: string;
-  originalTransactionId: string;
-  transactionId: string;
-  productId: string;
-  environment: string;
-  purchasedAt: Date | null;
-  revokedAt: Date | null;
-  revocationReason: number | null;
-  signedAt: Date;
-}
-
-export interface RecordResult {
-  outcome: RecordOutcome;
-  /** The caller's profiles.is_pro after recording. */
-  isPro: boolean;
-}
-
-export type VerifyResult =
-  | { ok: true; payload: Record<string, unknown> }
-  | { ok: false; reason: string; detail: string };
+import type { VerifyResult } from "../_shared/apple_jws.ts";
+import {
+  isAcceptedEnvironment,
+  readTransaction,
+  type RecordInput,
+  recordInputFor,
+  type RecordResult,
+} from "../_shared/pro_purchases.ts";
 
 export interface Config {
   bundleId: string;
@@ -59,12 +43,6 @@ export type ErrorCode =
 /** Real StoreKit JWS are about 5 KB; anything far larger isn't one. */
 export const MAX_JWS_LENGTH = 16_384;
 
-const RECORD_OUTCOMES: readonly string[] = ["active", "revoked", "claimed_by_other_account"];
-
-export function isRecordOutcome(value: unknown): value is RecordOutcome {
-  return typeof value === "string" && RECORD_OUTCOMES.includes(value);
-}
-
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -74,46 +52,6 @@ function json(status: number, body: unknown): Response {
 
 function failure(status: number, code: ErrorCode, error: string, extra: Record<string, unknown> = {}): Response {
   return json(status, { code, error, ...extra });
-}
-
-interface Transaction {
-  bundleId: string;
-  productId: string;
-  environment: string;
-  transactionId: string;
-  originalTransactionId: string;
-  purchaseDate: Date | null;
-  revocationDate: Date | null;
-  revocationReason: number | null;
-  signedDate: Date;
-}
-
-const id = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 128 ? value : null;
-const time = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? new Date(value) : null;
-
-/** Picks the fields we use out of Apple's JWSTransactionDecodedPayload. */
-export function readTransaction(payload: Record<string, unknown>): Transaction | null {
-  const bundleId = id(payload.bundleId);
-  const productId = id(payload.productId);
-  const environment = id(payload.environment);
-  const transactionId = id(payload.transactionId);
-  const originalTransactionId = id(payload.originalTransactionId);
-  const signedDate = time(payload.signedDate);
-  if (!bundleId || !productId || !environment || !transactionId || !originalTransactionId || !signedDate) {
-    return null;
-  }
-  const reason = payload.revocationReason;
-  return {
-    bundleId,
-    productId,
-    environment,
-    transactionId,
-    originalTransactionId,
-    purchaseDate: time(payload.purchaseDate),
-    revocationDate: time(payload.revocationDate),
-    revocationReason: typeof reason === "number" && Number.isInteger(reason) ? reason : null,
-    signedDate,
-  };
 }
 
 export async function handleVerifyPurchase(req: Request, deps: Deps): Promise<Response> {
@@ -163,26 +101,14 @@ export async function handleVerifyPurchase(req: Request, deps: Deps): Promise<Re
   if (tx.productId !== deps.config.productId) {
     return failure(422, "wrong_product", "This transaction isn't for Gimme Pro.");
   }
-  const environmentAllowed = tx.environment === "Production" ||
-    (tx.environment === "Sandbox" && deps.config.allowSandbox);
-  if (!environmentAllowed) {
+  if (!isAcceptedEnvironment(tx.environment, deps.config.allowSandbox)) {
     console.warn("verify-purchase: refused environment", tx.environment);
     return failure(422, "wrong_environment", `${tx.environment} purchases aren't accepted here.`);
   }
 
   let result: RecordResult;
   try {
-    result = await deps.recordTransaction({
-      userId,
-      originalTransactionId: tx.originalTransactionId,
-      transactionId: tx.transactionId,
-      productId: tx.productId,
-      environment: tx.environment,
-      purchasedAt: tx.purchaseDate,
-      revokedAt: tx.revocationDate,
-      revocationReason: tx.revocationReason,
-      signedAt: tx.signedDate,
-    });
+    result = await deps.recordTransaction(recordInputFor(userId, tx));
   } catch (error) {
     console.error("verify-purchase: could not record the transaction", error);
     return failure(500, "server_error", "Something went wrong. Try again.");

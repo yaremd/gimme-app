@@ -57,3 +57,9 @@ verify_jwt = false
 # Needs migration_v10 applied first. Optional secret: ALLOW_SANDBOX_PURCHASES=true
 # to accept sandbox and TestFlight purchases (leave unset in production).
 verify_jwt = false
+
+[functions.app-store-notifications]
+# Called by Apple (App Store Server Notifications V2), which sends no JWT; the
+# function trusts only Apple's signature on the payload. Needs migration_v10.
+# Shares ALLOW_SANDBOX_PURCHASES with verify-purchase (leave unset in production).
+verify_jwt = false
