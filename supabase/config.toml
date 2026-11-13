@@ -51,3 +51,9 @@ verify_jwt = false
 [functions.delete-account]
 # JWT validation done inside the function via supabase.auth.getUser().
 verify_jwt = false
+
+[functions.verify-purchase]
+# Called by signed-in users; the function validates the JWT itself via auth.getUser().
+# Needs migration_v10 applied first. Optional secret: ALLOW_SANDBOX_PURCHASES=true
+# to accept sandbox and TestFlight purchases (leave unset in production).
+verify_jwt = false
