@@ -8,7 +8,7 @@ final class PurchaseService {
 
     // MARK: - Public state
 
-    private(set) var isPro: Bool = UserDefaults.standard.bool(forKey: "isPro")
+    private(set) var isPro: Bool
     private(set) var product: Product?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
@@ -20,9 +20,31 @@ final class PurchaseService {
 
     nonisolated static let productID = "com.yaremchuk.app.pro.lifetime"
 
+    static let claimedByOtherAccountMessage =
+        "This purchase is linked to another Gimme account. Sign in to that account to use Pro."
+
+    private static let isProKey = "isPro"
+
+    // MARK: - Dependencies
+
+    private let defaults: UserDefaults
+    private let verifier: any ProPurchaseVerifying
+
     // MARK: - Init
 
-    init() {
+    /// - Parameters:
+    ///   - defaults: where the Pro flag and the device claim are kept.
+    ///   - verifier: checks transactions with the server (verify-purchase).
+    ///   - observesStoreKit: false in tests, which drive the service without StoreKit.
+    init(
+        defaults: UserDefaults = .standard,
+        verifier: any ProPurchaseVerifying = SupabaseProPurchaseVerifier(),
+        observesStoreKit: Bool = true
+    ) {
+        self.defaults = defaults
+        self.verifier = verifier
+        self.isPro = defaults.bool(forKey: Self.isProKey)
+        guard observesStoreKit else { return }
         // Task inherits @MainActor from init — no actor-isolation issues.
         // bootstrap() runs forever (Transaction.updates is infinite), which is
         // intentional: the service lives for the app's lifetime.
@@ -47,11 +69,19 @@ final class PurchaseService {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
-                setPro(true)
                 if let uid = currentUserID {
                     claimPro(for: uid)
-                    await syncProToSupabase(userID: uid, value: true)
+                    // Hear from the server before unlocking (and celebrating):
+                    // a purchase linked to another account leaves this one free.
+                    let outcome = await syncProToSupabase(jws: verification.jwsRepresentation)
+                    if outcome.keepsAccountFree {
+                        if outcome == .claimedByOtherAccount {
+                            errorMessage = Self.claimedByOtherAccountMessage
+                        }
+                        return
+                    }
                 }
+                setPro(true)
             case .userCancelled:
                 break
             case .pending:
@@ -71,11 +101,21 @@ final class PurchaseService {
         defer { isLoading = false }
         do {
             try await AppStore.sync()
-            await verifyEntitlement()
-            if isPro, let uid = currentUserID {
-                claimPro(for: uid)
-                await syncProToSupabase(userID: uid, value: true)
+            guard let jws = await Self.currentEntitlementJWS() else {
+                setPro(false)
+                return
             }
+            if let uid = currentUserID {
+                claimPro(for: uid)
+                let outcome = await syncProToSupabase(jws: jws)
+                if outcome.keepsAccountFree {
+                    if outcome == .claimedByOtherAccount {
+                        errorMessage = Self.claimedByOtherAccountMessage
+                    }
+                    return
+                }
+            }
+            setPro(true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -115,35 +155,43 @@ final class PurchaseService {
     }
 
     func verifyEntitlement() async {
-        let found = await Self.checkEntitlementExists()
+        let found = await Self.currentEntitlementJWS() != nil
         setPro(found)
     }
 
+    /// The signed transaction behind this device's Pro entitlement, if any.
     /// Iterates StoreKit entitlements off @MainActor to avoid blocking UI.
-    private nonisolated static func checkEntitlementExists() async -> Bool {
+    private nonisolated static func currentEntitlementJWS() async -> String? {
         for await result in Transaction.currentEntitlements {
             if case .verified(let tx) = result,
                tx.productID == productID,
                tx.revocationDate == nil {
-                return true
+                return result.jwsRepresentation
             }
         }
-        return false
+        return nil
     }
 
     private func handle(_ result: VerificationResult<Transaction>) async {
         guard case .verified(let tx) = result else { return }
-        await tx.finish()
         if tx.productID == Self.productID {
-            let newValue = tx.revocationDate == nil
-            if !newValue {
-                clearClaim()
-                if let uid = currentUserID {
-                    await syncProToSupabase(userID: uid, value: false)
+            let isActive = tx.revocationDate == nil
+            if !isActive { clearClaim() }
+            setPro(isActive)
+            // A refund has to reach the account, not just this device. An
+            // active transaction (Ask to Buy, a purchase finishing late) is
+            // linked to the signed-in account unless another one claimed it here.
+            if let uid = currentUserID {
+                let claimedBy = claimedByUserID()
+                if !isActive || claimedBy == nil || claimedBy == uid {
+                    if isActive { claimPro(for: uid) }
+                    await syncProToSupabase(jws: result.jwsRepresentation)
                 }
             }
-            setPro(newValue)
         }
+        // Finish after the sync, so a transaction interrupted mid-sync is
+        // delivered again on next launch.
+        await tx.finish()
     }
 
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
@@ -174,34 +222,53 @@ final class PurchaseService {
 
     /// Stamps this device's anonymous purchase as belonging to `userID`.
     func claimPro(for userID: String) {
-        UserDefaults.standard.set(userID, forKey: Self.claimKey)
+        defaults.set(userID, forKey: Self.claimKey)
     }
 
     /// Returns the Supabase user ID that has claimed the local StoreKit entitlement,
     /// or nil if the purchase was made anonymously and not yet claimed.
     func claimedByUserID() -> String? {
-        UserDefaults.standard.string(forKey: Self.claimKey)
+        defaults.string(forKey: Self.claimKey)
     }
 
     private func clearClaim() {
-        UserDefaults.standard.removeObject(forKey: Self.claimKey)
+        defaults.removeObject(forKey: Self.claimKey)
     }
 
     // MARK: - Supabase Pro sync
 
-    /// Upserts the user's Pro status to the `profiles` table.
-    /// Called after purchase, restore, or refund while the user is signed in.
-    func syncProToSupabase(userID: String, value: Bool) async {
-        struct ProfileRow: Encodable {
-            let id: String
-            // swiftlint:disable:next identifier_name
-            let is_pro: Bool
-            let updated_at: Date
+    /// Sends a StoreKit transaction (its `jwsRepresentation`) to the
+    /// verify-purchase Edge Function, which checks Apple's signature and
+    /// records the purchase, or its refund, on the signed-in account.
+    /// Clients can't write `profiles.is_pro` themselves (migration v10); the
+    /// server's answer is applied here and returned.
+    /// Called after purchase, restore, sign-in, and Transaction.updates.
+    @discardableResult
+    func syncProToSupabase(jws: String) async -> ProVerificationResult {
+        guard let uid = currentUserID else { return .unavailable }
+        let outcome = await verifier.verify(jws: jws)
+        // Signed out or switched accounts while waiting: the answer was for someone else.
+        guard currentUserID == uid else { return .unavailable }
+        switch outcome {
+        case .verified(isPro: true):
+            claimPro(for: uid)
+            setPro(true)
+        case .verified(isPro: false), .claimedByOtherAccount:
+            clearClaim()
+            setPro(false)
+        case .rejected, .unavailable:
+            // Nothing new is known: keep what StoreKit says on this device.
+            // The next sign-in sync tries again.
+            break
         }
-        _ = try? await supabase
-            .from("profiles")
-            .upsert(ProfileRow(id: userID, is_pro: value, updated_at: .now), onConflict: "id")
-            .execute()
+        return outcome
+    }
+
+    /// Sends this device's Pro entitlement, if it has one, to the server.
+    /// Used on sign-in when the account has no Pro on record yet.
+    func syncCurrentEntitlementToSupabase() async {
+        guard let jws = await Self.currentEntitlementJWS() else { return }
+        await syncProToSupabase(jws: jws)
     }
 
     /// Fetches the user's Pro status from `profiles`. Returns false if the row
@@ -229,6 +296,6 @@ final class PurchaseService {
 
     private func setPro(_ value: Bool) {
         isPro = value
-        UserDefaults.standard.set(value, forKey: "isPro")
+        defaults.set(value, forKey: Self.isProKey)
     }
 }

@@ -13,6 +13,7 @@
 		087D7D1128050939ACEABA60 /* PriceHistoryChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3977C3E7593D17D56983B72E /* PriceHistoryChart.swift */; };
 		0F09D21663A64483752C88D4 /* OpenListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66B5B1318FACA0E74E1D0AD /* OpenListIntent.swift */; };
 		1321A6FD0548AC33A3155C58 /* MediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C473C28321C13673D5D45F2A /* MediumWidgetView.swift */; };
+		1327492E9BC6F8FC63CF78CA /* ProPurchaseVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71C905EB2D866D87241C11D4 /* ProPurchaseVerifier.swift */; };
 		14740217743D593DD6B495DC /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8D12FEAA068CFBB26A3D84 /* Haptics.swift */; };
 		169959A91D7BF4E4F0A62C2E /* ColorMigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465266B80BD3F61DBDEF2725 /* ColorMigrationService.swift */; };
 		1B488DEC9195167A6F575E91 /* PriceTrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2738FEC8D43C65A2C5CD0C /* PriceTrackingService.swift */; };
@@ -80,6 +81,7 @@
 		D69F990C1F04EE82441562C1 /* GimmeShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 11BD49510852DF59AA28D5E8 /* GimmeShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D7A8B00F4A82582EEB1DFD1A /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6D3154B13BAC56AD11CD41 /* SyncService.swift */; };
 		D7D44073F2EE5CF13AA9A3ED /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E4BA6175321BDBFE0AAB2C73 /* Assets.xcassets */; };
+		DB70475508694F2AA18465D8 /* ProPurchaseSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DCB6391825D5CAC9FD33103 /* ProPurchaseSyncTests.swift */; };
 		DDA880D818049A4860E40E61 /* URLPasteButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14EACF596BC3E5E416D075D /* URLPasteButton.swift */; };
 		DF091E02B047B7BEB0AA567B /* CurrencyRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101EA2B7E4BE2ADB30C99991 /* CurrencyRateService.swift */; };
 		DF4A0F7B7D84A3E4D63A7D46 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF292C236B04D0E09887866 /* Theme.swift */; };
@@ -172,6 +174,7 @@
 		465266B80BD3F61DBDEF2725 /* ColorMigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorMigrationService.swift; sourceTree = "<group>"; };
 		4834FB9C66418DEBD00F7666 /* AsyncImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncImageView.swift; sourceTree = "<group>"; };
 		4C116DB2B519E2EC23A27019 /* OnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModel.swift; sourceTree = "<group>"; };
+		4DCB6391825D5CAC9FD33103 /* ProPurchaseSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProPurchaseSyncTests.swift; sourceTree = "<group>"; };
 		4F53AF49EE6C6274AF7764F9 /* WhishApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhishApp.swift; sourceTree = "<group>"; };
 		57C1A8EA02E508A503E40D95 /* PriceTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceTrackingTests.swift; sourceTree = "<group>"; };
 		5AC67DBF45EFE640F164E2B5 /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
@@ -184,6 +187,7 @@
 		6DF9BEB4DA49C559A4594760 /* SyncToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncToast.swift; sourceTree = "<group>"; };
 		6E62E195B96753CC55C4A149 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
 		6FF292C236B04D0E09887866 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		71C905EB2D866D87241C11D4 /* ProPurchaseVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProPurchaseVerifier.swift; sourceTree = "<group>"; };
 		73A40BCBA1B2C232F742ED38 /* WidgetHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHelpers.swift; sourceTree = "<group>"; };
 		74CB31DDD2A5E0A4B5785737 /* Whish.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Whish.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		76F6F2A2EC2F48DE0754246D /* WidgetDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataService.swift; sourceTree = "<group>"; };
@@ -520,6 +524,7 @@
 				395BDD9ABE3E84104B96FD0C /* MockMetadataService.swift */,
 				EC96C823FC44FCAE22587C81 /* NotificationService.swift */,
 				8B2738FEC8D43C65A2C5CD0C /* PriceTrackingService.swift */,
+				71C905EB2D866D87241C11D4 /* ProPurchaseVerifier.swift */,
 				14E940C7AEA2357C727A9D83 /* PurchaseService.swift */,
 				0C40E2BEAE5A615C3F670B2F /* PushNotificationService.swift */,
 				DDF7F68400EB11927C778162 /* SpotlightIndexService.swift */,
@@ -534,6 +539,7 @@
 			children = (
 				7FE48D8551271D41A2FD8066 /* DeletionLogTests.swift */,
 				57C1A8EA02E508A503E40D95 /* PriceTrackingTests.swift */,
+				4DCB6391825D5CAC9FD33103 /* ProPurchaseSyncTests.swift */,
 				2779D5C1085F118F5EC4D303 /* WhishTests.swift */,
 			);
 			path = WhishTests;
@@ -686,6 +692,7 @@
 			files = (
 				D5CE4041C507B876FD9AEA90 /* DeletionLogTests.swift in Sources */,
 				FF22C7A23D7CDFEE926CDB83 /* PriceTrackingTests.swift in Sources */,
+				DB70475508694F2AA18465D8 /* ProPurchaseSyncTests.swift in Sources */,
 				A17ABAE1278231AE6600D20E /* WhishTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -759,6 +766,7 @@
 				74B8E77FCE0E806FD870CF35 /* PriceVerdictView.swift in Sources */,
 				1FDA1682B036F4EED8547058 /* Priority.swift in Sources */,
 				A41C251524BF279F326B6644 /* PriorityBadge.swift in Sources */,
+				1327492E9BC6F8FC63CF78CA /* ProPurchaseVerifier.swift in Sources */,
 				76FF0D1F90540C3E4D762316 /* PurchaseService.swift in Sources */,
 				F871E9D70A733E5AEA67B8E0 /* PushNotificationService.swift in Sources */,
 				7230778C13D828F99EC76A68 /* ReminderOption.swift in Sources */,
