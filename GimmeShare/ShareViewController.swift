@@ -1,15 +1,22 @@
 import UIKit
 import SwiftUI
+import ImageIO
 import UniformTypeIdentifiers
 
 /// Share Extension entry point.
-/// Extracts the shared URL, stores it in the App Group UserDefaults,
-/// shows a brief confirmation, then dismisses.
+/// Takes a shared link (or, failing that, a photo), leaves it in the App Group
+/// for the app to pick up, shows a brief confirmation, then dismisses.
 @objc(ShareViewController)
 final class ShareViewController: UIViewController {
 
     nonisolated private static let appGroupID = "group.com.yaremchuk.app"
     nonisolated private static let pendingURLKey = "pendingSharedURL"
+
+    private enum SharedContent: Sendable {
+        case link(URL)
+        /// A downsized JPEG, ready for the app.
+        case photo(Data)
+    }
 
     // MARK: - Lifecycle
 
@@ -17,56 +24,101 @@ final class ShareViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .clear
 
-        extractURL { [weak self] url in
-            guard let self else { return }
-            if let url {
-                UserDefaults(suiteName: Self.appGroupID)?
-                    .set(url.absoluteString, forKey: Self.pendingURLKey)
-            }
-            DispatchQueue.main.async { self.presentConfirmation(found: url != nil) }
+        nonisolated(unsafe) let providers = (extensionContext?.inputItems as? [NSExtensionItem] ?? [])
+            .flatMap { $0.attachments ?? [] }
+
+        Task { @MainActor in
+            let content = await Self.extract(from: providers)
+            presentConfirmation(Self.save(content))
         }
     }
 
-    // MARK: - URL extraction
+    // MARK: - Extraction
 
-    private func extractURL(completion: @escaping @Sendable (URL?) -> Void) {
-        guard let items = extensionContext?.inputItems as? [NSExtensionItem] else {
-            completion(nil)
-            return
-        }
-
-        for item in items {
-            for provider in item.attachments ?? [] {
-                // Prefer a native URL type
-                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-                    provider.loadItem(forTypeIdentifier: UTType.url.identifier) { coding, _ in
-                        completion(coding as? URL)
-                    }
-                    return
-                }
-                // Fallback: plain text that looks like a URL
-                if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-                    provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { coding, _ in
-                        if let text = coding as? String,
-                           let url = text.extractedURL {
-                            completion(url)
-                        } else {
-                            completion(nil)
-                        }
-                    }
-                    return
-                }
+    /// A web link wins over a photo: a product page carries better details than a picture of it.
+    nonisolated private static func extract(from providers: [NSItemProvider]) async -> SharedContent? {
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            if let url = await load(provider, UTType.url, { webURL(from: $0) }) {
+                return .link(url)
             }
         }
-        completion(nil)
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            if let jpeg = await load(provider, UTType.image, { downscaledJPEG(from: $0) }) {
+                return .photo(jpeg)
+            }
+        }
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+            if let url = await load(provider, UTType.plainText, { ($0 as? String)?.extractedURL }) {
+                return .link(url)
+            }
+        }
+        // Some apps share a photo as a file URL only.
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            if let jpeg = await load(provider, UTType.fileURL, { downscaledJPEG(from: $0) }) {
+                return .photo(jpeg)
+            }
+        }
+        return nil
+    }
+
+    /// Loads one representation and converts it to a Sendable value inside the
+    /// provider's callback, so nothing non-Sendable crosses threads.
+    nonisolated private static func load<T: Sendable>(
+        _ provider: NSItemProvider,
+        _ type: UTType,
+        _ transform: @escaping @Sendable (NSSecureCoding?) -> T?
+    ) async -> T? {
+        await withCheckedContinuation { continuation in
+            provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { coding, _ in
+                continuation.resume(returning: transform(coding))
+            }
+        }
+    }
+
+    nonisolated private static func webURL(from item: NSSecureCoding?) -> URL? {
+        guard let url = item as? URL, url.scheme == "http" || url.scheme == "https",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url
+    }
+
+    nonisolated private static func downscaledJPEG(from item: NSSecureCoding?) -> Data? {
+        let source: CGImageSource?
+        if let url = item as? URL, url.isFileURL {
+            source = CGImageSourceCreateWithURL(url as CFURL, nil)
+        } else if let data = item as? Data {
+            source = CGImageSourceCreateWithData(data as CFData, nil)
+        } else if let image = item as? UIImage, let data = image.jpegData(compressionQuality: 0.9) {
+            source = CGImageSourceCreateWithData(data as CFData, nil)
+        } else {
+            source = nil
+        }
+        return source.flatMap { SharedImageInbox.downscaledJPEG(from: $0) }
+    }
+
+    // MARK: - Hand-off
+
+    private enum Outcome { case link, photo, nothing }
+
+    /// The newest share replaces any older one still waiting for the app.
+    private static func save(_ content: SharedContent?) -> Outcome {
+        switch content {
+        case .link(let url):
+            SharedImageInbox.clear()
+            UserDefaults(suiteName: appGroupID)?.set(url.absoluteString, forKey: pendingURLKey)
+            return .link
+        case .photo(let jpeg):
+            return (try? SharedImageInbox.store(jpeg)) != nil ? .photo : .nothing
+        case nil:
+            return .nothing
+        }
     }
 
     // MARK: - Confirmation UI
 
-    private func presentConfirmation(found: Bool) {
+    private func presentConfirmation(_ outcome: Outcome) {
         let hosting = UIHostingController(
             rootView: ShareConfirmationView(
-                found: found,
+                outcome: outcome,
                 onDone: { [weak self] in self?.finish() }
             )
         )
@@ -91,37 +143,45 @@ final class ShareViewController: UIViewController {
     private func finish() {
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
-}
 
-// MARK: - SwiftUI confirmation view
+    // MARK: - SwiftUI confirmation view
 
-private struct ShareConfirmationView: View {
-    let found: Bool
-    let onDone: () -> Void
+    private struct ShareConfirmationView: View {
+        let outcome: Outcome
+        let onDone: () -> Void
 
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea()
+        private var saved: Bool { outcome != .nothing }
 
-            VStack(spacing: 16) {
-                Image(systemName: found ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 44, weight: .semibold))
-                    .foregroundStyle(found ? Color(hex: "#3ECFAF") : .red)
+        var body: some View {
+            ZStack {
+                Color.black.opacity(0.45).ignoresSafeArea()
 
-                Text(found ? "Saved to Gimme" : "No URL found")
-                    .font(.system(.headline, weight: .semibold))
-                    .foregroundStyle(.white)
+                VStack(spacing: 16) {
+                    Image(systemName: saved ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 44, weight: .semibold))
+                        .foregroundStyle(saved ? Color(hex: "#3ECFAF") : .red)
 
-                if found {
-                    Text("Open Gimme to finish adding the item.")
+                    Text(saved ? "Saved to Gimme" : "Nothing to save")
+                        .font(.system(.headline, weight: .semibold))
+                        .foregroundStyle(.white)
+
+                    Text(message)
                         .font(.system(.subheadline))
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
+                .padding(32)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(40)
             }
-            .padding(32)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .padding(40)
+        }
+
+        private var message: String {
+            switch outcome {
+            case .link:    return "Open Gimme to finish adding the item."
+            case .photo:   return "Open Gimme to identify it and finish adding."
+            case .nothing: return "Share a link or a photo of the item."
+            }
         }
     }
 }

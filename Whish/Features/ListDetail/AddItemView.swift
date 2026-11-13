@@ -9,10 +9,15 @@ struct AddItemView: View {
     @Environment(AuthService.self) private var auth
     @Environment(PurchaseService.self) private var purchaseService
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
 
     var wishList: WishList? = nil
     var itemToEdit: WishItem? = nil
     var initialURL: String = ""
+    /// A photo shared into Gimme from another app.
+    var initialImageData: Data? = nil
+    /// Identify `initialImageData` as soon as the form opens.
+    var autoIdentify: Bool = false
     var onSaved: ((WishList) -> Void)? = nil
 
     @AppStorage("lastUsedListID") private var lastUsedListID = ""
@@ -47,6 +52,21 @@ struct AddItemView: View {
     @State private var fetchedColor: String? = nil
     @State private var fetchedSize: String? = nil
 
+    // Photo identification (snap to add)
+    /// True when the image is a photo of the item (camera, library, share), not an emoji or a product image from a link.
+    @State private var localImageIsPhoto = false
+    @State private var identifyPhase: IdentifyPhase = .idle
+    @State private var identifyUsage: IdentifyUsage? = nil
+    /// Results for an older photo are ignored once this changes.
+    @State private var identifyRequestID = UUID()
+    /// Set when a photo is picked from the identify card, so it's identified right away.
+    @State private var identifyAfterPick = false
+    @State private var didApplyInitialImage = false
+    @State private var isShowingIdentifyConsent = false
+    @State private var isShowingPaywall = false
+    @State private var isShowingAuth = false
+    @AppStorage("photoIdentifyConsent") private var photoIdentifyConsent = false
+
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case title, notes, url, listName }
 
@@ -63,6 +83,7 @@ struct AddItemView: View {
     private var activeLists: [WishList] { allLists.filter { !$0.isArchived } }
 
     private let metadataService: any MetadataService = LiveMetadataService()
+    private let identifier: any ProductIdentificationService = ProductIdentifier.makeService()
     private let currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "UAH"]
 
     var isEditing: Bool { itemToEdit != nil }
@@ -102,6 +123,12 @@ struct AddItemView: View {
 
                         // URL fetch card
                         urlCard
+
+                        // Photo identification — fills the form from a photo of the item
+                        if showsIdentifyCard {
+                            identifyCard
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
 
                         // Details card — title + notes
                         detailsCard
@@ -149,6 +176,7 @@ struct AddItemView: View {
                 if itemToEdit == nil {
                     currency = defaultCurrency
                     if !initialURL.isEmpty { urlString = initialURL }
+                    applyInitialImageIfNeeded()
                     // Pre-select list: 1) passed list  2) last used  3) first available  4) inline create
                     if let wl = wishList {
                         selectedList = wl
@@ -175,6 +203,7 @@ struct AddItemView: View {
                         withAnimation(Theme.spring) {
                             imageURL = selected.absoluteString
                             localImageData = nil
+                            localImageIsPhoto = false
                         }
                     }
                 )
@@ -186,11 +215,16 @@ struct AddItemView: View {
             .sheet(isPresented: $isShowingImageSourcePicker) {
                 ImageSourcePickerSheet(
                     hasImage: localImageData != nil || !imageURL.isEmpty,
-                    onPhotoLibrary: { isShowingPhotoLibrary = true },
-                    onCamera:       { isShowingCamera = true },
-                    onEmoji:        { isShowingEmojiPicker = true },
+                    onPhotoLibrary: { identifyAfterPick = false; isShowingPhotoLibrary = true },
+                    onCamera:       { identifyAfterPick = false; isShowingCamera = true },
+                    onEmoji:        { identifyAfterPick = false; isShowingEmojiPicker = true },
                     onRemove: {
-                        withAnimation(Theme.spring) { localImageData = nil; imageURL = "" }
+                        withAnimation(Theme.spring) {
+                            localImageData = nil
+                            imageURL = ""
+                            localImageIsPhoto = false
+                            resetIdentify()
+                        }
                     }
                 )
                 .presentationDetents([.medium])
@@ -206,7 +240,9 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         localImageData = data
                         imageURL = ""
+                        localImageIsPhoto = true
                     }
+                    photoDidChange()
                 }
                 .pageSheet()
             }
@@ -215,6 +251,8 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         localImageData = data
                         imageURL = ""
+                        localImageIsPhoto = false
+                        resetIdentify()
                     }
                 }
                 .presentationDetents([.fraction(0.55)])
@@ -234,17 +272,162 @@ struct AddItemView: View {
                 }
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
+                guard let newItem else { return }
                 Task {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    if let data = try? await newItem.loadTransferable(type: Data.self) {
                         let compressed = ImageCompressor.compress(data) ?? data
                         withAnimation(Theme.spring) {
                             localImageData = compressed
                             imageURL = ""
+                            localImageIsPhoto = true
                         }
+                        photoDidChange()
+                    } else {
+                        identifyAfterPick = false
                     }
+                    // Clear the selection so picking the same photo again still registers.
+                    selectedPhotoItem = nil
                 }
             }
+            .onChange(of: auth.isSignedIn) { _, signedIn in
+                if signedIn && identifyPhase == .failed(.notSignedIn) { identifyPhase = .idle }
+            }
+            .sheet(isPresented: $isShowingIdentifyConsent) {
+                IdentifyConsentSheet(accentColor: accentColor) {
+                    photoIdentifyConsent = true
+                    runIdentify()
+                }
+                .presentationDetents([.height(540), .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(Theme.Radius.sheet)
+                .pageSheet()
+            }
+            .sheet(isPresented: $isShowingPaywall) { PaywallView().pageSheet() }
+            .sheet(isPresented: $isShowingAuth) { AuthView().pageSheet() }
         }
+    }
+
+    // MARK: - Photo identification
+
+    private var showsIdentifyCard: Bool {
+        guard !isEditing else { return false }
+        // Details already came from a product link.
+        let hasURL = !urlString.trimmingCharacters(in: .whitespaces).isEmpty
+        if hasURL && metadataWasFetched && fetchError == nil { return false }
+        // An emoji or a product image from a link isn't a photo of the item.
+        let hasImage = localImageData != nil || !imageURL.isEmpty
+        return !hasImage || localImageIsPhoto
+    }
+
+    private var identifyCard: some View {
+        IdentifyPhotoCard(
+            phase: identifyPhase,
+            hasPhoto: localImageData != nil && localImageIsPhoto,
+            usage: identifyUsage,
+            isPro: purchaseService.isPro,
+            accentColor: accentColor,
+            onTakePhoto: UIImagePickerController.isSourceTypeAvailable(.camera)
+                ? { identifyAfterPick = true; isShowingCamera = true }
+                : nil,
+            onChooseFromLibrary: { identifyAfterPick = true; isShowingPhotoLibrary = true },
+            onIdentify: { startIdentify() },
+            onUseEstimate: { useEstimate($0) },
+            onFindOnline: { openURL($0) },
+            onUpgrade: { isShowingPaywall = true },
+            onSignIn: { isShowingAuth = true }
+        )
+    }
+
+    /// Puts a photo shared from another app into the form, once.
+    private func applyInitialImageIfNeeded() {
+        guard !didApplyInitialImage, let shared = initialImageData else { return }
+        didApplyInitialImage = true
+        localImageData = ImageCompressor.compress(shared) ?? shared
+        imageURL = ""
+        localImageIsPhoto = true
+        guard autoIdentify else { return }
+        // Let the form finish presenting before a consent sheet can appear on top of it.
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            startIdentify()
+        }
+    }
+
+    /// A new photo invalidates any result for the previous one.
+    private func photoDidChange() {
+        resetIdentify()
+        guard identifyAfterPick else { return }
+        identifyAfterPick = false
+        // Wait for the camera or photo picker to finish dismissing, so a consent sheet can appear.
+        Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            startIdentify()
+        }
+    }
+
+    private func resetIdentify() {
+        identifyRequestID = UUID()
+        identifyPhase = .idle
+    }
+
+    private func startIdentify() {
+        guard localImageData != nil, localImageIsPhoto else { return }
+        if identifier.requiresSignIn && !auth.isSignedIn {
+            withAnimation(Theme.spring) { identifyPhase = .failed(.notSignedIn) }
+            return
+        }
+        guard photoIdentifyConsent else {
+            isShowingIdentifyConsent = true
+            return
+        }
+        runIdentify()
+    }
+
+    private func runIdentify() {
+        guard let data = localImageData else { return }
+        let requestID = UUID()
+        identifyRequestID = requestID
+        withAnimation(Theme.spring) { identifyPhase = .running }
+        let currencyCode = currency
+
+        Task {
+            let phase: IdentifyPhase
+            do {
+                let response = try await identifier.identify(imageData: data, currency: currencyCode)
+                guard identifyRequestID == requestID else { return }
+                if let usage = response.usage { identifyUsage = usage }
+                applyIdentification(response.result)
+                phase = .done(response.result)
+                if response.result.foundProduct { Haptics.success() } else { Haptics.warning() }
+            } catch let error as ProductIdentificationError {
+                guard identifyRequestID == requestID else { return }
+                if case .quotaExceeded(let usage?) = error { identifyUsage = usage }
+                phase = .failed(error)
+                Haptics.error()
+            } catch {
+                guard identifyRequestID == requestID else { return }
+                phase = .failed(.network)
+                Haptics.error()
+            }
+            withAnimation(Theme.spring) { identifyPhase = phase }
+        }
+    }
+
+    /// Fills only the fields the user hasn't typed into, like product-link metadata does.
+    private func applyIdentification(_ result: ProductIdentification) {
+        let prefill = IdentifyPrefill.make(from: result, currentTitle: title, currentNotes: notes)
+        withAnimation(Theme.spring) {
+            if let value = prefill.title { title = value }
+            if let value = prefill.notes { notes = value }
+            if let value = prefill.brand { fetchedBrand = value }
+            if let value = prefill.color { fetchedColor = value }
+        }
+    }
+
+    private func useEstimate(_ estimate: ProductIdentification.PriceEstimate) {
+        priceText = "\(estimate.midpoint)"
+        currency = estimate.currency
+        Haptics.selection()
     }
 
     // MARK: - Image thumbnail
@@ -604,6 +787,7 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         imageURL = imgURL
                         localImageData = nil
+                        localImageIsPhoto = false
                     }
                 }
                 alternativeImages = metadata.alternativeImageURLs

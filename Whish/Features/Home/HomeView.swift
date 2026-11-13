@@ -23,8 +23,9 @@ struct HomeView: View {
 
     // Share Extension hand-off
     @Environment(\.scenePhase) private var scenePhase
-    @State private var pendingSharedURL: String?
-    @State private var isShowingShareListPicker = false
+    /// What the extension handed over. Driving the sheet with this item (rather than a
+    /// Bool plus separate state) guarantees the sheet sees the payload on first show.
+    @State private var sharedHandoff: SharedHandoff?
 
     // Sync
     @Environment(AuthService.self) private var auth
@@ -323,9 +324,9 @@ struct HomeView: View {
                 let itemWord = pendingMergeItemCount == 1 ? "item" : "items"
                 return Text("You have \(pendingMergeListCount) \(listWord) and \(pendingMergeItemCount) \(itemWord) saved locally. Import them into your account, or discard them and load your account data.")
             }
-            .sheet(isPresented: $isShowingShareListPicker) {
-                ShareListPickerView(sharedURL: pendingSharedURL ?? "") {
-                    pendingSharedURL = nil
+            .sheet(item: $sharedHandoff) { handoff in
+                ShareListPickerView(sharedURL: handoff.url, sharedImageData: handoff.imageData) {
+                    sharedHandoff = nil
                 }
                 .pageSheet()
             }
@@ -1061,13 +1062,22 @@ struct HomeView: View {
         listTotals = totals
     }
 
+    /// Picks up a link or photo the Share Extension left in the App Group.
     private func checkForSharedURL() {
         let defaults = UserDefaults(suiteName: "group.com.yaremchuk.app")
-        guard let urlString = defaults?.string(forKey: "pendingSharedURL"),
-              !urlString.isEmpty else { return }
-        defaults?.removeObject(forKey: "pendingSharedURL")
-        pendingSharedURL = urlString
-        isShowingShareListPicker = true
+        if let urlString = defaults?.string(forKey: "pendingSharedURL"), !urlString.isEmpty {
+            defaults?.removeObject(forKey: "pendingSharedURL")
+            sharedHandoff = SharedHandoff(url: urlString)
+        } else if let image = SharedImageInbox.consume() {
+            sharedHandoff = SharedHandoff(imageData: image)
+        }
+    }
+
+    /// A link or photo from the Share Extension, waiting for the user to pick a list.
+    private struct SharedHandoff: Identifiable {
+        let id = UUID()
+        var url: String = ""
+        var imageData: Data? = nil
     }
 
 }
@@ -1147,6 +1157,7 @@ private struct ShareListPickerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let sharedURL: String
+    var sharedImageData: Data? = nil
     let onDismiss: () -> Void
 
     @State private var selectedList: WishList?
@@ -1212,7 +1223,9 @@ private struct ShareListPickerView: View {
                 }
             }
             .sheet(item: $selectedList) { list in
-                AddItemView(wishList: list, initialURL: sharedURL)
+                AddItemView(wishList: list, initialURL: sharedURL,
+                            initialImageData: sharedImageData,
+                            autoIdentify: sharedImageData != nil)
                     .onDisappear {
                         onDismiss()
                         dismiss()

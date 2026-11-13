@@ -51,3 +51,9 @@ verify_jwt = false
 [functions.delete-account]
 # JWT validation done inside the function via supabase.auth.getUser().
 verify_jwt = false
+
+[functions.identify-product]
+# Called by signed-in users; the function validates the JWT itself via auth.getUser().
+# Secret: ANTHROPIC_API_KEY. Optional: IDENTIFY_MODEL, IDENTIFY_EFFORT,
+# IDENTIFY_FREE_MONTHLY_LIMIT, IDENTIFY_PRO_MONTHLY_LIMIT, IDENTIFY_GLOBAL_DAILY_LIMIT.
+verify_jwt = false
