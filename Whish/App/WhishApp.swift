@@ -216,9 +216,11 @@ struct WhishApp: App {
                                 if purchaseService.isPro {
                                     let claimedBy = purchaseService.claimedByUserID()
                                     if claimedBy == nil || claimedBy == userID {
-                                        // Unclaimed anonymous purchase or same user — claim + sync
+                                        // Unclaimed anonymous purchase or same user — claim, then
+                                        // let the server verify it. If it belongs to another
+                                        // account, the server says so and Pro is reset.
                                         purchaseService.claimPro(for: userID)
-                                        await purchaseService.syncProToSupabase(userID: userID, value: true)
+                                        await purchaseService.syncCurrentEntitlementToSupabase()
                                     } else {
                                         // Another account owns this device purchase — stay free
                                         purchaseService.resetProStatus()
