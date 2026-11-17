@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import { pageMeta } from "@/app/_site/meta";
 import { LegalLayout, LegalSection, CONTACT_EMAIL } from "@/components/LegalLayout";
 
-export const metadata: Metadata = {
+export const metadata = pageMeta({
   title: "Terms of Use — Gimme",
   description: "Terms of Use for the Gimme wishlist app.",
-};
+  path: "/terms",
+});
 
 const LAST_UPDATED = "April 13, 2026";
 
@@ -46,7 +47,7 @@ export default function TermsPage() {
 
       <LegalSection title="3. Acceptable Use">
         <p>You agree not to:</p>
-        <ul className="list-disc list-inside space-y-1.5 pl-1">
+        <ul>
           <li>Use the Service for any illegal purpose</li>
           <li>Upload harmful, offensive, or infringing content</li>
           <li>Attempt to access other users&apos; data without authorization</li>
@@ -74,7 +75,7 @@ export default function TermsPage() {
           Gimme Pro is available as a one-time, non-consumable in-app purchase processed
           by Apple. All purchases are subject to Apple&apos;s{" "}
           <a href="https://www.apple.com/legal/internet-services/itunes/" target="_blank"
-            rel="noopener noreferrer" style={{ color: "var(--l-accent)" }} className="hover:underline">
+            rel="noopener noreferrer">
             App Store Terms
           </a>. Refunds are handled by Apple, not by us.
         </p>
@@ -136,7 +137,7 @@ export default function TermsPage() {
       <LegalSection title="12. Contact">
         <p>
           Questions about these Terms? Email us at{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: "var(--l-accent)" }} className="hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`}>
             {CONTACT_EMAIL}
           </a>
         </p>
