@@ -152,6 +152,29 @@ export async function verifyAppleJws(
   return payload;
 }
 
+/** verifyAppleJws's verdict as a value: the payload, or why the JWS was refused. */
+export type VerifyResult =
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; reason: JwsFailure; detail: string };
+
+/**
+ * verifyAppleJws against `trustedRoots`, in the shape the functions' `Deps`
+ * take: a JWS that fails verification comes back as `{ ok: false }`, and only
+ * an unexpected error throws.
+ */
+export function appleJwsVerifier(trustedRoots: readonly x509.X509Certificate[]) {
+  return async (jws: string): Promise<VerifyResult> => {
+    try {
+      return { ok: true, payload: await verifyAppleJws(jws, trustedRoots) };
+    } catch (error) {
+      if (error instanceof JwsVerificationError) {
+        return { ok: false, reason: error.failure, detail: error.message };
+      }
+      throw error;
+    }
+  };
+}
+
 async function signedBy(cert: x509.X509Certificate, issuer: x509.X509Certificate): Promise<boolean> {
   try {
     return await cert.verify({ publicKey: issuer, signatureOnly: true });

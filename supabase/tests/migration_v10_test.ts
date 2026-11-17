@@ -4,27 +4,10 @@
 // Run: deno test --node-modules-dir=none -A supabase/tests/
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
 import { PGlite } from "npm:@electric-sql/pglite@0.5.13";
+import { SUPABASE_STUB } from "./supabase_stub.ts";
 
 const V6 = await Deno.readTextFile(new URL("../../migration_v6_profiles.sql", import.meta.url));
 const V10 = await Deno.readTextFile(new URL("../../migration_v10_verified_pro_purchases.sql", import.meta.url));
-
-// Supabase grants every API role full privileges on new tables and functions in
-// public; RLS and explicit revokes are what actually lock them down. The stub
-// mirrors that so a missing revoke shows up here.
-const SUPABASE_STUB = `
-  create role anon nologin;
-  create role authenticated nologin;
-  create role service_role nologin bypassrls;
-  create schema auth;
-  create table auth.users (id uuid primary key);
-  create function auth.uid() returns uuid language sql stable
-    as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-  grant usage on schema auth to anon, authenticated, service_role;
-  grant execute on function auth.uid() to anon, authenticated, service_role;
-  grant usage on schema public to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
-`;
 
 const ALICE = "00000000-0000-0000-0000-00000000000a";
 const BOB = "00000000-0000-0000-0000-00000000000b";
