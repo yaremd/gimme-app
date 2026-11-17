@@ -2,6 +2,13 @@ import Foundation
 import StoreKit
 
 /// Observable StoreKit 2 purchase manager. Inject via @Environment throughout the app.
+///
+/// Pro here = this device's StoreKit entitlement OR the signed-in account's
+/// Pro on the server (it may have been bought on another device or Apple ID).
+/// The two are kept apart, so a StoreKit check on a device without the
+/// entitlement can't undo the account's Pro, whichever finishes last. The
+/// server's no (a refund, or a purchase that's another account's) and
+/// signing out still turn it off.
 @Observable
 @MainActor
 final class PurchaseService {
@@ -16,6 +23,17 @@ final class PurchaseService {
     /// without needing a coordinator observer.
     var currentUserID: String?
 
+    // MARK: - Where Pro comes from
+
+    /// Whether this device's StoreKit holds the Pro entitlement, as last checked.
+    @ObservationIgnored private var deviceHasEntitlement = false
+    /// The account the server last said has Pro. Counts only while it's signed in.
+    @ObservationIgnored private var proAccountID: String?
+    /// The account for which the server turned this device's purchase down
+    /// (refunded, or another account's). While it stays signed in, StoreKit
+    /// still listing the purchase doesn't unlock Pro.
+    @ObservationIgnored private var deviceEntitlementRefusedFor: String?
+
     // MARK: - Constants
 
     nonisolated static let productID = "com.yaremchuk.app.pro.lifetime"
@@ -29,20 +47,25 @@ final class PurchaseService {
 
     private let defaults: UserDefaults
     private let verifier: any ProPurchaseVerifying
+    private let entitlements: any ProEntitlementChecking
 
     // MARK: - Init
 
     /// - Parameters:
     ///   - defaults: where the Pro flag and the device claim are kept.
     ///   - verifier: checks transactions with the server (verify-purchase).
-    ///   - observesStoreKit: false in tests, which drive the service without StoreKit.
+    ///   - entitlements: this device's StoreKit entitlement and Restore Purchases.
+    ///   - observesStoreKit: false in tests: no product load, launch check or
+    ///     Transaction.updates listener.
     init(
         defaults: UserDefaults = .standard,
         verifier: any ProPurchaseVerifying = SupabaseProPurchaseVerifier(),
+        entitlements: any ProEntitlementChecking = StoreKitProEntitlements(),
         observesStoreKit: Bool = true
     ) {
         self.defaults = defaults
         self.verifier = verifier
+        self.entitlements = entitlements
         self.isPro = defaults.bool(forKey: Self.isProKey)
         guard observesStoreKit else { return }
         // Task inherits @MainActor from init — no actor-isolation issues.
@@ -69,6 +92,9 @@ final class PurchaseService {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
+                deviceHasEntitlement = true
+                // A new purchase: the server judges it afresh.
+                deviceEntitlementRefusedFor = nil
                 if let uid = currentUserID {
                     claimPro(for: uid)
                     // Hear from the server before unlocking (and celebrating):
@@ -81,7 +107,7 @@ final class PurchaseService {
                         return
                     }
                 }
-                setPro(true)
+                updatePro()
             case .userCancelled:
                 break
             case .pending:
@@ -100,9 +126,13 @@ final class PurchaseService {
         isLoading = true
         defer { isLoading = false }
         do {
-            try await AppStore.sync()
-            guard let jws = await Self.currentEntitlementJWS() else {
-                setPro(false)
+            try await entitlements.syncWithAppStore()
+            let jws = await entitlements.currentEntitlementJWS()
+            deviceHasEntitlement = jws != nil
+            guard let jws else {
+                // Nothing to restore on this Apple ID. Pro the account has on
+                // the server (bought elsewhere) stays.
+                updatePro()
                 return
             }
             if let uid = currentUserID {
@@ -115,7 +145,7 @@ final class PurchaseService {
                     return
                 }
             }
-            setPro(true)
+            updatePro()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -154,22 +184,11 @@ final class PurchaseService {
         }
     }
 
+    /// Re-reads this device's StoreKit entitlement. It never takes away Pro
+    /// the signed-in account has on the server.
     func verifyEntitlement() async {
-        let found = await Self.currentEntitlementJWS() != nil
-        setPro(found)
-    }
-
-    /// The signed transaction behind this device's Pro entitlement, if any.
-    /// Iterates StoreKit entitlements off @MainActor to avoid blocking UI.
-    private nonisolated static func currentEntitlementJWS() async -> String? {
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let tx) = result,
-               tx.productID == productID,
-               tx.revocationDate == nil {
-                return result.jwsRepresentation
-            }
-        }
-        return nil
+        deviceHasEntitlement = await entitlements.currentEntitlementJWS() != nil
+        updatePro()
     }
 
     private func handle(_ result: VerificationResult<Transaction>) async {
@@ -177,7 +196,8 @@ final class PurchaseService {
         if tx.productID == Self.productID {
             let isActive = tx.revocationDate == nil
             if !isActive { clearClaim() }
-            setPro(isActive)
+            deviceHasEntitlement = isActive
+            updatePro()
             // A refund has to reach the account, not just this device. An
             // active transaction (Ask to Buy, a purchase finishing late) is
             // linked to the signed-in account unless another one claimed it here.
@@ -202,18 +222,28 @@ final class PurchaseService {
     }
 
     /// Re-checks local StoreKit entitlements silently. No Apple ID prompt.
+    /// Pro the signed-in account has on the server stays whatever it finds.
     func refreshEntitlement() async {
         await verifyEntitlement()
     }
 
+    /// Pro off: on sign-out, or when another account owns this device's
+    /// purchase. Forgets the account's Pro and the last StoreKit check, so
+    /// only a new check or server answer turns it back on.
     func resetProStatus() {
+        proAccountID = nil
+        deviceEntitlementRefusedFor = nil
+        deviceHasEntitlement = false
         setPro(false)
     }
 
-    /// Forces Pro = true locally. Used when Supabase confirms Pro but StoreKit
-    /// has no entitlement on this device (e.g. purchased on a different device).
-    func grantPro() {
-        setPro(true)
+    /// The server has Pro on record for `userID`, maybe bought on another
+    /// device or Apple ID. Pro here while that account stays signed in,
+    /// whatever StoreKit on this device says. Ignored once it has signed out.
+    func grantPro(for userID: String) {
+        guard currentUserID == userID else { return }
+        proAccountID = userID
+        updatePro()
     }
 
     // MARK: - Claim lock (anonymous purchase ownership)
@@ -252,10 +282,15 @@ final class PurchaseService {
         switch outcome {
         case .verified(isPro: true):
             claimPro(for: uid)
-            setPro(true)
+            proAccountID = uid
+            updatePro()
         case .verified(isPro: false), .claimedByOtherAccount:
+            // Refunded, or another account's purchase: off for this account,
+            // even while StoreKit here still lists the purchase.
             clearClaim()
-            setPro(false)
+            proAccountID = nil
+            deviceEntitlementRefusedFor = uid
+            updatePro()
         case .rejected, .unavailable:
             // Nothing new is known: keep what StoreKit says on this device.
             // The next sign-in sync tries again.
@@ -267,7 +302,7 @@ final class PurchaseService {
     /// Sends this device's Pro entitlement, if it has one, to the server.
     /// Used on sign-in when the account has no Pro on record yet.
     func syncCurrentEntitlementToSupabase() async {
-        guard let jws = await Self.currentEntitlementJWS() else { return }
+        guard let jws = await entitlements.currentEntitlementJWS() else { return }
         await syncProToSupabase(jws: jws)
     }
 
@@ -294,8 +329,60 @@ final class PurchaseService {
     }
     #endif
 
+    /// Sets isPro from its two sources: the signed-in account's Pro on the
+    /// server, or this device's own purchase.
+    private func updatePro() {
+        setPro(accountHasPro || deviceEntitlementCounts)
+    }
+
+    private var accountHasPro: Bool {
+        currentUserID != nil && proAccountID == currentUserID
+    }
+
+    /// Whether this device's StoreKit entitlement unlocks Pro for whoever is
+    /// using the app.
+    private var deviceEntitlementCounts: Bool {
+        guard deviceHasEntitlement else { return false }
+        // Signed out: the device's own purchase.
+        guard let uid = currentUserID else { return true }
+        // The server said no for this account.
+        if deviceEntitlementRefusedFor == uid { return false }
+        // Claim lock: a purchase another account claimed on this device stays theirs.
+        let claimedBy = claimedByUserID()
+        return claimedBy == nil || claimedBy == uid
+    }
+
     private func setPro(_ value: Bool) {
         isPro = value
         defaults.set(value, forKey: Self.isProKey)
+    }
+}
+
+// MARK: - This device's StoreKit
+
+/// This device's view of the Pro purchase in StoreKit. Tests swap in a fake.
+protocol ProEntitlementChecking: Sendable {
+    /// The signed transaction behind this device's Pro entitlement, if any.
+    func currentEntitlementJWS() async -> String?
+    /// Asks the App Store for this Apple ID's transactions (Restore Purchases).
+    func syncWithAppStore() async throws
+}
+
+/// StoreKit 2 on this device. Nonisolated, so the entitlement walk runs off
+/// the main actor.
+struct StoreKitProEntitlements: ProEntitlementChecking {
+    func currentEntitlementJWS() async -> String? {
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let tx) = result,
+               tx.productID == PurchaseService.productID,
+               tx.revocationDate == nil {
+                return result.jwsRepresentation
+            }
+        }
+        return nil
+    }
+
+    func syncWithAppStore() async throws {
+        try await AppStore.sync()
     }
 }

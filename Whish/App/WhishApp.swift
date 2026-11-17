@@ -207,8 +207,9 @@ struct WhishApp: App {
                             let supabasePro = await purchaseService.fetchProFromSupabase(userID: userID)
 
                             if supabasePro {
-                                // This account already paid — grant locally and stamp claim on this device
-                                purchaseService.grantPro()
+                                // This account already paid, maybe on another device: Pro here
+                                // whatever StoreKit says, and stamp claim on this device
+                                purchaseService.grantPro(for: userID)
                                 purchaseService.claimPro(for: userID)
                             } else {
                                 // No Supabase record — check StoreKit for an unclaimed device purchase
