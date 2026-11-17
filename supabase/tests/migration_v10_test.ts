@@ -209,12 +209,14 @@ Deno.test("migration is safe to re-run", async () => {
   await db.close();
 });
 
-Deno.test("migration clears is_pro that no verified purchase backs", async () => {
+Deno.test("migration keeps Pro that was set before it", async () => {
   const db = await freshDb({ withV10: false });
-  // Written through the old policies, as the exploit would have.
+  // Set through the old policies. Production's 3 such profiles were checked
+  // and kept when v10 was applied.
   await asUser(db, ALICE, () => upsertIsPro(db, ALICE));
   await db.exec(V10);
-  assertEquals(await isPro(db, ALICE), false);
+  await db.exec(V10);
+  assertEquals(await isPro(db, ALICE), true);
   await db.close();
 });
 

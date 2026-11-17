@@ -162,17 +162,8 @@ grant execute on function public.record_pro_transaction(
   uuid, text, text, text, text, timestamptz, timestamptz, integer, timestamptz
 ) to service_role;
 
--- ── 4. Drop Pro that no verified purchase backs ─────────────────────────────
--- Until now any client could set is_pro, so no existing true can be trusted.
--- Production had no profiles rows when this was written (2026-11-13); this
--- clears anything written through the old policies before they were dropped.
--- Real purchasers get Pro back the next time the app syncs their StoreKit
--- entitlement on sign-in.
-
-update public.profiles pr
-set is_pro = false, updated_at = now()
-where pr.is_pro
-  and not exists (
-    select 1 from public.pro_purchases p
-    where p.user_id = pr.id and p.revoked_at is null
-  );
+-- ── 4. Existing Pro is kept ─────────────────────────────────────────────────
+-- This migration doesn't touch existing is_pro values. Production had 3
+-- profiles with is_pro = true when it was applied (2026-11-13); they were
+-- checked and kept. From here on only record_pro_transaction() changes is_pro,
+-- recomputing an account's Pro from its purchases whenever one is recorded.
