@@ -60,3 +60,9 @@ verify_jwt = false
 # IDENTIFY_GLOBAL_DAILY_LIMIT. Free try: DEVICECHECK_KEY_ID, DEVICECHECK_PRIVATE_KEY,
 # APPLE_TEAM_ID (and DEVICECHECK_ALLOW_DEVELOPMENT=true only while testing Debug builds).
 verify_jwt = false
+
+[functions.verify-purchase]
+# Called by signed-in users; the function validates the JWT itself via auth.getUser().
+# Needs migration_v10 applied first. Optional secret: ALLOW_SANDBOX_PURCHASES=true
+# to accept sandbox and TestFlight purchases (leave unset in production).
+verify_jwt = false
