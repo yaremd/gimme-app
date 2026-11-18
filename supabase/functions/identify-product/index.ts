@@ -168,6 +168,7 @@ const offers: OffersDeps | undefined = ticketKey && supabaseURL && anonKey
             // A model that can't run web search from code (dynamic filtering) asks for
             // allowed_callers ["direct"]: remember that for this worker and send the request again.
             if (!searchDirectly && /allowed_callers/i.test(error.message)) {
+              console.log(`identify-product: ${offersModel} can't run web search from code; searching directly`);
               searchDirectly = true;
               request--;
               continue;

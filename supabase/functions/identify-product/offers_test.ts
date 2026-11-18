@@ -2,11 +2,13 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   buildOffersUserText,
+  describeOffersSearch,
   makeTicketKey,
   type OffersTicket,
   pickOffers,
   readReportedOffers,
   type ReportedOffer,
+  reportedCount,
   signTicket,
   verifyTicket,
 } from "./offers.ts";
@@ -101,48 +103,83 @@ function reported(store: string, price: number | null = null, currency: string |
 }
 
 Deno.test("offers are ranked by the price on their page", () => {
-  const picked = pickOffers([
+  const { offers, drops } = pickOffers([
     { reported: reported("A", 300), page: { price: 389.5, currency: "USD", title: "A page" } },
     { reported: reported("B"), page: { price: 349.999, currency: "usd", title: null } },
     { reported: reported("C"), page: { price: 399, currency: "USD", title: "  C   page  " } },
     { reported: reported("D"), page: { price: 360, currency: "USD", title: "D" } },
   ], { currency: "USD", estimate: ticket.estimate, max: 3 });
 
-  assertEquals(picked, [
+  assertEquals(offers, [
     { store: "B", url: "https://b.example/item", title: null, price: 350, currency: "USD", best: true },
     { store: "D", url: "https://d.example/item", title: "D", price: 360, currency: "USD", best: false },
     { store: "A", url: "https://a.example/item", title: "A page", price: 389.5, currency: "USD", best: false },
   ]);
+  assertEquals(drops, { unreadable: 0, noPrice: 0, otherCurrency: {}, outOfRange: 0 });
 });
 
 Deno.test("a page without a currency falls back to the one the search reported", () => {
-  const picked = pickOffers([
+  const { offers, drops } = pickOffers([
     { reported: reported("A", 380, "USD"), page: { price: 379, currency: null, title: null } },
     { reported: reported("B", 380, null), page: { price: 370, currency: null, title: null } },
   ], { currency: "USD", estimate: null, max: 3 });
-  assertEquals(picked.map((o) => o.store), ["A"]);
+  assertEquals(offers.map((o) => o.store), ["A"]);
+  assertEquals(drops.otherCurrency, { none: 1 });
 });
 
 Deno.test("prices far outside the typical range are dropped", () => {
-  const picked = pickOffers([
+  const { offers, drops } = pickOffers([
     { reported: reported("Case"), page: { price: 29, currency: "USD", title: "Case for XM6" } },
     { reported: reported("Bundle"), page: { price: 1200, currency: "USD", title: "XM6 bundle" } },
     { reported: reported("Real"), page: { price: 348, currency: "USD", title: "XM6" } },
   ], { currency: "USD", estimate: ticket.estimate, max: 3 });
-  assertEquals(picked.map((o) => o.store), ["Real"]);
+  assertEquals(offers.map((o) => o.store), ["Real"]);
+  assertEquals(drops.outOfRange, 2);
 
   // An estimate in another currency can't be compared, so nothing is dropped for it.
   const otherCurrency = pickOffers([
     { reported: reported("Case"), page: { price: 29, currency: "GBP", title: null } },
   ], { currency: "GBP", estimate: ticket.estimate, max: 3 });
-  assertEquals(otherCurrency.length, 1);
+  assertEquals(otherCurrency.offers.length, 1);
 });
 
 Deno.test("offers with no confirmed price are dropped", () => {
-  const picked = pickOffers([
+  const { offers, drops } = pickOffers([
     { reported: reported("Blocked", 300, "USD"), page: null },
     { reported: reported("NoPrice", 300, "USD"), page: { price: null, currency: "USD", title: "x" } },
     { reported: reported("Zero", 300, "USD"), page: { price: 0, currency: "USD", title: "x" } },
   ], { currency: "USD", estimate: null, max: 3 });
-  assertEquals(picked, []);
+  assertEquals(offers, []);
+  assertEquals(drops, { unreadable: 1, noPrice: 2, otherCurrency: {}, outOfRange: 0 });
+});
+
+Deno.test("offers in other currencies are counted by currency", () => {
+  const { offers, drops } = pickOffers([
+    { reported: reported("A"), page: { price: 349, currency: "USD", title: null } },
+    { reported: reported("B"), page: { price: 329, currency: "USD", title: null } },
+    { reported: reported("C"), page: { price: 299, currency: "EUR", title: null } },
+    { reported: reported("D"), page: { price: 14999, currency: "UAH", title: null } },
+  ], { currency: "UAH", estimate: null, max: 3 });
+  assertEquals(offers.map((o) => o.store), ["D"]);
+  assertEquals(drops.otherCurrency, { USD: 2, EUR: 1 });
+});
+
+Deno.test("the search log line has counts and currency codes only", () => {
+  const line = describeOffersSearch({
+    model: "claude-haiku-5-5",
+    searches: 2,
+    suggested: 5,
+    shopPages: 3,
+    drops: { unreadable: 1, noPrice: 0, otherCurrency: { USD: 1, EUR: 1 }, outOfRange: 0 },
+    found: 1,
+    latencyMs: 9129,
+  });
+  assertEquals(
+    line,
+    "identify-product: offers model=claude-haiku-5-5 searches=2 suggested=5 skipped=2 unreadable=1 no_price=0 " +
+      "other_currency=EUR:1,USD:1 out_of_range=0 found=1 latency_ms=9129",
+  );
+  assertEquals(reportedCount({ offers: [{}, {}, {}] }), 3);
+  assertEquals(reportedCount(null), 0);
+  assertEquals(reportedCount({ offers: "x" }), 0);
 });

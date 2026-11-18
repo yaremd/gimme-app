@@ -258,23 +258,51 @@ export interface ShopOffer {
   best: boolean;
 }
 
+/** Why shop pages were left out, for the function log. Counts and currency codes only. */
+export interface OfferDrops {
+  /** The page couldn't be fetched or read (blocked, timed out, not HTML). */
+  unreadable: number;
+  /** The page showed no price the link reader could find. */
+  noPrice: number;
+  /** Priced in another currency, by currency code ("none" when the page gave none). */
+  otherCurrency: Record<string, number>;
+  /** Far from the typical price: usually an accessory, a bundle or the wrong model. */
+  outOfRange: number;
+}
+
 /**
  * Keeps the offers whose page shows a price in `currency`, drops prices far outside
  * the identification's typical range (usually an accessory or the wrong model), and
- * returns the cheapest `max`, cheapest first. Prices come from the page, not the search.
+ * returns the cheapest `max`, cheapest first, with counts of what was dropped and why.
+ * Prices come from the page, not the search.
  */
 export function pickOffers(
   checked: ReadonlyArray<{ reported: ReportedOffer; page: PageCheck | null }>,
   options: { currency: string; estimate: OffersTicket["estimate"]; max: number },
-): ShopOffer[] {
+): { offers: ShopOffer[]; drops: OfferDrops } {
+  const drops: OfferDrops = { unreadable: 0, noPrice: 0, otherCurrency: {}, outOfRange: 0 };
   const confirmed: Omit<ShopOffer, "best">[] = [];
   for (const { reported, page } of checked) {
-    if (!page || page.price === null || !Number.isFinite(page.price) || page.price <= 0) continue;
+    if (!page) {
+      drops.unreadable++;
+      continue;
+    }
+    if (page.price === null || !Number.isFinite(page.price) || page.price <= 0) {
+      drops.noPrice++;
+      continue;
+    }
     const currency = (page.currency ?? reported.currency ?? "").trim().toUpperCase();
-    if (currency !== options.currency) continue;
+    if (currency !== options.currency) {
+      const code = /^[A-Z]{3}$/.test(currency) ? currency : "none";
+      drops.otherCurrency[code] = (drops.otherCurrency[code] ?? 0) + 1;
+      continue;
+    }
     const { estimate } = options;
     if (estimate && estimate.currency === currency &&
-      (page.price < estimate.low * 0.4 || page.price > estimate.high * 2.5)) continue;
+      (page.price < estimate.low * 0.4 || page.price > estimate.high * 2.5)) {
+      drops.outOfRange++;
+      continue;
+    }
     confirmed.push({
       store: reported.store,
       url: reported.url,
@@ -284,5 +312,48 @@ export function pickOffers(
     });
   }
   confirmed.sort((a, b) => a.price - b.price);
-  return confirmed.slice(0, options.max).map((offer, index) => ({ ...offer, best: index === 0 }));
+  return {
+    offers: confirmed.slice(0, options.max).map((offer, index) => ({ ...offer, best: index === 0 })),
+    drops,
+  };
+}
+
+/** How many offers the model reported, before any were left out. */
+export function reportedCount(input: unknown): number {
+  const offers = input && typeof input === "object" ? (input as { offers?: unknown }).offers : undefined;
+  return Array.isArray(offers) ? offers.length : 0;
+}
+
+/**
+ * One log line per shop search, to see why searches come back empty. Counts and
+ * currency codes only: never links, shop names or what was searched for.
+ */
+export function describeOffersSearch(summary: {
+  model: string;
+  searches: number;
+  /** Offers the model reported. */
+  suggested: number;
+  /** Of those, product pages on distinct shops (see readReportedOffers). */
+  shopPages: number;
+  drops: OfferDrops;
+  found: number;
+  latencyMs: number;
+}): string {
+  const otherCurrency = Object.entries(summary.drops.otherCurrency)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([code, count]) => `${code}:${count}`)
+    .join(",") || "0";
+  return [
+    "identify-product: offers",
+    `model=${summary.model}`,
+    `searches=${summary.searches}`,
+    `suggested=${summary.suggested}`,
+    `skipped=${summary.suggested - summary.shopPages}`,
+    `unreadable=${summary.drops.unreadable}`,
+    `no_price=${summary.drops.noPrice}`,
+    `other_currency=${otherCurrency}`,
+    `out_of_range=${summary.drops.outOfRange}`,
+    `found=${summary.found}`,
+    `latency_ms=${summary.latencyMs}`,
+  ].join(" ");
 }

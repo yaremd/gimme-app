@@ -13,10 +13,12 @@
 import { type DeviceCheckClient, type DeviceCheckEnvironment, InvalidDeviceToken } from "./devicecheck.ts";
 import {
   buildOffersUserText,
+  describeOffersSearch,
   OFFERS_TICKET_TTL_SECONDS,
   type PageCheck,
   pickOffers,
   readReportedOffers,
+  reportedCount,
   signTicket,
   UnsupportedCountry,
   verifyTicket,
@@ -450,6 +452,7 @@ async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<
     } catch (error) {
       if (!(error instanceof UnsupportedCountry)) throw error;
       // The search can't be pinned to this country; the prompt still names it.
+      console.log(`identify-product: web search can't be localised to ${error.country}; searching without a location`);
       call = await offers.callModel({ userText, country: null });
     }
   } catch (error) {
@@ -485,12 +488,22 @@ async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<
     }
     return { reported: offer, page };
   }));
-  const picked = pickOffers(checked, { currency, estimate: ticket.estimate, max: OFFERS_RETURNED });
-
-  await finish(picked.length > 0 ? "ok" : "none", {
-    ...details,
-    found: picked.length,
-    latencyMs: Date.now() - started,
+  const { offers: picked, drops } = pickOffers(checked, {
+    currency,
+    estimate: ticket.estimate,
+    max: OFFERS_RETURNED,
   });
+  const latencyMs = Date.now() - started;
+  console.log(describeOffersSearch({
+    model: call.model,
+    searches: call.searches,
+    suggested: reportedCount(call.report),
+    shopPages: reported.length,
+    drops,
+    found: picked.length,
+    latencyMs,
+  }));
+
+  await finish(picked.length > 0 ? "ok" : "none", { ...details, found: picked.length, latencyMs });
   return json(200, { offers: picked });
 }
