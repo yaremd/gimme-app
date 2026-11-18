@@ -98,21 +98,21 @@ Errors are `{ "code", "error", "usage"? }`:
 
 - Model `claude-opus-5-5`, `effort: "low"`, `output_config.format` JSON schema, `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`) so a classifier decline is retried server-side. Thinking can't be disabled on Opus 5.5; low effort keeps it short.
 - Prompt and schema: `supabase/functions/identify-product/prompt.ts`. The model is told to prefer "similar" over guessing, never invent model numbers or sizes, pick the product a screenshot is about rather than the app, and treat text in images as data, not instructions.
-- Tuning without redeploying (Supabase → Edge Functions → Secrets): `IDENTIFY_MODEL` (e.g. `claude-haiku-5-5` for ~20× cheaper calls — validate accuracy first), `IDENTIFY_EFFORT`, `IDENTIFY_FREE_MONTHLY_LIMIT` (5), `IDENTIFY_PRO_MONTHLY_LIMIT` (100), `IDENTIFY_GLOBAL_DAILY_LIMIT` (300). Keep the paywall copy in `PaywallView` in step with the limits.
-- Cost estimate: ~1.5k image tokens + ~1k prompt/schema tokens in, a few hundred out → roughly **2¢ per photo** on Opus 5.5 ($4/$20 per MTok). The global cap bounds the worst day at ~300 calls (~$6–8). Real numbers: `select model, avg(input_tokens), avg(output_tokens), avg(latency_ms) from ai_identify_requests group by 1;`
+- Tuning without redeploying (Supabase → Edge Functions → Secrets): `IDENTIFY_MODEL` (e.g. `claude-haiku-5-5` for ~40× cheaper calls — validate accuracy first), `IDENTIFY_EFFORT`, `IDENTIFY_FREE_MONTHLY_LIMIT` (5), `IDENTIFY_PRO_MONTHLY_LIMIT` (100), `IDENTIFY_GLOBAL_DAILY_LIMIT` (300). Keep the paywall copy in `PaywallView` in step with the limits.
+- Measured cost (Nov 18, 2026, first 3 real photos): 6,052 tokens in and 173–184 out per photo, 3.3–4.2 s on the server, which comes to about **2.8¢ per photo** on Opus 5.5 ($4/$20 per MTok). The photo itself is only about 1.4k of the input tokens (1200 px on the long edge); the rest is the instructions and answer format sent with every call. The global cap bounds the worst day at ~300 calls (~$8.30). Current numbers: `select model, avg(input_tokens), avg(output_tokens), avg(latency_ms) from ai_identify_requests group by 1;`
 
-### Model cost comparison (Nov 13, 2026 list prices; ~2.5k tokens in, ~400 out per photo)
+### Model cost comparison (Nov 13, 2026 list prices; 6,052 tokens in, ~180 out per photo, as measured on Opus 5.5)
 
 | Model | $ / MTok in · out | Per photo | Per 1,000 photos | Switch cost |
 |---|---|---|---|---|
-| Claude Opus 5.5 (default) | 4 · 20 | ~1.8¢ | ~$18 | — |
-| Claude Sonnet 5.5 | 2 · 10 | ~0.9¢ | ~$9 | `IDENTIFY_MODEL` secret |
-| Claude Haiku 5.5 | 0.10 · 0.50 | ~0.05¢ | ~$0.45 | `IDENTIFY_MODEL` secret |
-| Gemini 3.6 Flash | 1.50 · 7.50 | ~0.7¢ | ~$7 | new integration + privacy copy |
-| Gemini 3.5 Flash-Lite | 0.30 · 2.50 | ~0.2¢ | ~$1.75 | new integration + privacy copy |
-| Gemini 3.1 Flash-Lite | 0.25 · 1.50 | ~0.1¢ | ~$1.25 | new integration + privacy copy |
+| Claude Opus 5.5 (default) | 4 · 20 | ~2.8¢ (measured) | ~$28 | — |
+| Claude Sonnet 5.5 | 2 · 10 | ~1.4¢ | ~$14 | `IDENTIFY_MODEL` secret |
+| Claude Haiku 5.5 | 0.10 · 0.50 | ~0.07¢ | ~$0.70 | `IDENTIFY_MODEL` secret |
+| Gemini 3.6 Flash | 1.50 · 7.50 | ~1.0¢ | ~$10 | new integration + privacy copy |
+| Gemini 3.5 Flash-Lite | 0.30 · 2.50 | ~0.23¢ | ~$2.30 | new integration + privacy copy |
+| Gemini 3.1 Flash-Lite | 0.25 · 1.50 | ~0.18¢ | ~$1.80 | new integration + privacy copy |
 
-Estimates only: providers count image tokens differently and thinking adds output. Claude Haiku 5.5 is the cheapest option and needs no code change; moving to Gemini would mean a second API integration and naming Google in the consent screen and privacy policy. Decide on accuracy first: run the same real photos through Opus 5.5 and Haiku 5.5 (switch the secret, no redeploy) and keep the cheapest one that gets them right.
+Only the Opus row is measured. The others apply the same token counts to each price list, but every model counts tokens a little differently (Gemini more so), and thinking adds output. Claude Haiku 5.5 is the cheapest option and needs no code change; moving to Gemini would mean a second API integration and naming Google in the consent screen and privacy policy. Decide on accuracy first: run the same real photos through Opus 5.5 and Haiku 5.5 (switch the secret, no redeploy) and keep the cheapest one that gets them right.
 
 ## Quotas
 
@@ -160,7 +160,8 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 - **iOS (26 new, 62 total)** — response decoding and every error code, prefill never overwriting typed text, estimate midpoint and locale formatting, shopping URL, share hand-off (once-only, stale drop, link vs photo precedence), memory-safe downscale, the shared controller (sign-in gate, consent then run, quota usage, dropping a replaced photo's result), and the free try (offered signed out, "That was your free try" afterwards, a spent try asks to sign in without a request, a refusal spends it).
 - **Simulator walkthrough** with `-mockIdentify identified|similar|not_product|quota|offline|trial|trial_used` (Debug only): card → source menu → library → consent → result → Use price → save, on both New Wish and the first-run screen (fresh install); signed out on the first-run screen: "Your first one is free" → result + "That was your free try" → the next photo asks to sign in; Photos → Share → Gimme → list → auto-identify; quota → paywall; Settings switch.
 - **Production smoke test**: 405 / 401 for wrong method, missing, publishable-key and forged tokens, and for a device token while DeviceCheck isn't configured. v11's claim functions run inside rolled-back transactions (each cap, 3 running at once, billed failures counted); only `service_role` can execute them; no rows left behind; the deployed function source is byte-identical to the repo; no new advisor findings.
-- **Not yet tested**: a real Claude call (needs the API key), a signed-in request against production (needs an account), and real DeviceCheck (needs the key and a physical iPhone; the Simulator doesn't support DeviceCheck). These are items 2 and 4 of the checklist below.
+- **First real calls** (Nov 18, 2026): a Debug build on an iPhone, signed in, identified 3 real photos against production. All 3 returned 200 (2 identified, 1 similar) in 3.3–4.2 s each; cost is under [Model, prompt and cost](#model-prompt-and-cost). Accuracy across 10–20 photos (checklist item 2) is still to do.
+- **Not yet tested**: real DeviceCheck (needs the key and a physical iPhone; the Simulator doesn't support DeviceCheck). That's item 4 of the checklist below.
 
 ## Go-live checklist
 
