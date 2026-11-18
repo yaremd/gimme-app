@@ -26,7 +26,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk@1.3.0";
 import { createDeviceCheckClient } from "./devicecheck.ts";
 import { handleIdentify, type Deps, type OffersDeps } from "./handler.ts";
-import { makeTicketKey, OFFERS_SYSTEM_PROMPT, REPORT_OFFERS_TOOL } from "./offers.ts";
+import { makeTicketKey, OFFERS_SYSTEM_PROMPT, REPORT_OFFERS_TOOL, UnsupportedCountry } from "./offers.ts";
 import { IDENTIFY_SCHEMA, IDENTIFY_SYSTEM_PROMPT } from "./prompt.ts";
 
 function intEnv(name: string, fallback: number): number {
@@ -143,17 +143,26 @@ const offers: OffersDeps | undefined = ticketKey && supabaseURL && anonKey
 
       // A long search can pause (stop_reason "pause_turn"); continue it once, then give up.
       for (let request = 0; request < 2; request++) {
-        const response = await offersAnthropic.beta.messages.create({
-          model: offersModel,
-          max_tokens: 8000,
-          ...(offersSupportsFallbacks
-            ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
-            : {}),
-          system: OFFERS_SYSTEM_PROMPT,
-          output_config: { effort: offersEffort },
-          tools,
-          messages,
-        });
+        let response;
+        try {
+          response = await offersAnthropic.beta.messages.create({
+            model: offersModel,
+            max_tokens: 8000,
+            ...(offersSupportsFallbacks
+              ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
+              : {}),
+            system: OFFERS_SYSTEM_PROMPT,
+            output_config: { effort: offersEffort },
+            tools,
+            messages,
+          });
+        } catch (error) {
+          // e.g. 400 "tools.0.web_search_20260318: Country code UA is not supported."
+          if (country && error instanceof Anthropic.BadRequestError && /country code/i.test(error.message)) {
+            throw new UnsupportedCountry(country);
+          }
+          throw error;
+        }
         inputTokens += response.usage.input_tokens;
         outputTokens += response.usage.output_tokens;
         searches += response.usage.server_tool_use?.web_search_requests ?? 0;

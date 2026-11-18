@@ -13,7 +13,14 @@ import {
   type RequestOutcome,
   startOfNextMonthUTC,
 } from "./handler.ts";
-import { makeTicketKey, type OffersTicket, type PageCheck, signTicket, verifyTicket } from "./offers.ts";
+import {
+  makeTicketKey,
+  type OffersTicket,
+  type PageCheck,
+  signTicket,
+  UnsupportedCountry,
+  verifyTicket,
+} from "./offers.ts";
 import { normalizeResult } from "./prompt.ts";
 
 class FakeDeviceCheck implements DeviceCheckClient {
@@ -463,6 +470,8 @@ async function makeOffers(overrides: {
   claim?: boolean | Error;
   model?: Partial<OffersModelCall> | Error;
   pages?: Record<string, PageCheck | null | Error>;
+  /** Countries the web search refuses to localise to, like Anthropic does for UA. */
+  unsupportedCountries?: string[];
 } = {}): Promise<{ offers: OffersDeps; rec: OffersRecorder }> {
   const rec: OffersRecorder = { claims: [], releases: [], finishes: [], modelCalls: [], pageChecks: [] };
   const offers: OffersDeps = {
@@ -482,6 +491,9 @@ async function makeOffers(overrides: {
     },
     callModel: (input) => {
       rec.modelCalls.push(input);
+      if (input.country && overrides.unsupportedCountries?.includes(input.country)) {
+        return Promise.reject(new UnsupportedCountry(input.country));
+      }
       if (overrides.model instanceof Error) return Promise.reject(overrides.model);
       return Promise.resolve({
         stopReason: "tool_use",
@@ -590,6 +602,22 @@ Deno.test("a shop search returns offers confirmed on the shop's page, cheapest f
   // No identification or quota is involved.
   assertEquals(identifyRec.claims.length, 0);
   assertEquals(identifyRec.modelCalls.length, 0);
+});
+
+Deno.test("a country the web search can't localise to is searched without a location", async () => {
+  const { offers, rec } = await makeOffers({ unsupportedCountries: ["UA"] });
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(
+    post({ offersToken: await signTicket(offers.ticketKey, ticketFor()), country: "UA", currency: "GBP" }, null),
+    deps,
+  );
+  assertEquals(res.status, 200);
+  assertEquals((await res.json()).offers.length, 2);
+  assertEquals(rec.modelCalls.map((call) => call.country), ["UA", null]);
+  // The prompt still tells the model where the user is.
+  assert(rec.modelCalls[1].userText.includes("User's country: UA"));
+  assertEquals(rec.releases.length, 0);
+  assertEquals(rec.finishes[0].outcome, "ok");
 });
 
 Deno.test("a shop search needs a valid ticket that hasn't expired", async () => {

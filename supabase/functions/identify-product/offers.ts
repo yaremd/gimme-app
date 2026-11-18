@@ -22,6 +22,17 @@ export interface OffersTicket {
 /** How long after an identification the app can still ask for shops. */
 export const OFFERS_TICKET_TTL_SECONDS = 15 * 60;
 
+/**
+ * The web search can't be localised to this country (Anthropic rejects some country
+ * codes, e.g. UA). The search is then run without a location; the prompt still names
+ * the country, so the model looks for shops there itself.
+ */
+export class UnsupportedCountry extends Error {
+  constructor(readonly country: string) {
+    super(`Web search can't be localised to ${country}`);
+  }
+}
+
 const encoder = new TextEncoder();
 
 /**

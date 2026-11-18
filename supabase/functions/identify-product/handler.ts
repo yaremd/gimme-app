@@ -18,6 +18,7 @@ import {
   pickOffers,
   readReportedOffers,
   signTicket,
+  UnsupportedCountry,
   verifyTicket,
 } from "./offers.ts";
 import { buildUserText, normalizeResult, type ProductIdentification } from "./prompt.ts";
@@ -441,9 +442,16 @@ async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<
     }
   };
 
+  const userText = buildOffersUserText(ticket, country, currency);
   let call: OffersModelCall;
   try {
-    call = await offers.callModel({ userText: buildOffersUserText(ticket, country, currency), country });
+    try {
+      call = await offers.callModel({ userText, country });
+    } catch (error) {
+      if (!(error instanceof UnsupportedCountry)) throw error;
+      // The search can't be pinned to this country; the prompt still names it.
+      call = await offers.callModel({ userText, country: null });
+    }
   } catch (error) {
     console.error("identify-product: offers search failed", error);
     try {
