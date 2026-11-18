@@ -164,17 +164,21 @@ private final class FakeIdentifyService: ProductIdentificationService, @unchecke
     let offersTrial: Bool
     let outcome: Result<ProductIdentificationResponse, ProductIdentificationError>
     let offersOutcome: Result<[ShopOffer], ProductIdentificationError>
+    /// How long the shop search takes, for tests that act while it's running.
+    let offersDelay: Duration?
     private(set) var calls = 0
     private(set) var offerRequests: [(token: String, country: String?, currency: String)] = []
 
     init(requiresSignIn: Bool = true,
          offersTrial: Bool = false,
          outcome: Result<ProductIdentificationResponse, ProductIdentificationError>,
-         offers: Result<[ShopOffer], ProductIdentificationError> = .success([])) {
+         offers: Result<[ShopOffer], ProductIdentificationError> = .success([]),
+         offersDelay: Duration? = nil) {
         self.requiresSignIn = requiresSignIn
         self.offersTrial = offersTrial
         self.outcome = outcome
         self.offersOutcome = offers
+        self.offersDelay = offersDelay
     }
 
     func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse {
@@ -184,6 +188,7 @@ private final class FakeIdentifyService: ProductIdentificationService, @unchecke
 
     func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] {
         offerRequests.append((token, country, currency))
+        if let offersDelay { try? await Task.sleep(for: offersDelay) }
         return try offersOutcome.get()
     }
 }
@@ -389,13 +394,18 @@ struct IdentifyControllerTests {
     }
 
     @Test func offersForAReplacedPhotoAreDropped() async {
-        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
+        // The search takes a while, so the photo can change while it runs.
+        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers),
+                                          offersDelay: .milliseconds(300))
         let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
         var appliedCount = 0
         controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
         await settle(controller)
+        #expect(controller.offers == .searching)
+
         controller.reset()   // the photo changed while shops were being searched
-        await settleOffers(controller)
+        try? await Task.sleep(for: .milliseconds(700))   // the search finishes in the meantime
+        #expect(service.offerRequests.count == 1)
         #expect(controller.offers == .idle)
         #expect(appliedCount == 0)
     }
