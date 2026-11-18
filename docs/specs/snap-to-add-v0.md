@@ -4,7 +4,7 @@ Photograph or screenshot something you want; Gimme recognises it and fills in th
 
 | | |
 |---|---|
-| Status | Built, tested, backend deployed (Nov 13, 2026), including the signed-out free try. **Live only after `ANTHROPIC_API_KEY` is set**; the free try also needs the DeviceCheck secrets. See [Go-live checklist](#go-live-checklist). Not in an App Store build yet. |
+| Status | Built, tested, backend deployed (Nov 13, 2026), including the signed-out free try. `ANTHROPIC_API_KEY` was set on Nov 18, 2026; the free try still needs the DeviceCheck secrets. See [Go-live checklist](#go-live-checklist). Not in an App Store build yet. |
 | Branch | `claude/snap-to-add-v0-spec` |
 | Out of scope (V1+) | Shopping results and price comparison, affiliate links, barcode scanning |
 
@@ -164,10 +164,13 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 
 ## Go-live checklist
 
-1. Set the key (Anthropic Console → API keys; set a monthly spend limit there too):
+1. Set the key (done on Nov 18, 2026). In the Claude Console:
+   - Create a `Gimme` workspace (Settings → Workspaces) and give it a monthly spend limit under Settings → Spend limits → Workspace limits. The Default Workspace can't have one.
+   - Under Settings → API keys, click **Create key** and choose **Somewhere else** (an API key). Link it to yourself, scope it to the **Gimme** workspace, and set the expiration to **Never**. The function sends no workspace ID, so a key that isn't scoped to one workspace fails on every request.
+   - Copy the key and store it in Supabase. Running the command below reads the key from the clipboard, which keeps it out of your shell history; Dashboard → Edge Functions → Secrets works too. No redeploy is needed.
 
    ```bash
-   supabase secrets set ANTHROPIC_API_KEY=<key> --project-ref dyporggvmfyzejopaezc
+   supabase secrets set ANTHROPIC_API_KEY="$(pbpaste)" --project-ref dyporggvmfyzejopaezc
    ```
 
 2. In a Debug build signed in to your account, identify 10–20 real photos and screenshots (branded, generic, not-a-product, blurry). Check `ai_identify_requests` for tokens and latency; if accuracy holds, consider `IDENTIFY_MODEL=claude-haiku-5-5`.
