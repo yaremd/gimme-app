@@ -140,7 +140,15 @@ Response: `{ "offers": [{ "store", "url", "title", "price", "currency", "best" }
 
 The app sends the device's region and currency (`Locale.current`), so prices come from local shops in local money, and the chosen offer sets the item's currency.
 
-**Cost and speed** (estimates until real searches are measured): 1–3 web searches at $10 per 1,000, plus tokens for reading the results (roughly 2–6¢ on Opus 5.5), so about 3–9¢ on top of identification, and 10–30 s. There's one search per identified photo, so the 300-a-day global cap bounds searches too. Tune without redeploying: `OFFERS_MODEL` (e.g. `claude-haiku-5-5`), `OFFERS_EFFORT`, `OFFERS_MAX_SEARCHES`. Real numbers:
+**Cost and speed.**
+- **Measured on Opus 5.5.** The first two real searches (Nov 18, 2026, from Ukraine) each ran 2 web searches and took 16–20 s. They read 23k–31k input tokens and wrote about 650. That is about 12.5–16¢ per search, on top of about 3¢ for identification.
+- **Now on Haiku 5.5.** Reading the search results is most of that cost, so since Nov 18 production runs the shop search on Haiku 5.5 (`OFFERS_MODEL=claude-haiku-5-5`, a Supabase secret). The estimate is about 2–3¢ per search, mostly the $10-per-1,000 search fee. Identification stays on Opus 5.5.
+- **Why a cheaper model is safe here.** The page check still drops wrong pages and unconfirmed prices, so a weaker model mostly risks finding fewer shops.
+- **Bounded.** There's one search per identified photo, so the 300-a-day global cap bounds searches too.
+- **Tuning.** Change these without redeploying: `OFFERS_MODEL`, `OFFERS_EFFORT`, `OFFERS_MAX_SEARCHES`.
+- **Search setup.** If a model can't run web search from code (dynamic filtering), the function switches to calling the search directly. Anthropic's web search also refuses some countries as a location: UA is rejected. The search then runs without a location, and the prompt still names the country.
+
+Real numbers:
 
 ```sql
 select count(*) filter (where offers_status = 'ok') as with_offers, count(*) as searches,

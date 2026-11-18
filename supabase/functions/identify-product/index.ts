@@ -71,6 +71,8 @@ const offersEffort = (["low", "medium", "high", "xhigh", "max"].includes(offersE
   : "low") as "low" | "medium" | "high" | "xhigh" | "max";
 const offersMaxSearches = Math.max(1, intEnv("OFFERS_MAX_SEARCHES", 3));
 const offersSupportsFallbacks = /^claude-(opus-5|sonnet-5-5|fable-5)/.test(offersModel);
+/** Set once the model turns down web search from code (dynamic filtering); see callModel. */
+let searchDirectly = false;
 // No retries: a retried request can run (and bill) its web searches twice. Two
 // requests of 45 s at most keep the whole search inside the 150 s request limit.
 const offersAnthropic = apiKey ? new Anthropic({ apiKey, timeout: 45_000, maxRetries: 0 }) : null;
@@ -124,13 +126,16 @@ const offers: OffersDeps | undefined = ticketKey && supabaseURL && anonKey
 
     async callModel({ userText, country }) {
       if (!offersAnthropic) throw new Error("ANTHROPIC_API_KEY is not set");
-      const tools = [
+      const tools = () => [
         {
           type: "web_search_20260318" as const,
           name: "web_search" as const,
           max_uses: offersMaxSearches,
-          // The model reads results through dynamic filtering; the raw pages aren't needed here.
-          response_inclusion: "excluded" as const,
+          // With dynamic filtering the model reads results through code, so the raw pages
+          // aren't needed in the response. Models without it call the search directly.
+          ...(searchDirectly
+            ? { allowed_callers: ["direct" as const] }
+            : { response_inclusion: "excluded" as const }),
           ...(country ? { user_location: { type: "approximate" as const, country } } : {}),
         },
         REPORT_OFFERS_TOOL,
@@ -153,13 +158,20 @@ const offers: OffersDeps | undefined = ticketKey && supabaseURL && anonKey
               : {}),
             system: OFFERS_SYSTEM_PROMPT,
             output_config: { effort: offersEffort },
-            tools,
+            tools: tools(),
             messages,
           });
         } catch (error) {
-          // e.g. 400 "tools.0.web_search_20260318: Country code UA is not supported."
-          if (country && error instanceof Anthropic.BadRequestError && /country code/i.test(error.message)) {
-            throw new UnsupportedCountry(country);
+          if (error instanceof Anthropic.BadRequestError) {
+            // e.g. 400 "tools.0.web_search_20260318: Country code UA is not supported."
+            if (country && /country code/i.test(error.message)) throw new UnsupportedCountry(country);
+            // A model that can't run web search from code (dynamic filtering) asks for
+            // allowed_callers ["direct"]: remember that for this worker and send the request again.
+            if (!searchDirectly && /allowed_callers/i.test(error.message)) {
+              searchDirectly = true;
+              request--;
+              continue;
+            }
           }
           throw error;
         }
