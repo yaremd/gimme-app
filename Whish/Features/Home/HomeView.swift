@@ -1344,6 +1344,11 @@ struct FirstItemView: View {
     @State private var localImageIsPhoto = false
     /// Set when a photo is picked from the identify card, so it's identified right away.
     @State private var identifyAfterPick = false
+    /// Skips the link fetch once, when a shop offer fills the link (see AddItemView).
+    @State private var skipNextURLFetch = false
+    /// The link and price the photo flow put in the form; never the user's own.
+    @State private var offerURL: String?
+    @State private var autoPrice: String?
     @State private var isShowingPaywall = false
     @State private var isShowingAuth = false
 
@@ -1421,7 +1426,7 @@ struct FirstItemView: View {
                             localImageData = nil
                             imageURL = ""
                             localImageIsPhoto = false
-                            identify.reset()
+                            resetIdentify()
                         }
                     }
                 )
@@ -1444,7 +1449,7 @@ struct FirstItemView: View {
                         localImageData = data
                         imageURL = ""
                         localImageIsPhoto = false
-                        identify.reset()
+                        resetIdentify()
                     }
                 }
                 .presentationDetents([.fraction(0.55)])
@@ -1471,6 +1476,10 @@ struct FirstItemView: View {
             .sheet(isPresented: $isShowingPaywall) { PaywallView().pageSheet() }
             .sheet(isPresented: $isShowingAuth) { AuthView().pageSheet() }
             .onChange(of: urlString) { oldValue, newValue in
+                if skipNextURLFetch {
+                    skipNextURLFetch = false
+                    return
+                }
                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 let wasEmpty = oldValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 let looksLikeURL = trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")
@@ -1775,18 +1784,22 @@ struct FirstItemView: View {
             onUseEstimate: { estimate in
                 priceText = "\(estimate.midpoint)"
                 currency = estimate.currency
+                autoPrice = priceText   // a shop's real price may replace the estimate
                 Haptics.selection()
             },
             onFindOnline: { openURL($0) },
             onUpgrade: { isShowingPaywall = true },
-            onSignIn: { isShowingAuth = true }
+            onSignIn: { isShowingAuth = true },
+            offers: identify.offers,
+            onOpenOffer: { openURL($0) },
+            onSelectOffer: { identify.selectOffer($0) }
         )
         .glassCardBackground()
     }
 
     /// A new photo invalidates any result for the previous one.
     private func photoDidChange() {
-        identify.reset()
+        resetIdentify()
         guard identifyAfterPick else { return }
         identifyAfterPick = false
         // Wait for the camera or photo picker to finish dismissing, so a consent sheet can appear.
@@ -1794,6 +1807,15 @@ struct FirstItemView: View {
             try? await Task.sleep(for: .milliseconds(600))
             startIdentify()
         }
+    }
+
+    /// Drops the result and the shop link and price it filled in, unless the user changed them.
+    private func resetIdentify() {
+        identify.reset()
+        if let offerURL, urlString == offerURL { urlString = "" }
+        if let autoPrice, priceText == autoPrice { priceText = "" }
+        offerURL = nil
+        autoPrice = nil
     }
 
     private func startIdentify() {
@@ -1804,6 +1826,27 @@ struct FirstItemView: View {
             withAnimation(Theme.spring) {
                 if let value = prefill.title { title = value }
                 if let value = prefill.notes { notes = value }
+            }
+        } applyOffer: { offer in
+            applyOffer(offer)
+        }
+    }
+
+    /// Puts a shop's link and price in the form, unless the user added a link of their own.
+    private func applyOffer(_ offer: ShopOffer) {
+        let current = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard current.isEmpty || current == offerURL else { return }
+        let link = offer.url.absoluteString
+        withAnimation(Theme.spring) {
+            if current != link {
+                skipNextURLFetch = true
+                urlString = link
+            }
+            offerURL = link
+            if priceText.isEmpty || priceText == autoPrice {
+                priceText = offer.priceInput
+                currency = offer.currency
+                autoPrice = offer.priceInput
             }
         }
     }

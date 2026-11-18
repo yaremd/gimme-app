@@ -5,8 +5,21 @@
 // Two ways in:
 //   - signed in: the user's access token; monthly quota (free / Pro)
 //   - signed out: one free try per device, proven with an Apple DeviceCheck token
+//
+// An identified product also comes back with an `offersToken`. Posting it back
+// ({ offersToken, country, currency }) runs that photo's one shop search: a web
+// search for shops selling the product, with each price confirmed on the shop's page.
 
 import { type DeviceCheckClient, type DeviceCheckEnvironment, InvalidDeviceToken } from "./devicecheck.ts";
+import {
+  buildOffersUserText,
+  OFFERS_TICKET_TTL_SECONDS,
+  type PageCheck,
+  pickOffers,
+  readReportedOffers,
+  signTicket,
+  verifyTicket,
+} from "./offers.ts";
 import { buildUserText, normalizeResult, type ProductIdentification } from "./prompt.ts";
 
 export interface Usage {
@@ -47,6 +60,46 @@ export interface Config {
   maxImageBytes: number;
 }
 
+export interface OffersModelCall {
+  stopReason: string | null;
+  /** The input of the model's report_offers call; null when it didn't make one. */
+  report: unknown;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  /** Web searches the call ran; each is billed on top of tokens. */
+  searches: number;
+}
+
+export type OffersOutcome = "ok" | "none" | "failed";
+
+export interface OffersDeps {
+  /** HMAC key for offers tickets (see offers.ts). */
+  ticketKey: CryptoKey;
+  /**
+   * Starts the identification's one shop search. False when there's nothing to start:
+   * the identification didn't name a specific product, or its search already ran.
+   */
+  claim(requestId: string): Promise<boolean>;
+  /** Makes the search available again after it failed before the model answered. */
+  release(requestId: string): Promise<void>;
+  finish(
+    requestId: string,
+    outcome: OffersOutcome,
+    details: {
+      model?: string;
+      inputTokens?: number;
+      outputTokens?: number;
+      searches?: number;
+      found: number;
+      latencyMs: number;
+    },
+  ): Promise<void>;
+  callModel(input: { userText: string; country: string | null }): Promise<OffersModelCall>;
+  /** Reads a shop page with Gimme's link reader; null when it couldn't. */
+  checkPage(url: string): Promise<PageCheck | null>;
+}
+
 export interface Deps {
   /** Resolves the signed-in caller from a bearer token; null when invalid or expired. */
   getUserId(accessToken: string): Promise<string | null>;
@@ -61,6 +114,8 @@ export interface Deps {
   callModel(input: { imageBase64: string; mediaType: string; userText: string }): Promise<ModelCall>;
   /** Present when DeviceCheck secrets are set; without it signed-out callers must sign in. */
   deviceCheck?: DeviceCheckClient;
+  /** Shop search for identified products; without it results come back with no offersToken. */
+  offers?: OffersDeps;
   config: Config;
   now(): Date;
 }
@@ -75,6 +130,7 @@ export type ErrorCode =
   | "busy"
   | "not_configured"
   | "refused"
+  | "already_searched"
   | "upstream_error"
   | "server_error";
 
@@ -160,6 +216,18 @@ type Caller =
 export async function handleIdentify(req: Request, deps: Deps): Promise<Response> {
   if (req.method !== "POST") return failure(405, "method_not_allowed", "Use POST.");
 
+  let raw: unknown = undefined;
+  try {
+    raw = await req.json();
+  } catch {
+    raw = undefined;
+  }
+
+  // A shop search for an earlier identification: the ticket is the credential.
+  if (raw && typeof raw === "object" && "offersToken" in raw) {
+    return handleOffers(raw as Record<string, unknown>, deps);
+  }
+
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   let userId: string | null = null;
   if (token) {
@@ -168,13 +236,6 @@ export async function handleIdentify(req: Request, deps: Deps): Promise<Response
     } catch {
       userId = null;
     }
-  }
-
-  let raw: unknown = undefined;
-  try {
-    raw = await req.json();
-  } catch {
-    raw = undefined;
   }
 
   let caller: Caller;
@@ -317,5 +378,111 @@ export async function handleIdentify(req: Request, deps: Deps): Promise<Response
     ...details,
     resultStatus: result.status,
   });
-  return json(200, caller.kind === "user" ? { result, usage: usageAfter } : { result, trial: true });
+
+  // Only a specific product is worth a shop search; "similar" keeps the plain search link.
+  let offersToken: string | undefined;
+  if (result.status === "identified" && deps.offers) {
+    try {
+      offersToken = await signTicket(deps.offers.ticketKey, {
+        requestId,
+        title: result.title,
+        brand: result.brand,
+        model: result.model,
+        searchQuery: result.searchQuery || result.title,
+        estimate: result.estimatedPrice,
+        expiresAt: Math.floor(now.getTime() / 1000) + OFFERS_TICKET_TTL_SECONDS,
+      });
+    } catch (error) {
+      console.error("identify-product: could not sign the offers ticket", error);
+    }
+  }
+
+  const body = caller.kind === "user" ? { result, usage: usageAfter } : { result, trial: true };
+  return json(200, offersToken ? { ...body, offersToken } : body);
+}
+
+/** How many offers the app gets back, cheapest first. */
+const OFFERS_RETURNED = 3;
+
+async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<Response> {
+  const offers = deps.offers;
+  if (!deps.config.apiKeyConfigured || !offers) {
+    return failure(503, "not_configured", "Shop search isn't set up yet.");
+  }
+
+  const nowSeconds = Math.floor(deps.now().getTime() / 1000);
+  const ticket = typeof body.offersToken === "string"
+    ? await verifyTicket(offers.ticketKey, body.offersToken, nowSeconds)
+    : null;
+  if (!ticket) return failure(401, "unauthorized", "This search has expired. Identify the photo again.");
+
+  const country = typeof body.country === "string" && /^[A-Za-z]{2}$/.test(body.country)
+    ? body.country.toUpperCase()
+    : null;
+  const currency = typeof body.currency === "string" && /^[A-Za-z]{3}$/.test(body.currency)
+    ? body.currency.toUpperCase()
+    : ticket.estimate?.currency ?? "USD";
+
+  let claimed: boolean;
+  try {
+    claimed = await offers.claim(ticket.requestId);
+  } catch (error) {
+    console.error("identify-product: offers claim failed", error);
+    return failure(500, "server_error", "Something went wrong. Try again.");
+  }
+  if (!claimed) return failure(409, "already_searched", "Shops were already searched for this photo.");
+
+  const started = Date.now();
+  const finish = async (outcome: Parameters<OffersDeps["finish"]>[1], details: Parameters<OffersDeps["finish"]>[2]) => {
+    try {
+      await offers.finish(ticket.requestId, outcome, details);
+    } catch (error) {
+      console.error("identify-product: could not record the offers outcome", error);
+    }
+  };
+
+  let call: OffersModelCall;
+  try {
+    call = await offers.callModel({ userText: buildOffersUserText(ticket, country, currency), country });
+  } catch (error) {
+    console.error("identify-product: offers search failed", error);
+    try {
+      await offers.release(ticket.requestId);
+    } catch (releaseError) {
+      console.error("identify-product: could not release the offers search", releaseError);
+    }
+    return failure(502, "upstream_error", "Couldn't search shops. Try again.");
+  }
+
+  const details = {
+    model: call.model,
+    inputTokens: call.inputTokens,
+    outputTokens: call.outputTokens,
+    searches: call.searches,
+  };
+  const reported = call.stopReason === "refusal" ? null : readReportedOffers(call.report);
+  if (!reported) {
+    console.error("identify-product: no usable offers report", call.stopReason);
+    await finish("failed", { ...details, found: 0, latencyMs: Date.now() - started });
+    return json(200, { offers: [] });
+  }
+
+  // Confirm each price on the shop's own page: search results can be stale.
+  const checked = await Promise.all(reported.map(async (offer) => {
+    let page: PageCheck | null = null;
+    try {
+      page = await offers.checkPage(offer.url);
+    } catch {
+      page = null;
+    }
+    return { reported: offer, page };
+  }));
+  const picked = pickOffers(checked, { currency, estimate: ticket.estimate, max: OFFERS_RETURNED });
+
+  await finish(picked.length > 0 ? "ok" : "none", {
+    ...details,
+    found: picked.length,
+    latencyMs: Date.now() - started,
+  });
+  return json(200, { offers: picked });
 }

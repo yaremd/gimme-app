@@ -29,6 +29,10 @@ struct IdentifyPhotoCard: View {
     let onFindOnline: (URL) -> Void
     let onUpgrade: () -> Void
     let onSignIn: () -> Void
+    /// The shop search that follows an identified product.
+    var offers: OffersPhase = .idle
+    var onOpenOffer: (URL) -> Void = { _ in }
+    var onSelectOffer: (ShopOffer) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +78,7 @@ struct IdentifyPhotoCard: View {
             }
         }
         .animation(Theme.spring, value: phase)
+        .animation(Theme.spring, value: offers)
     }
 
     // MARK: - States
@@ -86,18 +91,24 @@ struct IdentifyPhotoCard: View {
                 ? "Details filled in below"
                 : "Not an exact match, so check the details")
 
-        if let estimate = result.estimatedPrice {
-            divider
-            row(icon: "tag", title: "Usually \(estimate.rangeText)", subtitle: "Typical price new") {
-                trailingButton("Use") { onUseEstimate(estimate) }
+        switch offers {
+        case .found(let list, let selectedID):
+            if let selected = list.first(where: { $0.id == selectedID }) ?? list.first {
+                divider
+                offerRow(list, selected: selected)
             }
-        }
-
-        if let url = result.shoppingSearchURL {
+        case .searching:
+            estimateRow(result)
             divider
-            actionRow(icon: "magnifyingglass", title: "Find it online",
-                      subtitle: "Paste a store link above to track its price",
-                      trailingSymbol: "arrow.up.right") { onFindOnline(url) }
+            row(icon: nil, title: "Finding the best price…", subtitle: "Checking shops for this item") { EmptyView() }
+        case .idle, .none:
+            estimateRow(result)
+            if let url = result.shoppingSearchURL {
+                divider
+                actionRow(icon: "magnifyingglass", title: "Find it online",
+                          subtitle: "Paste a store link above to track its price",
+                          trailingSymbol: "arrow.up.right") { onFindOnline(url) }
+            }
         }
 
         if wasTrial {
@@ -105,6 +116,49 @@ struct IdentifyPhotoCard: View {
             row(icon: "person.crop.circle.badge.plus", title: "That was your free try",
                 subtitle: Self.keepGoing) {
                 trailingButton("Sign In", action: onSignIn)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func estimateRow(_ result: ProductIdentification) -> some View {
+        if let estimate = result.estimatedPrice {
+            divider
+            row(icon: "tag", title: "Usually \(estimate.rangeText)", subtitle: "Typical price new") {
+                trailingButton("Use") { onUseEstimate(estimate) }
+            }
+        }
+    }
+
+    /// The offer in the form, with the others behind "Change".
+    private func offerRow(_ list: [ShopOffer], selected: ShopOffer) -> some View {
+        row(icon: "cart",
+            title: "\(selected.priceText) at \(selected.store)",
+            subtitle: selected.best ? "Best price found, link added" : "Link and price added") {
+            HStack(spacing: Theme.Spacing.sm) {
+                if list.count > 1 {
+                    Menu {
+                        ForEach(list) { offer in
+                            Button { onSelectOffer(offer) } label: {
+                                if offer.id == selected.id {
+                                    Label("\(offer.priceText) · \(offer.store)", systemImage: "checkmark")
+                                } else {
+                                    Text("\(offer.priceText) · \(offer.store)")
+                                }
+                            }
+                        }
+                    } label: {
+                        capsuleLabel("Change")
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button { onOpenOffer(selected.url) } label: {
+                    chevron("arrow.up.right")
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open \(selected.store)")
             }
         }
     }
@@ -266,7 +320,7 @@ struct IdentifyConsentSheet: View {
                     Text("Identify items from photos")
                         .font(.rounded(.title3, weight: .bold))
                         .foregroundStyle(Theme.Colors.textPrimary)
-                    Text("Gimme sends the photo you choose to Claude, an AI model made by Anthropic. It recognises the item and suggests a name, details and a typical price.")
+                    Text("Gimme sends the photo you choose to Claude, an AI model made by Anthropic. It recognises the item, suggests a name, details and a typical price, and looks for shops that sell it.")
                         .font(.system(.subheadline))
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -275,6 +329,7 @@ struct IdentifyConsentSheet: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     point("hand.tap", "Only photos you choose to identify are sent")
                     point("person.crop.circle.badge.checkmark", "Sent without your name or email")
+                    point("cart", "Shops are searched by the item's name, never the photo")
                     point("gearshape", "Turn it off anytime in Settings")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -340,6 +395,19 @@ struct IdentifyConsentSheet: View {
                                   onTakePhoto: {}, onChooseFromLibrary: {}, onIdentify: {},
                                   onUseEstimate: { _ in }, onFindOnline: { _ in },
                                   onUpgrade: {}, onSignIn: {})
+                .background(Theme.Colors.surface,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            }
+            ForEach(Array([
+                OffersPhase.searching,
+                .found(MockProductIdentificationService.offers,
+                       selected: MockProductIdentificationService.offers[0].id),
+            ].enumerated()), id: \.offset) { _, offers in
+                IdentifyPhotoCard(phase: .done(MockProductIdentificationService.sneakers), hasPhoto: true,
+                                  usage: nil, isPro: false, accentColor: Theme.Colors.accent,
+                                  onTakePhoto: {}, onChooseFromLibrary: {}, onIdentify: {},
+                                  onUseEstimate: { _ in }, onFindOnline: { _ in },
+                                  onUpgrade: {}, onSignIn: {}, offers: offers)
                 .background(Theme.Colors.surface,
                             in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             }

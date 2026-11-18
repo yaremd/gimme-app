@@ -7,9 +7,13 @@ import {
   type Deps,
   handleIdentify,
   type ModelCall,
+  type OffersDeps,
+  type OffersModelCall,
+  type OffersOutcome,
   type RequestOutcome,
   startOfNextMonthUTC,
 } from "./handler.ts";
+import { makeTicketKey, type OffersTicket, type PageCheck, signTicket, verifyTicket } from "./offers.ts";
 import { normalizeResult } from "./prompt.ts";
 
 class FakeDeviceCheck implements DeviceCheckClient {
@@ -65,6 +69,7 @@ function makeDeps(overrides: {
   model?: Partial<ModelCall> | (() => Promise<ModelCall>);
   apiKeyConfigured?: boolean;
   maxImageBytes?: number;
+  offers?: OffersDeps;
 } = {}): { deps: Deps; rec: Recorder } {
   const rec: Recorder = { claims: [], trialClaims: [], finishes: [], modelCalls: [] };
   const deps: Deps = {
@@ -95,6 +100,7 @@ function makeDeps(overrides: {
         ...overrides.model,
       });
     },
+    offers: overrides.offers,
     config: {
       apiKeyConfigured: overrides.apiKeyConfigured ?? true,
       freeMonthlyLimit: 5,
@@ -424,5 +430,253 @@ Deno.test("startOfNextMonthUTC rolls over the year", () => {
 Deno.test("decodedLength matches the decoded byte count", () => {
   for (const s of ["", "a", "ab", "abc", "hello world"]) {
     assertEquals(decodedLength(btoa(s)), s.length);
+  }
+});
+
+// MARK: - Shop search
+
+const NIKE_URL = "https://www.nike.com/gb/t/air-max-90-shoes";
+const JD_URL = "https://www.jdsports.co.uk/product/air-max-90/123";
+
+const defaultReport = {
+  offers: [
+    { store: "Nike", url: NIKE_URL, price: 129.99, currency: "GBP" },
+    { store: "JD Sports", url: JD_URL, price: 119.99, currency: "GBP" },
+    { store: "Google Shopping", url: "https://www.google.com/shopping/product/1", price: 99, currency: "GBP" },
+  ],
+};
+
+const defaultPages: Record<string, PageCheck | null | Error> = {
+  [NIKE_URL]: { price: 129.99, currency: "GBP", title: "Nike Air Max 90 Shoes" },
+  [JD_URL]: { price: 114.99, currency: "GBP", title: "Nike Air Max 90 | JD Sports" },
+};
+
+interface OffersRecorder {
+  claims: string[];
+  releases: string[];
+  finishes: Array<{ requestId: string; outcome: OffersOutcome; found: number; searches?: number }>;
+  modelCalls: Array<{ userText: string; country: string | null }>;
+  pageChecks: string[];
+}
+
+async function makeOffers(overrides: {
+  claim?: boolean | Error;
+  model?: Partial<OffersModelCall> | Error;
+  pages?: Record<string, PageCheck | null | Error>;
+} = {}): Promise<{ offers: OffersDeps; rec: OffersRecorder }> {
+  const rec: OffersRecorder = { claims: [], releases: [], finishes: [], modelCalls: [], pageChecks: [] };
+  const offers: OffersDeps = {
+    ticketKey: await makeTicketKey("test-secret"),
+    claim: (requestId) => {
+      rec.claims.push(requestId);
+      if (overrides.claim instanceof Error) return Promise.reject(overrides.claim);
+      return Promise.resolve(overrides.claim ?? true);
+    },
+    release: (requestId) => {
+      rec.releases.push(requestId);
+      return Promise.resolve();
+    },
+    finish: (requestId, outcome, details) => {
+      rec.finishes.push({ requestId, outcome, found: details.found, searches: details.searches });
+      return Promise.resolve();
+    },
+    callModel: (input) => {
+      rec.modelCalls.push(input);
+      if (overrides.model instanceof Error) return Promise.reject(overrides.model);
+      return Promise.resolve({
+        stopReason: "tool_use",
+        report: defaultReport,
+        model: "claude-opus-5-5",
+        inputTokens: 9000,
+        outputTokens: 1200,
+        searches: 2,
+        ...overrides.model,
+      });
+    },
+    checkPage: (url) => {
+      rec.pageChecks.push(url);
+      const page = (overrides.pages ?? defaultPages)[url];
+      if (page instanceof Error) return Promise.reject(page);
+      return Promise.resolve(page ?? null);
+    },
+  };
+  return { offers, rec };
+}
+
+function ticketFor(overrides: Partial<OffersTicket> = {}): OffersTicket {
+  return {
+    requestId: "req-1",
+    title: "Nike Air Max 90",
+    brand: "Nike",
+    model: "Air Max 90",
+    searchQuery: "Nike Air Max 90 white infrared",
+    estimate: { low: 110, high: 140, currency: "GBP" },
+    expiresAt: Math.floor(NOW.getTime() / 1000) + 600,
+    ...overrides,
+  };
+}
+
+Deno.test("an identified product comes back with a ticket for its shop search", async () => {
+  const { offers } = await makeOffers();
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(post({ image: IMAGE, currency: "GBP" }), deps);
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(typeof body.offersToken, "string");
+
+  const ticket = await verifyTicket(offers.ticketKey, body.offersToken, Math.floor(NOW.getTime() / 1000));
+  assert(ticket, "the ticket verifies");
+  assertEquals(ticket.requestId, "req-1");
+  assertEquals(ticket.title, "Nike Air Max 90");
+  assertEquals(ticket.searchQuery, "Nike Air Max 90 white infrared");
+  assertEquals(ticket.estimate, { low: 120, high: 140, currency: "GBP" });
+  assertEquals(ticket.expiresAt, Math.floor(NOW.getTime() / 1000) + 15 * 60);
+});
+
+Deno.test("a free try's identified product gets a ticket too", async () => {
+  const { offers } = await makeOffers();
+  const { deps } = makeDeps({ userId: null, deviceCheck: new FakeDeviceCheck(), offers });
+  const res = await handleIdentify(post({ image: IMAGE, deviceToken: "device-a" }, null), deps);
+  const body = await res.json();
+  assertEquals(body.trial, true);
+  const ticket = await verifyTicket(offers.ticketKey, body.offersToken, Math.floor(NOW.getTime() / 1000));
+  assertEquals(ticket?.requestId, "trial-1");
+});
+
+Deno.test("similar items, and setups without shop search, get no ticket", async () => {
+  const { offers } = await makeOffers();
+  const similar = makeDeps({
+    offers,
+    model: { text: JSON.stringify({ ...goodModelOutput, status: "similar" }) },
+  });
+  const similarBody = await (await handleIdentify(post({ image: IMAGE }), similar.deps)).json();
+  assertEquals(similarBody.result.status, "similar");
+  assertEquals(similarBody.offersToken, undefined);
+
+  const noOffers = makeDeps();
+  const noOffersBody = await (await handleIdentify(post({ image: IMAGE }), noOffers.deps)).json();
+  assertEquals(noOffersBody.result.status, "identified");
+  assertEquals(noOffersBody.offersToken, undefined);
+});
+
+Deno.test("a shop search returns offers confirmed on the shop's page, cheapest first", async () => {
+  const { offers, rec } = await makeOffers();
+  const { deps, rec: identifyRec } = makeDeps({ offers });
+  const token = await signTicket(offers.ticketKey, ticketFor());
+
+  const res = await handleIdentify(post({ offersToken: token, country: "gb", currency: "gbp" }, null), deps);
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals(body.offers, [
+    {
+      store: "JD Sports",
+      url: JD_URL,
+      title: "Nike Air Max 90 | JD Sports",
+      price: 114.99, // the page's price, not the search result's 119.99
+      currency: "GBP",
+      best: true,
+    },
+    { store: "Nike", url: NIKE_URL, title: "Nike Air Max 90 Shoes", price: 129.99, currency: "GBP", best: false },
+  ]);
+
+  assertEquals(rec.claims, ["req-1"]);
+  assertEquals(rec.modelCalls.length, 1);
+  assertEquals(rec.modelCalls[0].country, "GB");
+  assert(rec.modelCalls[0].userText.includes("User's country: GB"));
+  assert(rec.modelCalls[0].userText.includes("Prices in: GBP"));
+  // Google isn't a shop, so its page is never fetched.
+  assertEquals(rec.pageChecks.sort(), [JD_URL, NIKE_URL].sort());
+  assertEquals(rec.finishes, [{ requestId: "req-1", outcome: "ok", found: 2, searches: 2 }]);
+  // No identification or quota is involved.
+  assertEquals(identifyRec.claims.length, 0);
+  assertEquals(identifyRec.modelCalls.length, 0);
+});
+
+Deno.test("a shop search needs a valid ticket that hasn't expired", async () => {
+  const { offers, rec } = await makeOffers();
+  const { deps } = makeDeps({ offers });
+  const good = await signTicket(offers.ticketKey, ticketFor());
+  const [payload, mac] = good.split(".");
+  const forged = await signTicket(await makeTicketKey("another-secret"), ticketFor());
+  const expired = await signTicket(offers.ticketKey, ticketFor({ expiresAt: Math.floor(NOW.getTime() / 1000) - 1 }));
+  const otherPayload = (await signTicket(offers.ticketKey, ticketFor({ requestId: "req-2" }))).split(".")[0];
+
+  for (const offersToken of ["", "nonsense", `${otherPayload}.${mac}`, `${payload}.${mac}x`, forged, expired, 42]) {
+    const res = await handleIdentify(post({ offersToken }, null), deps);
+    assertEquals(res.status, 401, `token: ${offersToken}`);
+    assertEquals((await res.json()).code, "unauthorized");
+  }
+  assertEquals(rec.claims.length, 0);
+  assertEquals(rec.modelCalls.length, 0);
+});
+
+Deno.test("each identification gets one shop search", async () => {
+  const { offers, rec } = await makeOffers({ claim: false });
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(post({ offersToken: await signTicket(offers.ticketKey, ticketFor()) }, null), deps);
+  assertEquals(res.status, 409);
+  assertEquals((await res.json()).code, "already_searched");
+  assertEquals(rec.modelCalls.length, 0);
+});
+
+Deno.test("a search that failed before the model answered can be retried", async () => {
+  const { offers, rec } = await makeOffers({ model: new Error("timeout") });
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(post({ offersToken: await signTicket(offers.ticketKey, ticketFor()) }, null), deps);
+  assertEquals(res.status, 502);
+  assertEquals((await res.json()).code, "upstream_error");
+  assertEquals(rec.releases, ["req-1"]);
+  assertEquals(rec.finishes.length, 0);
+});
+
+Deno.test("a refusal or a missing report means no offers", async () => {
+  for (const model of [{ stopReason: "refusal" }, { stopReason: "end_turn", report: null }, { report: { offers: "x" } }]) {
+    const { offers, rec } = await makeOffers({ model });
+    const { deps } = makeDeps({ offers });
+    const res = await handleIdentify(post({ offersToken: await signTicket(offers.ticketKey, ticketFor()) }, null), deps);
+    assertEquals(res.status, 200);
+    assertEquals((await res.json()).offers, []);
+    assertEquals(rec.finishes, [{ requestId: "req-1", outcome: "failed", found: 0, searches: 2 }]);
+    assertEquals(rec.pageChecks.length, 0);
+  }
+});
+
+Deno.test("offers whose page doesn't confirm a price in the right currency are dropped", async () => {
+  const { offers, rec } = await makeOffers({
+    pages: {
+      [NIKE_URL]: { price: null, currency: "GBP", title: "Nike" }, // no price on the page
+      [JD_URL]: { price: 114.99, currency: "USD", title: "JD" }, // another currency
+    },
+  });
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(
+    post({ offersToken: await signTicket(offers.ticketKey, ticketFor()), currency: "GBP" }, null),
+    deps,
+  );
+  assertEquals((await res.json()).offers, []);
+  assertEquals(rec.finishes[0].outcome, "none");
+});
+
+Deno.test("a page that can't be read only drops that offer", async () => {
+  const { offers } = await makeOffers({
+    pages: { ...defaultPages, [JD_URL]: new Error("blocked") },
+  });
+  const { deps } = makeDeps({ offers });
+  const res = await handleIdentify(
+    post({ offersToken: await signTicket(offers.ticketKey, ticketFor()), currency: "GBP" }, null),
+    deps,
+  );
+  const body = await res.json();
+  assertEquals(body.offers.map((o: { store: string }) => o.store), ["Nike"]);
+  assertEquals(body.offers[0].best, true);
+});
+
+Deno.test("shop search reports not_configured when it isn't set up", async () => {
+  const { offers } = await makeOffers();
+  const token = await signTicket(offers.ticketKey, ticketFor());
+  for (const { deps } of [makeDeps(), makeDeps({ offers, apiKeyConfigured: false })]) {
+    const res = await handleIdentify(post({ offersToken: token }, null), deps);
+    assertEquals(res.status, 503);
+    assertEquals((await res.json()).code, "not_configured");
   }
 });

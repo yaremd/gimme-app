@@ -58,6 +58,13 @@ struct AddItemView: View {
     @State private var identify = IdentifyController()
     /// Set when a photo is picked from the identify card, so it's identified right away.
     @State private var identifyAfterPick = false
+    /// Skips the link fetch once, when a shop offer fills the link: fetching it would
+    /// swap the user's photo for the shop's image.
+    @State private var skipNextURLFetch = false
+    /// The link and price the photo flow put in the form. It may replace these, never
+    /// a link or price the user entered.
+    @State private var offerURL: String?
+    @State private var autoPrice: String?
     @State private var didApplyInitialImage = false
     @State private var isShowingPaywall = false
     @State private var isShowingAuth = false
@@ -254,6 +261,10 @@ struct AddItemView: View {
                 .pageSheet()
             }
             .onChange(of: urlString) { oldValue, newValue in
+                if skipNextURLFetch {
+                    skipNextURLFetch = false
+                    return
+                }
                 // Auto-fetch when a URL is pasted (large text change, not typed char-by-char)
                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 let wasEmpty = oldValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -319,7 +330,10 @@ struct AddItemView: View {
             onUseEstimate: { useEstimate($0) },
             onFindOnline: { openURL($0) },
             onUpgrade: { isShowingPaywall = true },
-            onSignIn: { isShowingAuth = true }
+            onSignIn: { isShowingAuth = true },
+            offers: identify.offers,
+            onOpenOffer: { openURL($0) },
+            onSelectOffer: { identify.selectOffer($0) }
         )
         .background(Theme.Colors.surface,
                     in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -352,14 +366,42 @@ struct AddItemView: View {
         }
     }
 
+    /// Drops the result and anything it filled in that the user hasn't changed:
+    /// a shop link and price for the old photo would be for the wrong item.
     private func resetIdentify() {
         identify.reset()
+        if let offerURL, urlString == offerURL { urlString = "" }
+        if let autoPrice, priceText == autoPrice { priceText = "" }
+        offerURL = nil
+        autoPrice = nil
     }
 
     private func startIdentify() {
         guard let data = localImageData, localImageIsPhoto else { return }
         identify.start(imageData: data, currency: currency, isSignedIn: auth.isSignedIn) { result in
             applyIdentification(result)
+        } applyOffer: { offer in
+            applyOffer(offer)
+        }
+    }
+
+    /// Puts a shop's link and price in the form, unless the user added a link of their
+    /// own. The price replaces an estimate or an earlier offer, not one the user typed.
+    private func applyOffer(_ offer: ShopOffer) {
+        let current = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard current.isEmpty || current == offerURL else { return }
+        let link = offer.url.absoluteString
+        withAnimation(Theme.spring) {
+            if current != link {
+                skipNextURLFetch = true
+                urlString = link
+            }
+            offerURL = link
+            if priceText.isEmpty || priceText == autoPrice {
+                priceText = offer.priceInput
+                currency = offer.currency
+                autoPrice = offer.priceInput
+            }
         }
     }
 
@@ -377,6 +419,7 @@ struct AddItemView: View {
     private func useEstimate(_ estimate: ProductIdentification.PriceEstimate) {
         priceText = "\(estimate.midpoint)"
         currency = estimate.currency
+        autoPrice = priceText   // a shop's real price may replace the estimate
         Haptics.selection()
     }
 

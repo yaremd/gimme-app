@@ -92,6 +92,68 @@ struct ProductIdentificationResponse: Decodable, Sendable, Equatable {
     let usage: IdentifyUsage?
     /// True when this was a signed-out user's one free try.
     var trial: Bool? = nil
+    /// Present when a specific product was identified: pass it to `findOffers` for the
+    /// photo's one shop search. Expires 15 minutes after the identification.
+    var offersToken: String? = nil
+}
+
+/// A shop selling the identified product. The price was read from the shop's own
+/// page, not taken from search results.
+struct ShopOffer: Codable, Sendable, Equatable, Identifiable {
+    let store: String
+    let url: URL
+    /// The page's own title, when the link reader found one.
+    let title: String?
+    let price: Decimal
+    let currency: String
+    /// The cheapest of the offers found.
+    let best: Bool
+
+    var id: URL { url }
+
+    init(store: String, url: URL, title: String?, price: Decimal, currency: String, best: Bool) {
+        self.store = store
+        self.url = url
+        self.title = title
+        self.price = price
+        self.currency = currency
+        self.best = best
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        store = try container.decode(String.self, forKey: .store)
+        url = try container.decode(URL.self, forKey: .url)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        // JSON numbers can arrive with binary noise (114.98999…); prices have cents at most.
+        var raw = try container.decode(Decimal.self, forKey: .price)
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &raw, 2, .plain)
+        price = rounded
+        currency = try container.decode(String.self, forKey: .currency)
+        best = try container.decodeIfPresent(Bool.self, forKey: .best) ?? false
+    }
+
+    /// The price as the form's price field holds it, e.g. "114.99".
+    var priceInput: String { "\(price)" }
+
+    /// "£114.99" in the user's locale; whole amounts drop the decimals.
+    var priceText: String { priceText(locale: .current) }
+
+    func priceText(locale: Locale) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        if currency == "USD" { formatter.currencySymbol = "$" }
+        var value = price
+        var whole = Decimal()
+        NSDecimalRound(&whole, &value, 0, .plain)
+        let digits = whole == price ? 0 : 2
+        formatter.minimumFractionDigits = digits
+        formatter.maximumFractionDigits = digits
+        return formatter.string(from: price as NSDecimalNumber) ?? "\(currency) \(price)"
+    }
 }
 
 // MARK: - Errors
@@ -141,11 +203,15 @@ protocol ProductIdentificationService: Sendable {
     /// Whether a signed-out user can still use this device's one free try.
     var offersTrial: Bool { get }
     func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse
+    /// Shops selling an identified product, cheapest first, with prices in `currency`
+    /// from shops in `country` (ISO 3166 code). Empty when none could be confirmed.
+    func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer]
 }
 
 extension ProductIdentificationService {
     var requiresSignIn: Bool { true }
     var offersTrial: Bool { false }
+    func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] { [] }
 }
 
 enum ProductIdentifier {
@@ -250,12 +316,65 @@ struct LiveProductIdentificationService: ProductIdentificationService {
         UserDefaults.standard.set(true, forKey: trialUsedKey)
     }
 
+    /// The token is the credential, so this works signed out too (after the free try).
+    func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] {
+        var request = URLRequest(url: Self.endpoint)
+        request.httpMethod = "POST"
+        // A web search plus a look at each shop's page; the server gives up within ~2 minutes.
+        request.timeoutInterval = 140
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        request.httpBody = try JSONEncoder().encode(OffersRequestBody(
+            offersToken: token, country: country, currency: currency
+        ))
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw ProductIdentificationError.network
+        }
+        return try OffersResponseDecoder.decode(status: (response as? HTTPURLResponse)?.statusCode ?? 0, data: data)
+    }
+
     private struct RequestBody: Encodable {
         let image: String
         let mediaType: String
         let currency: String
         let deviceToken: String?
         let deviceCheckEnvironment: String?
+    }
+
+    private struct OffersRequestBody: Encodable {
+        let offersToken: String
+        let country: String?
+        let currency: String
+    }
+}
+
+/// Turns a shop search response into offers or an error.
+enum OffersResponseDecoder {
+
+    private struct Body: Decodable {
+        let offers: [ShopOffer]
+    }
+
+    private struct FailureBody: Decodable {
+        let code: String?
+        let error: String?
+    }
+
+    static func decode(status: Int, data: Data) throws -> [ShopOffer] {
+        guard (200..<300).contains(status) else {
+            let failure = try? JSONDecoder().decode(FailureBody.self, from: data)
+            throw ProductIdentificationError.server(failure?.error ?? "Couldn't search shops (\(status)).")
+        }
+        do {
+            return try JSONDecoder().decode(Body.self, from: data).offers
+        } catch {
+            throw ProductIdentificationError.server("Couldn't read the shops.")
+        }
     }
 }
 
@@ -338,19 +457,35 @@ struct IdentifyPrefill: Equatable {
 
 #if DEBUG
 /// Canned results for previews, UI checks and working without the backend.
-/// Launch with `-mockIdentify identified` (or similar, not_product, quota, offline,
-/// trial, trial_used). `trial` behaves like a signed-out device's one free try:
-/// it needs sign-in afterwards, until the app is reinstalled.
+/// Launch with `-mockIdentify identified` (or no_offers, similar, not_product, quota,
+/// offline, trial, trial_used). `identified` also finds three shops a few seconds
+/// later; `no_offers` finds none. `trial` behaves like a signed-out device's one free
+/// try: it needs sign-in afterwards, until the app is reinstalled.
 struct MockProductIdentificationService: ProductIdentificationService {
 
     enum Scenario: String {
         case identified
+        case noOffers = "no_offers"
         case similar
         case notProduct = "not_product"
         case quota
         case offline
         case trial
         case trialUsed = "trial_used"
+    }
+
+    static let offers: [ShopOffer] = [
+        ShopOffer(store: "Foot Locker", url: URL(string: "https://www.example.com/footlocker/air-max-90")!,
+                  title: "Nike Air Max 90", price: Decimal(string: "114.99")!, currency: "USD", best: true),
+        ShopOffer(store: "JD Sports", url: URL(string: "https://www.example.com/jdsports/air-max-90")!,
+                  title: "Nike Air Max 90", price: Decimal(string: "119.99")!, currency: "USD", best: false),
+        ShopOffer(store: "Nike", url: URL(string: "https://www.example.com/nike/air-max-90")!,
+                  title: "Nike Air Max 90 Shoes", price: 130, currency: "USD", best: false),
+    ]
+
+    func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] {
+        try await Task.sleep(for: .milliseconds(2500))
+        return scenario == .noOffers ? [] : Self.offers
     }
 
     let scenario: Scenario
@@ -381,8 +516,8 @@ struct MockProductIdentificationService: ProductIdentificationService {
         let usage = IdentifyUsage(used: 2, limit: 5, remaining: 3,
                                   periodEnd: Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now)
         switch scenario {
-        case .identified:
-            return .init(result: Self.sneakers, usage: usage)
+        case .identified, .noOffers:
+            return .init(result: Self.sneakers, usage: usage, offersToken: "mock-offers")
         case .similar:
             return .init(result: .init(
                 status: .similar, title: "Grey wool beanie with leather patch", brand: nil, model: nil,
@@ -404,7 +539,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
             throw ProductIdentificationError.network
         case .trial:
             UserDefaults.standard.set(true, forKey: LiveProductIdentificationService.trialUsedKey)
-            return .init(result: Self.sneakers, usage: nil, trial: true)
+            return .init(result: Self.sneakers, usage: nil, trial: true, offersToken: "mock-offers")
         case .trialUsed:
             throw ProductIdentificationError.trialUsed
         }

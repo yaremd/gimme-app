@@ -163,19 +163,28 @@ private final class FakeIdentifyService: ProductIdentificationService, @unchecke
     let requiresSignIn: Bool
     let offersTrial: Bool
     let outcome: Result<ProductIdentificationResponse, ProductIdentificationError>
+    let offersOutcome: Result<[ShopOffer], ProductIdentificationError>
     private(set) var calls = 0
+    private(set) var offerRequests: [(token: String, country: String?, currency: String)] = []
 
     init(requiresSignIn: Bool = true,
          offersTrial: Bool = false,
-         outcome: Result<ProductIdentificationResponse, ProductIdentificationError>) {
+         outcome: Result<ProductIdentificationResponse, ProductIdentificationError>,
+         offers: Result<[ShopOffer], ProductIdentificationError> = .success([])) {
         self.requiresSignIn = requiresSignIn
         self.offersTrial = offersTrial
         self.outcome = outcome
+        self.offersOutcome = offers
     }
 
     func identify(imageData: Data, currency: String) async throws -> ProductIdentificationResponse {
         calls += 1
         return try outcome.get()
+    }
+
+    func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] {
+        offerRequests.append((token, country, currency))
+        return try offersOutcome.get()
     }
 }
 
@@ -301,6 +310,145 @@ struct IdentifyControllerTests {
         controller.start(imageData: photo, currency: "USD", isSignedIn: false) { _ in }
         await settle(controller)
         #expect(controller.phase == .done(MockProductIdentificationService.sneakers))
+    }
+
+    // MARK: Shop search
+
+    private let offers = MockProductIdentificationService.offers
+
+    private func identifiedWithTicket() -> Result<ProductIdentificationResponse, ProductIdentificationError> {
+        .success(ProductIdentificationResponse(result: MockProductIdentificationService.sneakers, usage: usage,
+                                               offersToken: "ticket-1"))
+    }
+
+    private func settleOffers(_ controller: IdentifyController) async {
+        await settle(controller)
+        for _ in 0..<200 where controller.offers == .searching {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        try? await Task.sleep(for: .milliseconds(20))
+    }
+
+    @Test func anIdentifiedProductGetsItsCheapestShopInTheForm() async {
+        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true),
+                                            locale: Locale(identifier: "en_GB"))
+        var applied: [ShopOffer] = []
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { applied.append($0) }
+        await settleOffers(controller)
+
+        // Shops are searched where the user is, in their local currency.
+        #expect(service.offerRequests.count == 1)
+        #expect(service.offerRequests.first?.token == "ticket-1")
+        #expect(service.offerRequests.first?.country == "GB")
+        #expect(service.offerRequests.first?.currency == "GBP")
+        #expect(applied == [offers[0]])
+        #expect(controller.offers == .found(offers, selected: offers[0].id))
+    }
+
+    @Test func pickingAnotherOfferPutsItInTheForm() async {
+        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        var applied: [ShopOffer] = []
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { applied.append($0) }
+        await settleOffers(controller)
+
+        controller.selectOffer(offers[2])
+        #expect(applied == [offers[0], offers[2]])
+        #expect(controller.offers == .found(offers, selected: offers[2].id))
+
+        // An offer that wasn't found can't be put in the form.
+        let stranger = ShopOffer(store: "Elsewhere", url: URL(string: "https://elsewhere.example/x")!,
+                                 title: nil, price: 1, currency: "USD", best: false)
+        controller.selectOffer(stranger)
+        #expect(applied.count == 2)
+    }
+
+    @Test func noTicketMeansNoShopSearch() async {
+        let service = FakeIdentifyService(outcome: success(), offers: .success(offers))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        var appliedCount = 0
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
+        await settleOffers(controller)
+        #expect(service.offerRequests.isEmpty)
+        #expect(controller.offers == .idle)
+        #expect(appliedCount == 0)
+    }
+
+    @Test func noShopsOrAFailedSearchFallsBackToFindItOnline() async {
+        for outcome: Result<[ShopOffer], ProductIdentificationError> in [.success([]), .failure(.network)] {
+            let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: outcome)
+            let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+            var appliedCount = 0
+            controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
+            await settleOffers(controller)
+            #expect(controller.phase == .done(MockProductIdentificationService.sneakers))
+            #expect(controller.offers == OffersPhase.none)
+            #expect(appliedCount == 0)
+        }
+    }
+
+    @Test func offersForAReplacedPhotoAreDropped() async {
+        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
+        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        var appliedCount = 0
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
+        await settle(controller)
+        controller.reset()   // the photo changed while shops were being searched
+        await settleOffers(controller)
+        #expect(controller.offers == .idle)
+        #expect(appliedCount == 0)
+    }
+}
+
+// MARK: - Shop offers
+
+struct ShopOfferTests {
+
+    @Test func decodesOffersWithExactPrices() throws {
+        let offers = try OffersResponseDecoder.decode(status: 200, data: Data("""
+        {"offers":[
+          {"store":"JD Sports","url":"https://www.jdsports.co.uk/product/air-max-90/123","title":"Air Max 90",
+           "price":114.99,"currency":"GBP","best":true},
+          {"store":"Nike","url":"https://www.nike.com/gb/t/air-max-90","title":null,"price":130,"currency":"GBP","best":false}
+        ]}
+        """.utf8))
+        #expect(offers.count == 2)
+        #expect(offers[0].price == Decimal(string: "114.99"))
+        #expect(offers[0].priceInput == "114.99")
+        #expect(offers[0].best)
+        #expect(offers[1].title == nil)
+        #expect(offers[1].priceInput == "130")
+    }
+
+    @Test func aFailedSearchCarriesTheServerMessage() {
+        #expect(throws: ProductIdentificationError.server("Shops were already searched for this photo.")) {
+            try OffersResponseDecoder.decode(status: 409, data: Data(
+                #"{"code":"already_searched","error":"Shops were already searched for this photo."}"#.utf8
+            ))
+        }
+        #expect(throws: ProductIdentificationError.server("Couldn't read the shops.")) {
+            try OffersResponseDecoder.decode(status: 200, data: Data("{}".utf8))
+        }
+    }
+
+    @Test func anIdentificationCanCarryATicket() throws {
+        let response = try IdentifyResponseDecoder.decode(status: 200, data: Data("""
+        {"result":{"status":"identified","title":"Nike Air Max 90","brand":"Nike","model":"Air Max 90",
+         "color":null,"category":"Sneakers","description":"","estimatedPrice":null,"searchQuery":"nike air max 90",
+         "confidence":0.9},"usage":null,"offersToken":"abc.def"}
+        """.utf8))
+        #expect(response.offersToken == "abc.def")
+    }
+
+    @Test func priceTextDropsDecimalsOnlyForWholeAmounts() {
+        let gb = Locale(identifier: "en_GB")
+        let offer = ShopOffer(store: "JD", url: URL(string: "https://jd.example/x")!, title: nil,
+                              price: Decimal(string: "114.99")!, currency: "GBP", best: true)
+        #expect(offer.priceText(locale: gb) == "£114.99")
+        let whole = ShopOffer(store: "Nike", url: URL(string: "https://nike.example/x")!, title: nil,
+                              price: 130, currency: "GBP", best: false)
+        #expect(whole.priceText(locale: gb) == "£130")
     }
 }
 
