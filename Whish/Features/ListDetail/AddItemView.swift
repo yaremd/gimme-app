@@ -166,6 +166,14 @@ struct AddItemView: View {
                     }
                     .foregroundStyle(Theme.Colors.textSecondary)
                 }
+                // Same action as the button at the bottom of the form, so a long form
+                // doesn't have to be scrolled to the end to save.
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isEditing ? "Save" : "Add") { saveAndDismiss() }
+                        .fontWeight(.semibold)
+                        .tint(accentColor)
+                        .disabled(!canSave)
+                }
             }
             .interactiveDismissDisabled(!isEditing && hasUnsavedChanges)
             .confirmationDialog("You have unsaved changes", isPresented: $isShowingDiscardAlert, titleVisibility: .visible) {

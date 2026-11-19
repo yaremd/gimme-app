@@ -1413,6 +1413,13 @@ struct FirstItemView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }.foregroundStyle(Theme.Colors.textSecondary)
             }
+            // Same action as the Add Wish button at the bottom, without scrolling to it.
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Add") { saveAndDismiss() }
+                    .fontWeight(.semibold)
+                    .tint(accentColor)
+                    .disabled(!canSave)
+            }
         }
             .onAppear { currency = defaultCurrency }
             .sheet(isPresented: $isShowingImageSourcePicker) {
