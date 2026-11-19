@@ -180,6 +180,20 @@ Sizes: 6.7" (1290x2796) and 6.1" (1179x2556)
 Screenshot files: `AppStore/screenshots/*.html`
 Open in Safari at 1290x2796 viewport, export as PNG.
 
+### 1.2.0: Snap to add
+
+The live set is `AppStore/done/1-5` (1284x2778, real dark-mode screens in a phone
+frame). 1.2.0 adds `AppStore/done/6.png` (and `6.jpg`) in the same style:
+
+- Label: "Identifies it & finds the best price"
+- Headline: "Snap a photo. Gimme does the rest."
+- Screen: New Wish after identifying the orange jacket photo, with "$405 at KAILAS · Best price found, link added". It's a real Simulator capture using the Debug mock `-mockIdentify screenshot`, which uses KAILAS's own store link and its listed price.
+- Background: honey (#FFCF55 → #EE8C1B), a colour the set doesn't use yet.
+
+Put it second, right after Home: only the first three show without scrolling, and
+it's the headline feature of 1.2.0. Source: `AppStore/screenshots/15-snap-to-add.html`
+(export command inside) and `snap-to-add-screen.png`.
+
 ## App Privacy Labels
 
 **Data Used to Track You:** None

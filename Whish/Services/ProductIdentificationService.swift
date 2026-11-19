@@ -467,7 +467,8 @@ struct IdentifyPrefill: Equatable {
 /// not_product, quota, offline, trial, trial_used). `identified` also finds four shops a
 /// few seconds later, the cheapest only by its search price; `search_prices` finds only
 /// shops whose pages couldn't be checked; `similar` finds close matches to its beanie;
-/// `no_offers` finds none. `trial` behaves like a
+/// `no_offers` finds none. `screenshot` identifies the orange climbing jacket photo in
+/// the Simulator's library, for the App Store screenshot. `trial` behaves like a
 /// signed-out device's one free try: it needs sign-in afterwards, until the app is
 /// reinstalled.
 struct MockProductIdentificationService: ProductIdentificationService {
@@ -476,6 +477,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
         case identified
         case noOffers = "no_offers"
         case searchPrices = "search_prices"
+        case screenshot
         case similar
         case notProduct = "not_product"
         case quota
@@ -493,6 +495,27 @@ struct MockProductIdentificationService: ProductIdentificationService {
                   title: "Nike Air Max 90 Shoes", price: 130, currency: "USD", best: false),
         ShopOffer(store: "Walmart", url: URL(string: "https://www.example.com/walmart/air-max-90")!,
                   title: nil, price: Decimal(string: "109.99")!, currency: "USD", best: false, checked: false),
+    ]
+
+    /// The App Store screenshot's jacket, with its brand store's listed price (Nov 2026).
+    static let jacket = ProductIdentification(
+        status: .identified,
+        title: "KAILAS Mont X GORE-TEX Hardshell Jacket",
+        brand: "KAILAS",
+        model: "Mont X",
+        color: "Orange",
+        category: "Jackets",
+        description: "Waterproof GORE-TEX hardshell jacket for mountaineering and alpine climbing.",
+        estimatedPrice: .init(low: 380, high: 460, currency: "USD"),
+        searchQuery: "KAILAS Mont X GORE-TEX hardshell jacket orange",
+        confidence: 0.9
+    )
+
+    static let jacketOffers: [ShopOffer] = [
+        ShopOffer(store: "KAILAS",
+                  url: URL(string: "https://kailasgear.com/products/kailas-mont-x-gore-tex-waterproof-hardshell-jacket-unisex")!,
+                  title: "Kailas MONT X GORE-TEX Waterproof Hardshell Jacket Unisex",
+                  price: 405, currency: "USD", best: true),
     ]
 
     /// Shops for `similar`'s beanie: the closest items, one only by its search price.
@@ -516,6 +539,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
         case .noOffers: return []
         case .searchPrices: return Self.searchPriceOffers
         case .similar: return Self.closeMatchOffers
+        case .screenshot: return Self.jacketOffers
         default: return Self.offers
         }
     }
@@ -550,6 +574,8 @@ struct MockProductIdentificationService: ProductIdentificationService {
         switch scenario {
         case .identified, .noOffers, .searchPrices:
             return .init(result: Self.sneakers, usage: usage, offersToken: "mock-offers")
+        case .screenshot:
+            return .init(result: Self.jacket, usage: usage, offersToken: "mock-offers")
         case .similar:
             return .init(result: .init(
                 status: .similar, title: "Grey wool beanie with leather patch", brand: nil, model: nil,
