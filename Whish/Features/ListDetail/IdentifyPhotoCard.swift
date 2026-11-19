@@ -169,7 +169,9 @@ struct IdentifyPhotoCard: View {
     /// What the offer row says about the offer in the form. A price only the search saw
     /// is flagged, since it wasn't checked on the shop's page and can be out of date. For
     /// a photo that was only a close match, the shops sell the closest item found.
-    static func offerSubtitle(_ selected: ShopOffer, in list: [ShopOffer], exactMatch: Bool = true) -> String {
+    /// Plain text from plain values, so it isn't tied to the main actor like the view is.
+    nonisolated static func offerSubtitle(_ selected: ShopOffer, in list: [ShopOffer],
+                                          exactMatch: Bool = true) -> String {
         guard selected.checked else { return "Price from search, may be out of date" }
         guard exactMatch else { return "Close match, link added" }
         guard selected.best else { return "Link and price added" }
@@ -180,7 +182,7 @@ struct IdentifyPhotoCard: View {
     }
 
     /// An offer in the Change menu, e.g. "$109.99 · Walmart · from search".
-    static func menuTitle(_ offer: ShopOffer) -> String {
+    nonisolated static func menuTitle(_ offer: ShopOffer) -> String {
         let title = "\(offer.priceText) · \(offer.store)"
         return offer.checked ? title : "\(title) · from search"
     }
