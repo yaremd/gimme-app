@@ -7,7 +7,7 @@ export const metadata = pageMeta({
   path: "/privacy",
 });
 
-const LAST_UPDATED = "November 12, 2026";
+const LAST_UPDATED = "November 19, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -81,7 +81,8 @@ export default function PrivacyPage() {
         <p>
           The App may request access to your camera and photo library to let you add
           images to items. Photos are stored locally and, if signed in, uploaded to
-          Supabase Storage for sync. We do not scan, analyse, or share your photos.
+          Supabase Storage for sync. Apart from Photo Identification (section 5), which
+          only runs when you ask for it, we do not scan, analyse, or share your photos.
         </p>
         <p>
           You can revoke access at any time in <strong>
@@ -89,7 +90,34 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Notifications">
+      <LegalSection title="5. Photo Identification">
+        <p>
+          If you choose to identify an item from a photo, the App asks for your permission
+          before the first photo leaves your device. It then sends that photo to our
+          server, which passes it to{" "}
+          <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">
+            Anthropic
+          </a>&apos;s Claude API to recognise the product. To find shops that sell it, our
+          server then runs a web search through Anthropic using the product&apos;s name,
+          never the photo, and reads the shop pages it finds to check their prices.
+        </p>
+        <p>
+          The photo isn&apos;t stored for this purpose, and your name and email aren&apos;t
+          sent with it. We keep only a record that a request happened (its time, outcome
+          and cost) to apply monthly limits.
+        </p>
+        <p>
+          If you aren&apos;t signed in, the App uses Apple&apos;s DeviceCheck service to
+          remember that your device has used its one free identification. This doesn&apos;t
+          tell us who you are, and we store no device identifier.
+        </p>
+        <p>
+          You can turn this off at any time in the App under <strong>
+          Settings &rarr; Identify from Photos</strong>.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="6. Notifications">
         <p>
           The App sends <strong>local notifications</strong> to
           remind you of wishlist item deadlines. These are generated on your device and
@@ -97,7 +125,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. In-App Purchases">
+      <LegalSection title="7. In-App Purchases">
         <p>
           Gimme Pro is a one-time purchase processed entirely by Apple via StoreKit 2.
           We do not receive or store your payment details.{" "}
@@ -107,7 +135,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Share Extension">
+      <LegalSection title="8. Share Extension">
         <p>
           The Share Extension (&ldquo;Save to Gimme&rdquo;) passes URLs directly to the
           main app via a shared App Group container on your device. No URL data is sent
@@ -115,7 +143,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Analytics &amp; Crash Reporting">
+      <LegalSection title="9. Analytics &amp; Crash Reporting">
         <p>
           The App does <strong>not</strong> include
           any third-party analytics SDKs. We do not track how you use the App.
@@ -134,7 +162,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Data Retention &amp; Deletion">
+      <LegalSection title="10. Data Retention &amp; Deletion">
         <p>
           You can delete all cloud data by using the &ldquo;Delete Account&rdquo; option in Settings,
           or by emailing{" "}
@@ -144,7 +172,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Children&apos;s Privacy">
+      <LegalSection title="11. Children&apos;s Privacy">
         <p>
           The App is not directed at children under 13. We do not knowingly collect
           personal information from children. If you believe we have, please contact
@@ -152,14 +180,14 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="11. Changes to This Policy">
+      <LegalSection title="12. Changes to This Policy">
         <p>
           We may update this Privacy Policy from time to time. We will post the revised
           version here with an updated date. Continued use after changes constitutes acceptance.
         </p>
       </LegalSection>
 
-      <LegalSection title="12. Contact Us">
+      <LegalSection title="13. Contact Us">
         <p>
           Questions about this Privacy Policy? Email us at{" "}
           <a href={`mailto:${CONTACT_EMAIL}`}>

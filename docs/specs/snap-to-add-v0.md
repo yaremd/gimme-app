@@ -240,9 +240,9 @@ xcodebuild -project Whish.xcodeproj -scheme Gimme -destination 'platform=iOS Sim
 
    Without these, signed-out users who tap the card are asked to sign in. So set them before shipping a build that shows "Your first one is free".
 4. On a physical iPhone, test the free try. A Debug build from Xcode sends development tokens, so for that test also set `DEVICECHECK_ALLOW_DEVELOPMENT=true`, and remove it afterwards; TestFlight and App Store builds don't need it. Sign out, identify one photo, check that the next one asks you to sign in, then delete and reinstall the app and check that the try is still spent.
-5. Update the privacy policy and App Store privacy answers (above).
+5. Update the privacy policy and App Store privacy answers (above). The policy page (`web/app/privacy/page.tsx`, new section 5 "Photo Identification") is updated on this branch and goes live on gimmelist.com when it merges. The App Privacy answers in App Store Connect are still to do; `AppStore/listing.md` has the table.
 6. This branch now includes the Pro fix (PR #6, merged into main on Nov 16, 2026), and it needs it. Since migration v10, an account becomes Pro only through verify-purchase, and only builds with PR #6 call it. Without it, people who buy Pro would get Pro on their device but not on their account, so they'd get only the free 5 photos a month.
-7. Merge the branch, bump the version, TestFlight, then ship with a "Snap to add" screenshot.
+7. Merge the branch, TestFlight, then ship with a "Snap to add" screenshot. The version is already 1.2.0 (build 7), and What's New plus the review notes are in `AppStore/listing.md`.
 
 ## Also fixed on this branch
 
