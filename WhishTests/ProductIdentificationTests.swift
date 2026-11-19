@@ -497,6 +497,40 @@ struct ShopOfferTests {
                               price: 130, currency: "GBP", best: false)
         #expect(whole.priceText(locale: gb) == "£130")
     }
+
+    @Test func aPriceOnlyTheSearchSawIsMarkedUnchecked() throws {
+        let offers = try OffersResponseDecoder.decode(status: 200, data: Data("""
+        {"offers":[
+          {"store":"Walmart","url":"https://www.walmart.com/ip/123","title":null,"price":59.99,"currency":"USD",
+           "checked":false,"best":true},
+          {"store":"Target","url":"https://www.target.com/p/-/A-1","title":null,"price":64,"currency":"USD","best":false}
+        ]}
+        """.utf8))
+        #expect(offers[0].checked == false)
+        #expect(offers[0].best)
+        // A server that doesn't say only sends prices it read on the shop's page.
+        #expect(offers[1].checked)
+    }
+
+    @Test func theOfferRowFlagsSearchPrices() {
+        func offer(_ store: String, _ price: Decimal, best: Bool = false, checked: Bool = true) -> ShopOffer {
+            ShopOffer(store: store, url: URL(string: "https://\(store.lowercased()).example/item")!, title: nil,
+                      price: price, currency: "USD", best: best, checked: checked)
+        }
+        let bestBuy = offer("BestBuy", 70, best: true)
+        let gameStop = offer("GameStop", 75)
+        let walmart = offer("Walmart", 60, checked: false)
+
+        #expect(IdentifyPhotoCard.offerSubtitle(bestBuy, in: [bestBuy, gameStop]) == "Best price found, link added")
+        // The search saw a lower price, so this is only the best checked one.
+        #expect(IdentifyPhotoCard.offerSubtitle(bestBuy, in: [bestBuy, gameStop, walmart])
+                == "Best confirmed price, link added")
+        #expect(IdentifyPhotoCard.offerSubtitle(gameStop, in: [bestBuy, gameStop, walmart]) == "Link and price added")
+        #expect(IdentifyPhotoCard.offerSubtitle(walmart, in: [bestBuy, gameStop, walmart])
+                == "Price from search, may be out of date")
+        #expect(IdentifyPhotoCard.menuTitle(walmart).hasSuffix(" · Walmart · from search"))
+        #expect(IdentifyPhotoCard.menuTitle(bestBuy).hasSuffix(" · BestBuy"))
+    }
 }
 
 // MARK: - Share Extension photo hand-off

@@ -586,9 +586,18 @@ Deno.test("a shop search returns offers confirmed on the shop's page, cheapest f
       title: "Nike Air Max 90 | JD Sports",
       price: 114.99, // the page's price, not the search result's 119.99
       currency: "GBP",
+      checked: true,
       best: true,
     },
-    { store: "Nike", url: NIKE_URL, title: "Nike Air Max 90 Shoes", price: 129.99, currency: "GBP", best: false },
+    {
+      store: "Nike",
+      url: NIKE_URL,
+      title: "Nike Air Max 90 Shoes",
+      price: 129.99,
+      currency: "GBP",
+      checked: true,
+      best: false,
+    },
   ]);
 
   assertEquals(rec.claims, ["req-1"]);
@@ -669,11 +678,21 @@ Deno.test("a refusal or a missing report means no offers", async () => {
   }
 });
 
-Deno.test("offers whose page doesn't confirm a price in the right currency are dropped", async () => {
+Deno.test("offers with no price in the right currency, on the page or in the search, are dropped", async () => {
   const { offers, rec } = await makeOffers({
+    model: {
+      report: {
+        offers: [
+          { store: "Nike", url: NIKE_URL, price: 159.99, currency: "USD" },
+          { store: "JD Sports", url: JD_URL, price: 119.99, currency: "GBP" },
+        ],
+      },
+    },
     pages: {
-      [NIKE_URL]: { price: null, currency: "GBP", title: "Nike" }, // no price on the page
-      [JD_URL]: { price: 114.99, currency: "USD", title: "JD" }, // another currency
+      // No price on the page, and the search only saw dollars.
+      [NIKE_URL]: { price: null, currency: "GBP", title: "Nike" },
+      // The page shows dollars, so the search's pounds aren't used instead.
+      [JD_URL]: { price: 114.99, currency: "USD", title: "JD" },
     },
   });
   const { deps } = makeDeps({ offers });
@@ -685,8 +704,8 @@ Deno.test("offers whose page doesn't confirm a price in the right currency are d
   assertEquals(rec.finishes[0].outcome, "none");
 });
 
-Deno.test("a page that can't be read only drops that offer", async () => {
-  const { offers } = await makeOffers({
+Deno.test("a page that can't be read keeps the search's price, after the checked ones", async () => {
+  const { offers, rec } = await makeOffers({
     pages: { ...defaultPages, [JD_URL]: new Error("blocked") },
   });
   const { deps } = makeDeps({ offers });
@@ -695,8 +714,20 @@ Deno.test("a page that can't be read only drops that offer", async () => {
     deps,
   );
   const body = await res.json();
-  assertEquals(body.offers.map((o: { store: string }) => o.store), ["Nike"]);
-  assertEquals(body.offers[0].best, true);
+  assertEquals(body.offers, [
+    {
+      store: "Nike",
+      url: NIKE_URL,
+      title: "Nike Air Max 90 Shoes",
+      price: 129.99,
+      currency: "GBP",
+      checked: true,
+      best: true,
+    },
+    // Lower, but only the search saw it, so Nike's checked price is the one to start with.
+    { store: "JD Sports", url: JD_URL, title: null, price: 119.99, currency: "GBP", checked: false, best: false },
+  ]);
+  assertEquals(rec.finishes[0].found, 2);
 });
 
 Deno.test("shop search reports not_configured when it isn't set up", async () => {

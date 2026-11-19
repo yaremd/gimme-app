@@ -111,9 +111,9 @@ Deno.test("offers are ranked by the price on their page", () => {
   ], { currency: "USD", estimate: ticket.estimate, max: 3 });
 
   assertEquals(offers, [
-    { store: "B", url: "https://b.example/item", title: null, price: 350, currency: "USD", best: true },
-    { store: "D", url: "https://d.example/item", title: "D", price: 360, currency: "USD", best: false },
-    { store: "A", url: "https://a.example/item", title: "A page", price: 389.5, currency: "USD", best: false },
+    { store: "B", url: "https://b.example/item", title: null, price: 350, currency: "USD", checked: true, best: true },
+    { store: "D", url: "https://d.example/item", title: "D", price: 360, currency: "USD", checked: true, best: false },
+    { store: "A", url: "https://a.example/item", title: "A page", price: 389.5, currency: "USD", checked: true, best: false },
   ]);
   assertEquals(drops, {
     unreadable: 0,
@@ -150,22 +150,61 @@ Deno.test("prices far outside the typical range are dropped", () => {
   assertEquals(otherCurrency.offers.length, 1);
 });
 
-Deno.test("offers with no confirmed price are dropped", () => {
-  const { offers, drops } = pickOffers([
-    { reported: reported("Blocked", 300, "USD"), page: null },
-    { reported: reported("NoPrice", 300, "USD"), page: { price: null, currency: "USD", title: "x" } },
-    { reported: reported("Zero", 300, "USD"), page: { price: 0, currency: "USD", title: "x" } },
-  ], { currency: "USD", estimate: null, max: 3 });
-  assertEquals(offers, []);
-  // Domains only, so the link reader can be improved for those shops; never the path.
+Deno.test("a page that can't be checked keeps the price the search reported", () => {
+  const input = [
+    { reported: reported("Zero", 310, "USD"), page: { price: 0, currency: "USD", title: null } },
+    { reported: reported("Blocked", 299.999, "USD"), page: null },
+    { reported: reported("NoPrice", 300, "USD"), page: { price: null, currency: "USD", title: "  No   price  " } },
+    { reported: reported("Checked"), page: { price: 389, currency: "USD", title: null } },
+  ];
+  const { offers, drops } = pickOffers(input, { currency: "USD", estimate: ticket.estimate, max: 5 });
+  // Checked prices first, even when a search price is lower, then search prices, cheapest first.
+  assertEquals(offers, [
+    { store: "Checked", url: "https://checked.example/item", title: null, price: 389, currency: "USD", checked: true, best: true },
+    { store: "Blocked", url: "https://blocked.example/item", title: null, price: 300, currency: "USD", checked: false, best: false },
+    { store: "NoPrice", url: "https://noprice.example/item", title: "No price", price: 300, currency: "USD", checked: false, best: false },
+    { store: "Zero", url: "https://zero.example/item", title: null, price: 310, currency: "USD", checked: false, best: false },
+  ]);
+  // Every page that couldn't be checked is still counted. Domains only, so the link
+  // reader can be improved for those shops; never the path.
   assertEquals(drops, {
     unreadable: 1,
     unreadableDomains: ["blocked.example"],
     noPrice: 2,
-    noPriceDomains: ["noprice.example", "zero.example"],
+    noPriceDomains: ["zero.example", "noprice.example"],
     otherCurrency: {},
     outOfRange: 0,
   });
+
+  // The cap leaves out search prices before checked ones.
+  const capped = pickOffers(input, { currency: "USD", estimate: ticket.estimate, max: 2 });
+  assertEquals(capped.offers.map((o) => o.store), ["Checked", "Blocked"]);
+});
+
+Deno.test("with no page checked, the cheapest search price is the one to start with", () => {
+  const { offers } = pickOffers([
+    { reported: reported("Walmart", 369, "USD"), page: null },
+    { reported: reported("Target", 359.99, "USD"), page: { price: null, currency: null, title: null } },
+  ], { currency: "USD", estimate: ticket.estimate, max: 5 });
+  assertEquals(offers.map((o) => [o.store, o.price, o.checked, o.best]), [
+    ["Target", 359.99, false, true],
+    ["Walmart", 369, false, false],
+  ]);
+});
+
+Deno.test("a search price needs the right currency and a typical price", () => {
+  const { offers, drops } = pickOffers([
+    { reported: reported("NoSearchPrice"), page: null },
+    { reported: reported("Euros", 320, "EUR"), page: null },
+    { reported: reported("Case", 29, "USD"), page: null },
+    { reported: reported("Bundle", 1200, "USD"), page: { price: null, currency: "USD", title: null } },
+    // The page shows another currency, so the search's dollars aren't used instead.
+    { reported: reported("Pounds", 300, "USD"), page: { price: 280, currency: "GBP", title: null } },
+  ], { currency: "USD", estimate: ticket.estimate, max: 5 });
+  assertEquals(offers, []);
+  assertEquals(drops.unreadable, 3);
+  assertEquals(drops.noPrice, 1);
+  assertEquals(drops.otherCurrency, { GBP: 1 });
 });
 
 Deno.test("offers in other currencies are counted by currency", () => {
@@ -194,13 +233,14 @@ Deno.test("the search log line has counts, currency codes and shop domains only"
       outOfRange: 0,
     },
     found: 1,
+    fromSearch: 1,
     latencyMs: 9129,
   });
   assertEquals(
     line,
     "identify-product: offers model=claude-haiku-5-5 searches=2 suggested=5 skipped=2 unreadable=1 " +
       "unreadable_domains=rozetka.com.ua no_price=0 no_price_domains=- other_currency=EUR:1,USD:1 " +
-      "out_of_range=0 found=1 latency_ms=9129",
+      "out_of_range=0 found=1 from_search=1 latency_ms=9129",
   );
   assertEquals(reportedCount({ offers: [{}, {}, {}] }), 3);
   assertEquals(reportedCount(null), 0);

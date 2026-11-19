@@ -97,8 +97,7 @@ struct ProductIdentificationResponse: Decodable, Sendable, Equatable {
     var offersToken: String? = nil
 }
 
-/// A shop selling the identified product. The price was read from the shop's own
-/// page, not taken from search results.
+/// A shop selling the identified product, with its price in the currency asked for.
 struct ShopOffer: Codable, Sendable, Equatable, Identifiable {
     let store: String
     let url: URL
@@ -106,18 +105,24 @@ struct ShopOffer: Codable, Sendable, Equatable, Identifiable {
     let title: String?
     let price: Decimal
     let currency: String
-    /// The cheapest of the offers found.
+    /// The offer to start with: the cheapest checked price, else the cheapest search price.
     let best: Bool
+    /// True when the price was read from the shop's own page. False when the page can't
+    /// be read (a bot check, or a price loaded by script, as at Walmart and Target), so
+    /// the price is the one the search saw, which can be out of date.
+    let checked: Bool
 
     var id: URL { url }
 
-    init(store: String, url: URL, title: String?, price: Decimal, currency: String, best: Bool) {
+    init(store: String, url: URL, title: String?, price: Decimal, currency: String, best: Bool,
+         checked: Bool = true) {
         self.store = store
         self.url = url
         self.title = title
         self.price = price
         self.currency = currency
         self.best = best
+        self.checked = checked
     }
 
     init(from decoder: Decoder) throws {
@@ -132,6 +137,7 @@ struct ShopOffer: Codable, Sendable, Equatable, Identifiable {
         price = rounded
         currency = try container.decode(String.self, forKey: .currency)
         best = try container.decodeIfPresent(Bool.self, forKey: .best) ?? false
+        checked = try container.decodeIfPresent(Bool.self, forKey: .checked) ?? true
     }
 
     /// The price as the form's price field holds it, e.g. "114.99".
@@ -457,15 +463,18 @@ struct IdentifyPrefill: Equatable {
 
 #if DEBUG
 /// Canned results for previews, UI checks and working without the backend.
-/// Launch with `-mockIdentify identified` (or no_offers, similar, not_product, quota,
-/// offline, trial, trial_used). `identified` also finds three shops a few seconds
-/// later; `no_offers` finds none. `trial` behaves like a signed-out device's one free
-/// try: it needs sign-in afterwards, until the app is reinstalled.
+/// Launch with `-mockIdentify identified` (or no_offers, search_prices, similar,
+/// not_product, quota, offline, trial, trial_used). `identified` also finds four shops a
+/// few seconds later, the cheapest only by its search price; `search_prices` finds only
+/// shops whose pages couldn't be checked; `no_offers` finds none. `trial` behaves like a
+/// signed-out device's one free try: it needs sign-in afterwards, until the app is
+/// reinstalled.
 struct MockProductIdentificationService: ProductIdentificationService {
 
     enum Scenario: String {
         case identified
         case noOffers = "no_offers"
+        case searchPrices = "search_prices"
         case similar
         case notProduct = "not_product"
         case quota
@@ -481,11 +490,24 @@ struct MockProductIdentificationService: ProductIdentificationService {
                   title: "Nike Air Max 90", price: Decimal(string: "119.99")!, currency: "USD", best: false),
         ShopOffer(store: "Nike", url: URL(string: "https://www.example.com/nike/air-max-90")!,
                   title: "Nike Air Max 90 Shoes", price: 130, currency: "USD", best: false),
+        ShopOffer(store: "Walmart", url: URL(string: "https://www.example.com/walmart/air-max-90")!,
+                  title: nil, price: Decimal(string: "109.99")!, currency: "USD", best: false, checked: false),
+    ]
+
+    static let searchPriceOffers: [ShopOffer] = [
+        ShopOffer(store: "Target", url: URL(string: "https://www.example.com/target/air-max-90")!,
+                  title: nil, price: Decimal(string: "124.99")!, currency: "USD", best: true, checked: false),
+        ShopOffer(store: "Walmart", url: URL(string: "https://www.example.com/walmart/air-max-90")!,
+                  title: nil, price: 129, currency: "USD", best: false, checked: false),
     ]
 
     func findOffers(token: String, country: String?, currency: String) async throws -> [ShopOffer] {
         try await Task.sleep(for: .milliseconds(2500))
-        return scenario == .noOffers ? [] : Self.offers
+        switch scenario {
+        case .noOffers: return []
+        case .searchPrices: return Self.searchPriceOffers
+        default: return Self.offers
+        }
     }
 
     let scenario: Scenario
@@ -516,7 +538,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
         let usage = IdentifyUsage(used: 2, limit: 5, remaining: 3,
                                   periodEnd: Calendar.current.date(byAdding: .month, value: 1, to: .now) ?? .now)
         switch scenario {
-        case .identified, .noOffers:
+        case .identified, .noOffers, .searchPrices:
             return .init(result: Self.sneakers, usage: usage, offersToken: "mock-offers")
         case .similar:
             return .init(result: .init(

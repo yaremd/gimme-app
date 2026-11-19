@@ -404,8 +404,11 @@ export async function handleIdentify(req: Request, deps: Deps): Promise<Response
   return json(200, offersToken ? { ...body, offersToken } : body);
 }
 
-/** How many offers the app gets back, cheapest first. */
-const OFFERS_RETURNED = 3;
+/**
+ * How many offers the app gets back: checked prices first, then search prices, each
+ * cheapest first. Five, the most the model reports, so search prices aren't crowded out.
+ */
+const OFFERS_RETURNED = 5;
 
 async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<Response> {
   const offers = deps.offers;
@@ -478,7 +481,8 @@ async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<
     return json(200, { offers: [] });
   }
 
-  // Confirm each price on the shop's own page: search results can be stale.
+  // Check each price on the shop's own page, since search results can be stale. A page
+  // that can't be checked keeps the search's price, marked as such (see pickOffers).
   const checked = await Promise.all(reported.map(async (offer) => {
     let page: PageCheck | null = null;
     try {
@@ -501,6 +505,7 @@ async function handleOffers(body: Record<string, unknown>, deps: Deps): Promise<
     shopPages: reported.length,
     drops,
     found: picked.length,
+    fromSearch: picked.filter((offer) => !offer.checked).length,
     latencyMs,
   }));
 

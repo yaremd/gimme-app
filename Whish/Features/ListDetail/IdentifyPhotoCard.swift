@@ -134,16 +134,16 @@ struct IdentifyPhotoCard: View {
     private func offerRow(_ list: [ShopOffer], selected: ShopOffer) -> some View {
         row(icon: "cart",
             title: "\(selected.priceText) at \(selected.store)",
-            subtitle: selected.best ? "Best price found, link added" : "Link and price added") {
+            subtitle: Self.offerSubtitle(selected, in: list)) {
             HStack(spacing: Theme.Spacing.sm) {
                 if list.count > 1 {
                     Menu {
                         ForEach(list) { offer in
                             Button { onSelectOffer(offer) } label: {
                                 if offer.id == selected.id {
-                                    Label("\(offer.priceText) · \(offer.store)", systemImage: "checkmark")
+                                    Label(Self.menuTitle(offer), systemImage: "checkmark")
                                 } else {
-                                    Text("\(offer.priceText) · \(offer.store)")
+                                    Text(Self.menuTitle(offer))
                                 }
                             }
                         }
@@ -161,6 +161,23 @@ struct IdentifyPhotoCard: View {
                 .accessibilityLabel("Open \(selected.store)")
             }
         }
+    }
+
+    /// What the offer row says about the offer in the form. A price only the search saw
+    /// is flagged, since it wasn't checked on the shop's page and can be out of date.
+    static func offerSubtitle(_ selected: ShopOffer, in list: [ShopOffer]) -> String {
+        guard selected.checked else { return "Price from search, may be out of date" }
+        guard selected.best else { return "Link and price added" }
+        // The best checked price, but the search saw a lower one that couldn't be checked.
+        return list.contains { $0.price < selected.price }
+            ? "Best confirmed price, link added"
+            : "Best price found, link added"
+    }
+
+    /// An offer in the Change menu, e.g. "$109.99 · Walmart · from search".
+    static func menuTitle(_ offer: ShopOffer) -> String {
+        let title = "\(offer.priceText) · \(offer.store)"
+        return offer.checked ? title : "\(title) · from search"
     }
 
     // Keep the number in step with IDENTIFY_FREE_MONTHLY_LIMIT on the identify-product function.
