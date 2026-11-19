@@ -138,7 +138,7 @@ POST identify-product { offersToken, country: "GB", currency: "GBP" }     the ti
 
 Response: `{ "offers": [{ "store", "url", "title", "price", "currency", "best" }] }`, empty when nothing was confirmed. Errors: 401 `unauthorized` (ticket missing, forged or expired), 409 `already_searched`, 503 `not_configured`, 502 `upstream_error` (the search goes back to unstarted and can be retried), 500 `server_error`.
 
-The app sends the device's region and currency (`Locale.current`), so prices come from local shops in local money, and the chosen offer sets the item's currency.
+The app sends where the user shops and that country's currency, so prices come from local shops in local money, and the chosen offer sets the item's currency. The country is the user's App Store country (StoreKit `Storefront.current`, mapped from its three-letter code in `ShoppingCountry.swift`); the phone's region is only the fallback. People often keep their home region for date and number formats after moving abroad, so the region alone sent a Ukrainian phone abroad to Ukrainian shops. There's deliberately no setting to choose another country.
 
 **Cost and speed.**
 - **Measured on Opus 5.5.** The first two real searches (Nov 18, 2026, from Ukraine) each ran 2 web searches and took 16–20 s. They read 23k–31k input tokens and wrote about 650. That is about 12.5–16¢ per search, on top of about 3¢ for identification.

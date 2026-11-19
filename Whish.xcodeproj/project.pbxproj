@@ -63,6 +63,7 @@
 		9576FD6423188C80352EF5E3 /* PriceDropBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3AED8A7FA3E2E2A31944D5 /* PriceDropBadge.swift */; };
 		964C421D50D3A088DA5E250F /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E101D57114B4613A2D89A59 /* HomeViewModel.swift */; };
 		A17ABAE1278231AE6600D20E /* WhishTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2779D5C1085F118F5EC4D303 /* WhishTests.swift */; };
+		A1A8CC583E9C0171E8542BC7 /* ShoppingCountry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F15560F06F192DA83CAB44 /* ShoppingCountry.swift */; };
 		A1B5E5E9AA601B4312859C26 /* ProductIdentificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 565B0EFC8653392D0AFFA3C2 /* ProductIdentificationService.swift */; };
 		A41C251524BF279F326B6644 /* PriorityBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B816D107EBB012D252B26815 /* PriorityBadge.swift */; };
 		A46F03E9C76551663D223437 /* GimmeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E23CE09354210BE8EE8E332 /* GimmeWidgetBundle.swift */; };
@@ -239,6 +240,7 @@
 		D9A08709561072852A8856DC /* MetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataService.swift; sourceTree = "<group>"; };
 		DA313A9CB87141FB9EC39CA5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		DDF7F68400EB11927C778162 /* SpotlightIndexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexService.swift; sourceTree = "<group>"; };
+		E3F15560F06F192DA83CAB44 /* ShoppingCountry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingCountry.swift; sourceTree = "<group>"; };
 		E4BA6175321BDBFE0AAB2C73 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		EB5061B158C0196B34CE3F78 /* LockScreenWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockScreenWidgetView.swift; sourceTree = "<group>"; };
 		EC96C823FC44FCAE22587C81 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -542,6 +544,7 @@
 				14E940C7AEA2357C727A9D83 /* PurchaseService.swift */,
 				0C40E2BEAE5A615C3F670B2F /* PushNotificationService.swift */,
 				53F357F03D60A524BFB65814 /* SharedImageInbox.swift */,
+				E3F15560F06F192DA83CAB44 /* ShoppingCountry.swift */,
 				DDF7F68400EB11927C778162 /* SpotlightIndexService.swift */,
 				5AC67DBF45EFE640F164E2B5 /* SupabaseManager.swift */,
 				76F6F2A2EC2F48DE0754246D /* WidgetDataService.swift */,
@@ -797,6 +800,7 @@
 				B8AAF7B876479013FC1072CC /* SharedImageInbox.swift in Sources */,
 				72B06EB0C1CC1B5DA809EEA0 /* SharedListView.swift in Sources */,
 				4F86D6F981EA915CBC70817D /* SharedListViewModel.swift in Sources */,
+				A1A8CC583E9C0171E8542BC7 /* ShoppingCountry.swift in Sources */,
 				03332FFA8C088ADEC6240C6B /* SpotlightIndexService.swift in Sources */,
 				582C164A390A709864FCF1E1 /* StatsView.swift in Sources */,
 				D12A29A9FE2615893EED5D20 /* StatsViewModel.swift in Sources */,

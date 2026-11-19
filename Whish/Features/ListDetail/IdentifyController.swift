@@ -33,6 +33,7 @@ final class IdentifyController {
     @ObservationIgnored private let service: any ProductIdentificationService
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let locale: Locale
+    @ObservationIgnored private let shoppingCountry: @Sendable () async -> String?
     @ObservationIgnored private var requestID = UUID()
     @ObservationIgnored private var pending: Pending?
     @ObservationIgnored private var applyOffer: ((ShopOffer) -> Void)?
@@ -44,12 +45,16 @@ final class IdentifyController {
         let applyOffer: (ShopOffer) -> Void
     }
 
+    /// `shoppingCountry` says where the user shops (ISO 3166 code); the App Store
+    /// country by default, with `locale` covering anything it can't tell.
     init(service: any ProductIdentificationService = ProductIdentifier.makeService(),
          defaults: UserDefaults = .standard,
-         locale: Locale = .current) {
+         locale: Locale = .current,
+         shoppingCountry: @escaping @Sendable () async -> String? = { await ShoppingCountry.current() }) {
         self.service = service
         self.defaults = defaults
         self.locale = locale
+        self.shoppingCountry = shoppingCountry
     }
 
     /// Explicit permission to send photos to a third-party AI (App Review 5.1.2(i)).
@@ -155,16 +160,17 @@ final class IdentifyController {
         }
     }
 
-    /// Shops are searched in the device's own country and currency, which is what
-    /// local shops price in, whatever currency the form started with.
+    /// Shops are searched where the user shops (their App Store country) and in that
+    /// country's currency, which is what local shops price in, whatever currency the
+    /// form started with.
     private func searchOffers(token: String, fallbackCurrency: String, request: UUID) async {
         let next: OffersPhase
         do {
-            let found = try await service.findOffers(
-                token: token,
-                country: locale.region?.identifier,
-                currency: locale.currency?.identifier ?? fallbackCurrency
-            )
+            let country = await shoppingCountry() ?? locale.region?.identifier
+            let currency = country.flatMap(ShoppingCountry.currency(for:))
+                ?? locale.currency?.identifier
+                ?? fallbackCurrency
+            let found = try await service.findOffers(token: token, country: country, currency: currency)
             guard requestID == request else { return }
             if let best = found.first(where: \.best) ?? found.first {
                 applyOffer?(best)

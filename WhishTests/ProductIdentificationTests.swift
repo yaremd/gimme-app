@@ -334,26 +334,42 @@ struct IdentifyControllerTests {
         try? await Task.sleep(for: .milliseconds(20))
     }
 
+    /// A controller whose App Store country is `country`, so tests never ask StoreKit.
+    private func shopController(_ service: FakeIdentifyService, country: String? = "GB",
+                                locale: Locale = Locale(identifier: "en_GB")) -> IdentifyController {
+        IdentifyController(service: service, defaults: freshDefaults(consent: true), locale: locale,
+                           shoppingCountry: { country })
+    }
+
     @Test func anIdentifiedProductGetsItsCheapestShopInTheForm() async {
         let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
-        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true),
-                                            locale: Locale(identifier: "en_GB"))
+        // The phone's region says UK, but the App Store account is German.
+        let controller = shopController(service, country: "DE", locale: Locale(identifier: "en_GB"))
         var applied: [ShopOffer] = []
         controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { applied.append($0) }
         await settleOffers(controller)
 
-        // Shops are searched where the user is, in their local currency.
+        // Shops are searched in the App Store country, in its currency.
         #expect(service.offerRequests.count == 1)
         #expect(service.offerRequests.first?.token == "ticket-1")
-        #expect(service.offerRequests.first?.country == "GB")
-        #expect(service.offerRequests.first?.currency == "GBP")
+        #expect(service.offerRequests.first?.country == "DE")
+        #expect(service.offerRequests.first?.currency == "EUR")
         #expect(applied == [offers[0]])
         #expect(controller.offers == .found(offers, selected: offers[0].id))
     }
 
+    @Test func withoutAnAppStoreCountryThePhonesRegionIsUsed() async {
+        let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
+        let controller = shopController(service, country: nil, locale: Locale(identifier: "en_GB"))
+        controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in }
+        await settleOffers(controller)
+        #expect(service.offerRequests.first?.country == "GB")
+        #expect(service.offerRequests.first?.currency == "GBP")
+    }
+
     @Test func pickingAnotherOfferPutsItInTheForm() async {
         let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers))
-        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        let controller = shopController(service)
         var applied: [ShopOffer] = []
         controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { applied.append($0) }
         await settleOffers(controller)
@@ -371,7 +387,7 @@ struct IdentifyControllerTests {
 
     @Test func noTicketMeansNoShopSearch() async {
         let service = FakeIdentifyService(outcome: success(), offers: .success(offers))
-        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        let controller = shopController(service)
         var appliedCount = 0
         controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
         await settleOffers(controller)
@@ -383,7 +399,7 @@ struct IdentifyControllerTests {
     @Test func noShopsOrAFailedSearchFallsBackToFindItOnline() async {
         for outcome: Result<[ShopOffer], ProductIdentificationError> in [.success([]), .failure(.network)] {
             let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: outcome)
-            let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+            let controller = shopController(service)
             var appliedCount = 0
             controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
             await settleOffers(controller)
@@ -397,7 +413,7 @@ struct IdentifyControllerTests {
         // The search takes a while, so the photo can change while it runs.
         let service = FakeIdentifyService(outcome: identifiedWithTicket(), offers: .success(offers),
                                           offersDelay: .milliseconds(300))
-        let controller = IdentifyController(service: service, defaults: freshDefaults(consent: true))
+        let controller = shopController(service)
         var appliedCount = 0
         controller.start(imageData: photo, currency: "USD", isSignedIn: true) { _ in } applyOffer: { _ in appliedCount += 1 }
         await settle(controller)
@@ -408,6 +424,27 @@ struct IdentifyControllerTests {
         #expect(service.offerRequests.count == 1)
         #expect(controller.offers == .idle)
         #expect(appliedCount == 0)
+    }
+}
+
+// MARK: - Shopping country
+
+struct ShoppingCountryTests {
+
+    @Test func appStoreCodesMapToTwoLetterCodes() {
+        #expect(ShoppingCountry.alpha2(fromAlpha3: "GBR") == "GB")
+        #expect(ShoppingCountry.alpha2(fromAlpha3: "USA") == "US")
+        #expect(ShoppingCountry.alpha2(fromAlpha3: "UKR") == "UA")
+        #expect(ShoppingCountry.alpha2(fromAlpha3: "deu") == "DE")
+        #expect(ShoppingCountry.alpha2(fromAlpha3: "ZZZ") == nil)
+    }
+
+    @Test func eachCountryShopsInItsOwnCurrency() {
+        #expect(ShoppingCountry.currency(for: "GB") == "GBP")
+        #expect(ShoppingCountry.currency(for: "US") == "USD")
+        #expect(ShoppingCountry.currency(for: "UA") == "UAH")
+        #expect(ShoppingCountry.currency(for: "DE") == "EUR")
+        #expect(ShoppingCountry.currency(for: "PL") == "PLN")
     }
 }
 
