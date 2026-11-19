@@ -142,7 +142,9 @@ The app sends the device's region and currency (`Locale.current`), so prices com
 
 **Cost and speed.**
 - **Measured on Opus 5.5.** The first two real searches (Nov 18, 2026, from Ukraine) each ran 2 web searches and took 16–20 s. They read 23k–31k input tokens and wrote about 650. That is about 12.5–16¢ per search, on top of about 3¢ for identification.
-- **Now on Haiku 5.5.** Reading the search results is most of that cost, so since Nov 18 production runs the shop search on Haiku 5.5 (`OFFERS_MODEL=claude-haiku-5-5`, a Supabase secret). The estimate is about 2–3¢ per search, mostly the $10-per-1,000 search fee. Identification stays on Opus 5.5.
+- **Now on Haiku 5.5.** Reading the search results is most of that cost, so since Nov 18 production runs the shop search on Haiku 5.5 (`OFFERS_MODEL=claude-haiku-5-5`, a Supabase secret). Identification stays on Opus 5.5.
+- **Measured on Haiku 5.5.** Three searches from Ukraine on Nov 18–19 each took 7–11 s and read about 27k–30k input tokens. Each cost about 2.3–2.4¢, and 2¢ of that is the two search fees. A whole photo now costs about 5¢: roughly 3¢ to identify plus the search.
+- **Hit rate.** The two searches on Nov 19 both found shops. Of the 5 shop pages suggested, 3 had their price confirmed; the other 2 had no price the link reader could find. The Nov 18 Haiku search found none, and that was before reasons were logged.
 - **Why a cheaper model is safe here.** The page check still drops wrong pages and unconfirmed prices, so a weaker model mostly risks finding fewer shops.
 - **Bounded.** There's one search per identified photo, so the 300-a-day global cap bounds searches too.
 - **Tuning.** Change these without redeploying: `OFFERS_MODEL`, `OFFERS_EFFORT`, `OFFERS_MAX_SEARCHES`.
