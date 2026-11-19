@@ -120,7 +120,7 @@ Computed: `shareText`
 - **Status button**: Mark as Purchased / Mark as Wanted (toggles `isPurchased`)
 - Notes display
 - List name badge (which list this item belongs to)
-- **Open in Browser** link
+- **URL row** opens the link in the browser (Copy Link is in the ••• menu)
 - **Share item** via system share sheet
 - **Delete** with confirmation dialog
 - Metadata: creation date

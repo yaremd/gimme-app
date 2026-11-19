@@ -54,6 +54,16 @@ Free: unlimited lists, items, iCloud sync, Share Extension, widgets, price track
 
 Download Gimme and start saving what you want.
 
+## What's New (Version 1.2.0)
+
+Snap to add.
+
+- Take or pick a photo of something you want, and Gimme fills in the name, details and a typical price
+- Gimme then finds shops that sell it and adds the link and the best price it can confirm
+- Your first one is free, no account needed. Signed in, you get 5 a month, or 100 with Gimme Pro
+- New Add button at the top of New Wish, so there's no scrolling to save
+- Tap an item's link to open it in your browser
+
 ## What's New (Version 1.1.1)
 
 Deleting now sticks.
@@ -119,8 +129,11 @@ The app declares the "fetch" background mode and a BGAppRefreshTask (com.yaremch
 NOTIFICATIONS
 Price drop alerts are local notifications, scheduled on-device. Authorization is requested when the user turns on price tracking or the "Price Drop Alerts" toggle in Settings; if it is declined the feature still shows price history in-app but sends nothing.
 
+PHOTO IDENTIFICATION (new in 1.2.0)
+Tap + to add a wish -> "Identify from a photo", then take or pick a photo of a product. Before the first photo is sent, a consent screen explains that it goes to Gimme's server and on to Anthropic's Claude API to recognise the product. Nothing is sent unless the user agrees, and it can be switched off at any time in Settings -> Identify from Photos. The result fills in the name, notes and a typical price. Gimme then searches shops by the product's name (never the photo) and puts a shop link and price in the form; a price it couldn't check on the shop's own page is labelled "from search". A signed-out device gets one free identification, enforced with Apple's DeviceCheck (no device identifier is stored); after that the app asks the user to sign in. Signed-in accounts get 5 a month, or 100 with Gimme Pro. The demo account above can be used for more than one try.
+
 IN-APP PURCHASE
-One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2. Free users can track prices on 3 items; Pro removes the limit.
+One-time "Gimme Pro" lifetime purchase ($4.99). Non-Consumable via StoreKit 2. Free users can track prices on 3 items; Pro removes the limit and raises photo identification from 5 to 100 a month.
 
 ## App Store Connect Configuration
 
@@ -167,6 +180,20 @@ Sizes: 6.7" (1290x2796) and 6.1" (1179x2556)
 Screenshot files: `AppStore/screenshots/*.html`
 Open in Safari at 1290x2796 viewport, export as PNG.
 
+### 1.2.0: Snap to add
+
+The live set is `AppStore/done/1-5` (1284x2778, real dark-mode screens in a phone
+frame). 1.2.0 adds `AppStore/done/6.png` (and `6.jpg`) in the same style:
+
+- Label: "Identifies it & finds the best price"
+- Headline: "Snap a photo. Gimme does the rest."
+- Screen: New Wish after identifying the orange jacket photo, with "$405 at KAILAS · Best price found, link added". It's a real Simulator capture using the Debug mock `-mockIdentify screenshot`, which uses KAILAS's own store link and its listed price.
+- Background: honey (#FFCF55 → #EE8C1B), a colour the set doesn't use yet.
+
+Put it second, right after Home: only the first three show without scrolling, and
+it's the headline feature of 1.2.0. Source: `AppStore/screenshots/15-snap-to-add.html`
+(export command inside) and `snap-to-add-screen.png`.
+
 ## App Privacy Labels
 
 **Data Used to Track You:** None
@@ -176,13 +203,15 @@ Open in Safari at 1290x2796 viewport, export as PNG.
 |----------|-----------|---------|
 | Contact Info | Email Address | App Functionality (account creation) |
 | Identifiers | User ID | App Functionality (cloud sync) |
+| User Content | Photos or Videos | App Functionality (item photos synced to the account; a photo the user sends for identification, from 1.2.0) |
 
 **Data Not Linked to You:** None collected
-**Data Not Collected:** Location, Health & Fitness, Financial Info, Sensitive Info, Contacts, User Content, Browsing History, Search History, Diagnostics, Usage Data, Purchases
+**Data Not Collected:** Location, Health & Fitness, Financial Info, Sensitive Info, Contacts, Browsing History, Search History, Diagnostics, Usage Data, Purchases
 
 Notes:
 - No IDFA usage
 - No third-party analytics or tracking SDKs
 - No advertising frameworks
 - App works fully offline without collecting any data
-- Data is only collected when user voluntarily creates an account
+- Data is only collected when the user creates an account, or sends a photo to identify (one free try works signed out)
+- Photos or Videos matches `NSPrivacyCollectedDataTypePhotosorVideos` in the privacy manifest (linked, app functionality, no tracking)

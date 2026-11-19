@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage("defaultCurrency")     private var defaultCurrency       = "USD"
     @AppStorage("notificationsOn")     private var notificationsOn       = false
     @AppStorage("priceAlertsEnabled")  private var priceAlertsEnabled    = true
+    @AppStorage("photoIdentifyConsent") private var photoIdentifyConsent = false
     @AppStorage("fxLastUpdated")       private var fxLastUpdated: Double = 0
 
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -321,6 +322,28 @@ struct SettingsView: View {
                                 }
                                 .pickerStyle(.menu)
                                 .foregroundStyle(Theme.Colors.textSecondary)
+                            }
+                        }
+
+                        darkRow {
+                            HStack(spacing: 12) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 17))
+                                    .frame(width: 22)
+                                    .foregroundStyle(Theme.Colors.textPrimary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack {
+                                        Text("Identify from Photos")
+                                            .foregroundStyle(Theme.Colors.textPrimary)
+                                        Spacer()
+                                        Toggle("", isOn: $photoIdentifyConsent.animation(Theme.spring))
+                                            .labelsHidden()
+                                            .tint(Theme.Colors.accent)
+                                    }
+                                    Text("Photos you choose to identify are sent to Anthropic's Claude AI to fill in item details")
+                                        .font(.system(.caption))
+                                        .foregroundStyle(Theme.Colors.textTertiary)
+                                }
                             }
                         }
                     }

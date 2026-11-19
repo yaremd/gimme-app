@@ -52,6 +52,15 @@ verify_jwt = false
 # JWT validation done inside the function via supabase.auth.getUser().
 verify_jwt = false
 
+[functions.identify-product]
+# Called by signed-in users (the function validates the JWT itself via auth.getUser())
+# and by signed-out devices for their one free try (Apple DeviceCheck token in the body).
+# Secret: ANTHROPIC_API_KEY. Optional: IDENTIFY_MODEL, IDENTIFY_EFFORT,
+# IDENTIFY_FREE_MONTHLY_LIMIT, IDENTIFY_PRO_MONTHLY_LIMIT, IDENTIFY_TRIAL_DAILY_LIMIT,
+# IDENTIFY_GLOBAL_DAILY_LIMIT. Free try: DEVICECHECK_KEY_ID, DEVICECHECK_PRIVATE_KEY,
+# APPLE_TEAM_ID (and DEVICECHECK_ALLOW_DEVELOPMENT=true only while testing Debug builds).
+verify_jwt = false
+
 [functions.verify-purchase]
 # Called by signed-in users; the function validates the JWT itself via auth.getUser().
 # Needs migration_v10 applied first. Optional secret: ALLOW_SANDBOX_PURCHASES=true

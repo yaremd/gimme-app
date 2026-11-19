@@ -32,8 +32,8 @@ settings:
     SWIFT_STRICT_CONCURRENCY: minimal
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     TARGETED_DEVICE_FAMILY: "1"
-    MARKETING_VERSION: "1.1.1"
-    CURRENT_PROJECT_VERSION: "6"
+    MARKETING_VERSION: "1.2.0"
+    CURRENT_PROJECT_VERSION: "7"
     DEAD_CODE_STRIPPING: YES
 
 configs:
@@ -142,6 +142,8 @@ targets:
       - path: GimmeShare
         excludes:
           - "**/.DS_Store"
+      # Shared with the app: the photo hand-off between extension and app.
+      - path: Whish/Services/SharedImageInbox.swift
 
     info:
       path: GimmeShare/Info.plist
@@ -156,6 +158,7 @@ targets:
             NSExtensionActivationRule:
               NSExtensionActivationSupportsWebURLWithMaxCount: 1
               NSExtensionActivationSupportsWebPageWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 1
 
     entitlements:
       path: GimmeShare/GimmeShare.entitlements

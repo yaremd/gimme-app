@@ -9,10 +9,15 @@ struct AddItemView: View {
     @Environment(AuthService.self) private var auth
     @Environment(PurchaseService.self) private var purchaseService
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
 
     var wishList: WishList? = nil
     var itemToEdit: WishItem? = nil
     var initialURL: String = ""
+    /// A photo shared into Gimme from another app.
+    var initialImageData: Data? = nil
+    /// Identify `initialImageData` as soon as the form opens.
+    var autoIdentify: Bool = false
     var onSaved: ((WishList) -> Void)? = nil
 
     @AppStorage("lastUsedListID") private var lastUsedListID = ""
@@ -46,6 +51,23 @@ struct AddItemView: View {
     @State private var fetchedBrand: String? = nil
     @State private var fetchedColor: String? = nil
     @State private var fetchedSize: String? = nil
+
+    // Photo identification (snap to add)
+    /// True when the image is a photo of the item (camera, library, share), not an emoji or a product image from a link.
+    @State private var localImageIsPhoto = false
+    @State private var identify = IdentifyController()
+    /// Set when a photo is picked from the identify card, so it's identified right away.
+    @State private var identifyAfterPick = false
+    /// Skips the link fetch once, when a shop offer fills the link: fetching it would
+    /// swap the user's photo for the shop's image.
+    @State private var skipNextURLFetch = false
+    /// The link and price the photo flow put in the form. It may replace these, never
+    /// a link or price the user entered.
+    @State private var offerURL: String?
+    @State private var autoPrice: String?
+    @State private var didApplyInitialImage = false
+    @State private var isShowingPaywall = false
+    @State private var isShowingAuth = false
 
     @FocusState private var focusedField: Field?
     private enum Field: Hashable { case title, notes, url, listName }
@@ -103,6 +125,12 @@ struct AddItemView: View {
                         // URL fetch card
                         urlCard
 
+                        // Photo identification — fills the form from a photo of the item
+                        if showsIdentifyCard {
+                            identifyCard
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+
                         // Details card — title + notes
                         detailsCard
 
@@ -138,6 +166,14 @@ struct AddItemView: View {
                     }
                     .foregroundStyle(Theme.Colors.textSecondary)
                 }
+                // Same action as the button at the bottom of the form, so a long form
+                // doesn't have to be scrolled to the end to save.
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isEditing ? "Save" : "Add") { saveAndDismiss() }
+                        .fontWeight(.semibold)
+                        .tint(accentColor)
+                        .disabled(!canSave)
+                }
             }
             .interactiveDismissDisabled(!isEditing && hasUnsavedChanges)
             .confirmationDialog("You have unsaved changes", isPresented: $isShowingDiscardAlert, titleVisibility: .visible) {
@@ -149,6 +185,7 @@ struct AddItemView: View {
                 if itemToEdit == nil {
                     currency = defaultCurrency
                     if !initialURL.isEmpty { urlString = initialURL }
+                    applyInitialImageIfNeeded()
                     // Pre-select list: 1) passed list  2) last used  3) first available  4) inline create
                     if let wl = wishList {
                         selectedList = wl
@@ -175,6 +212,7 @@ struct AddItemView: View {
                         withAnimation(Theme.spring) {
                             imageURL = selected.absoluteString
                             localImageData = nil
+                            localImageIsPhoto = false
                         }
                     }
                 )
@@ -186,11 +224,16 @@ struct AddItemView: View {
             .sheet(isPresented: $isShowingImageSourcePicker) {
                 ImageSourcePickerSheet(
                     hasImage: localImageData != nil || !imageURL.isEmpty,
-                    onPhotoLibrary: { isShowingPhotoLibrary = true },
-                    onCamera:       { isShowingCamera = true },
-                    onEmoji:        { isShowingEmojiPicker = true },
+                    onPhotoLibrary: { identifyAfterPick = false; isShowingPhotoLibrary = true },
+                    onCamera:       { identifyAfterPick = false; isShowingCamera = true },
+                    onEmoji:        { identifyAfterPick = false; isShowingEmojiPicker = true },
                     onRemove: {
-                        withAnimation(Theme.spring) { localImageData = nil; imageURL = "" }
+                        withAnimation(Theme.spring) {
+                            localImageData = nil
+                            imageURL = ""
+                            localImageIsPhoto = false
+                            resetIdentify()
+                        }
                     }
                 )
                 .presentationDetents([.medium])
@@ -206,7 +249,9 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         localImageData = data
                         imageURL = ""
+                        localImageIsPhoto = true
                     }
+                    photoDidChange()
                 }
                 .pageSheet()
             }
@@ -215,6 +260,8 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         localImageData = data
                         imageURL = ""
+                        localImageIsPhoto = false
+                        resetIdentify()
                     }
                 }
                 .presentationDetents([.fraction(0.55)])
@@ -222,6 +269,10 @@ struct AddItemView: View {
                 .pageSheet()
             }
             .onChange(of: urlString) { oldValue, newValue in
+                if skipNextURLFetch {
+                    skipNextURLFetch = false
+                    return
+                }
                 // Auto-fetch when a URL is pasted (large text change, not typed char-by-char)
                 let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 let wasEmpty = oldValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -234,17 +285,150 @@ struct AddItemView: View {
                 }
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
+                guard let newItem else { return }
                 Task {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    if let data = try? await newItem.loadTransferable(type: Data.self) {
                         let compressed = ImageCompressor.compress(data) ?? data
                         withAnimation(Theme.spring) {
                             localImageData = compressed
                             imageURL = ""
+                            localImageIsPhoto = true
                         }
+                        photoDidChange()
+                    } else {
+                        identifyAfterPick = false
                     }
+                    // Clear the selection so picking the same photo again still registers.
+                    selectedPhotoItem = nil
                 }
             }
+            .onChange(of: auth.isSignedIn) { _, signedIn in identify.signedInChanged(signedIn) }
+            .identifyConsentSheet(identify, accentColor: accentColor)
+            .sheet(isPresented: $isShowingPaywall) { PaywallView().pageSheet() }
+            .sheet(isPresented: $isShowingAuth) { AuthView().pageSheet() }
         }
+    }
+
+    // MARK: - Photo identification
+
+    private var showsIdentifyCard: Bool {
+        guard !isEditing else { return false }
+        // Details already came from a product link.
+        let hasURL = !urlString.trimmingCharacters(in: .whitespaces).isEmpty
+        if hasURL && metadataWasFetched && fetchError == nil { return false }
+        // An emoji or a product image from a link isn't a photo of the item.
+        let hasImage = localImageData != nil || !imageURL.isEmpty
+        return !hasImage || localImageIsPhoto
+    }
+
+    private var identifyCard: some View {
+        IdentifyPhotoCard(
+            phase: identify.phase,
+            hasPhoto: localImageData != nil && localImageIsPhoto,
+            usage: identify.usage,
+            isPro: purchaseService.isPro,
+            trialAvailable: !auth.isSignedIn && identify.offersTrial,
+            wasTrial: identify.lastWasTrial,
+            accentColor: accentColor,
+            onTakePhoto: UIImagePickerController.isSourceTypeAvailable(.camera)
+                ? { identifyAfterPick = true; isShowingCamera = true }
+                : nil,
+            onChooseFromLibrary: { identifyAfterPick = true; isShowingPhotoLibrary = true },
+            onIdentify: { startIdentify() },
+            onUseEstimate: { useEstimate($0) },
+            onFindOnline: { openURL($0) },
+            onUpgrade: { isShowingPaywall = true },
+            onSignIn: { isShowingAuth = true },
+            offers: identify.offers,
+            onOpenOffer: { openURL($0) },
+            onSelectOffer: { identify.selectOffer($0) }
+        )
+        .background(Theme.Colors.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    /// Puts a photo shared from another app into the form, once.
+    private func applyInitialImageIfNeeded() {
+        guard !didApplyInitialImage, let shared = initialImageData else { return }
+        didApplyInitialImage = true
+        localImageData = ImageCompressor.compress(shared) ?? shared
+        imageURL = ""
+        localImageIsPhoto = true
+        guard autoIdentify else { return }
+        // Let the form finish presenting before a consent sheet can appear on top of it.
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            startIdentify()
+        }
+    }
+
+    /// A new photo invalidates any result for the previous one.
+    private func photoDidChange() {
+        resetIdentify()
+        guard identifyAfterPick else { return }
+        identifyAfterPick = false
+        // Wait for the camera or photo picker to finish dismissing, so a consent sheet can appear.
+        Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            startIdentify()
+        }
+    }
+
+    /// Drops the result and anything it filled in that the user hasn't changed:
+    /// a shop link and price for the old photo would be for the wrong item.
+    private func resetIdentify() {
+        identify.reset()
+        if let offerURL, urlString == offerURL { urlString = "" }
+        if let autoPrice, priceText == autoPrice { priceText = "" }
+        offerURL = nil
+        autoPrice = nil
+    }
+
+    private func startIdentify() {
+        guard let data = localImageData, localImageIsPhoto else { return }
+        identify.start(imageData: data, currency: currency, isSignedIn: auth.isSignedIn) { result in
+            applyIdentification(result)
+        } applyOffer: { offer in
+            applyOffer(offer)
+        }
+    }
+
+    /// Puts a shop's link and price in the form, unless the user added a link of their
+    /// own. The price replaces an estimate or an earlier offer, not one the user typed.
+    private func applyOffer(_ offer: ShopOffer) {
+        let current = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard current.isEmpty || current == offerURL else { return }
+        let link = offer.url.absoluteString
+        withAnimation(Theme.spring) {
+            if current != link {
+                skipNextURLFetch = true
+                urlString = link
+            }
+            offerURL = link
+            if priceText.isEmpty || priceText == autoPrice {
+                priceText = offer.priceInput
+                currency = offer.currency
+                autoPrice = offer.priceInput
+            }
+        }
+    }
+
+    /// Fills only the fields the user hasn't typed into, like product-link metadata does.
+    private func applyIdentification(_ result: ProductIdentification) {
+        let prefill = IdentifyPrefill.make(from: result, currentTitle: title, currentNotes: notes)
+        withAnimation(Theme.spring) {
+            if let value = prefill.title { title = value }
+            if let value = prefill.notes { notes = value }
+            if let value = prefill.brand { fetchedBrand = value }
+            if let value = prefill.color { fetchedColor = value }
+        }
+    }
+
+    private func useEstimate(_ estimate: ProductIdentification.PriceEstimate) {
+        priceText = "\(estimate.midpoint)"
+        currency = estimate.currency
+        autoPrice = priceText   // a shop's real price may replace the estimate
+        Haptics.selection()
     }
 
     // MARK: - Image thumbnail
@@ -604,6 +788,7 @@ struct AddItemView: View {
                     withAnimation(Theme.spring) {
                         imageURL = imgURL
                         localImageData = nil
+                        localImageIsPhoto = false
                     }
                 }
                 alternativeImages = metadata.alternativeImageURLs
@@ -720,6 +905,9 @@ struct AddItemView: View {
         }
 
         Haptics.success()
+        // A list created inline has a temporary persistentModelID until saved; Home navigates
+        // by that ID, so make it permanent first (see FirstItemView.saveAndDismiss).
+        try? modelContext.save()
         onSaved?(targetList)
         dismiss()
     }

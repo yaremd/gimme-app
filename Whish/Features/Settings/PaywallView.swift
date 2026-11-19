@@ -15,6 +15,8 @@ struct PaywallView: View {
         ("bell.badge",          "Gifting Alerts",     "Know when someone quietly reserves a gift \u{2014} no spoilers for you."),
         ("rectangle.3.group",   "All Widget Sizes",   "Medium home screen and Lock Screen widgets for every setup."),
         ("chart.line.downtrend.xyaxis", "Price Drop Alerts", "Track prices on unlimited items — free plan includes 3."),
+        // Keep the numbers in step with IDENTIFY_*_MONTHLY_LIMIT on the identify-product function.
+        ("camera.viewfinder",   "Snap to Add",        "Identify up to 100 items a month from photos — free plan includes 5."),
         ("sparkles",            "Future Features",    "Every Pro feature we add is included at no extra cost. Ever."),
         ("lock.open",           "Yours Forever",      "One purchase. No subscription. No renewals. Own it forever."),
     ]
@@ -25,6 +27,7 @@ struct PaywallView: View {
         Color(hex: "#34C4A0"),
         Color(hex: "#FF7043"),
         Color(hex: "#30D158"),
+        Color(hex: "#AB47BC"),
         Color(hex: "#FFCA28"),
         Color(hex: "#EC407A"),
     ]

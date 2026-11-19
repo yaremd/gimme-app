@@ -255,13 +255,45 @@ struct WishItemDetailView: View {
             infoRow(label: "List", value: "\(wishList.emoji)  \(wishList.name)")
             Divider().background(Theme.Colors.surfaceBorder)
             if let url = item.url {
-                infoRow(label: "URL", value: url)
+                linkRow(url)
                 Divider().background(Theme.Colors.surfaceBorder)
             }
             infoRow(label: "Added", value: item.createdAt.formatted(date: .abbreviated, time: .omitted))
         }
         .background(Theme.Colors.surface,
                     in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+    }
+
+    /// The item's link. Tapping it opens the page in the browser, which is why there's
+    /// no separate Open in Browser button; Copy Link is in the ••• menu.
+    @ViewBuilder
+    private func linkRow(_ raw: String) -> some View {
+        if let url = itemURL {
+            Link(destination: url) {
+                HStack(alignment: .top) {
+                    Text("URL")
+                        .font(.system(.subheadline))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .frame(width: 80, alignment: .leading)
+                    Text(raw)
+                        .font(.system(.subheadline))
+                        .foregroundStyle(accessibleGlowText)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(3)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(accessibleGlowText)
+                        .padding(.top, 3)
+                }
+                .padding(Theme.Spacing.cardInner)
+                .contentShape(Rectangle())
+            }
+            .accessibilityHint("Opens in your browser")
+        } else {
+            // Not something the browser can open; show it as plain text.
+            infoRow(label: "URL", value: raw)
+        }
     }
 
     private func infoRow(label: String, value: String, clearAction: (() -> Void)? = nil) -> some View {
@@ -591,16 +623,7 @@ struct WishItemDetailView: View {
                 .buttonStyle(.plain)
                 .primaryGlassBackground(color: accessibleGlow)
             }
-
-            // Plain browser link — the buy CTA already covers this when shown.
-            if !showsBuyCTA, let url = itemURL {
-                Link(destination: url) {
-                    actionLabel(icon: "safari",
-                                title: "Open in Browser",
-                                foreground: Theme.Colors.textPrimary)
-                }
-                .glassCapsuleBackground()
-            }
+            // No Open in Browser button: the URL row above opens the link.
         }
         .animation(Theme.quickSpring, value: showsBuyCTA)
     }
