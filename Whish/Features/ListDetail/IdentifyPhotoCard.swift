@@ -95,12 +95,15 @@ struct IdentifyPhotoCard: View {
         case .found(let list, let selectedID):
             if let selected = list.first(where: { $0.id == selectedID }) ?? list.first {
                 divider
-                offerRow(list, selected: selected)
+                offerRow(list, selected: selected, exactMatch: result.status == .identified)
             }
         case .searching:
             estimateRow(result)
             divider
-            row(icon: nil, title: "Finding the best price…", subtitle: "Checking shops for this item") { EmptyView() }
+            row(icon: nil, title: "Finding the best price…",
+                subtitle: result.status == .identified
+                    ? "Checking shops for this item"
+                    : "Looking for the closest match in shops") { EmptyView() }
         case .idle, .none:
             estimateRow(result)
             if let url = result.shoppingSearchURL {
@@ -131,10 +134,10 @@ struct IdentifyPhotoCard: View {
     }
 
     /// The offer in the form, with the others behind "Change".
-    private func offerRow(_ list: [ShopOffer], selected: ShopOffer) -> some View {
+    private func offerRow(_ list: [ShopOffer], selected: ShopOffer, exactMatch: Bool) -> some View {
         row(icon: "cart",
             title: "\(selected.priceText) at \(selected.store)",
-            subtitle: Self.offerSubtitle(selected, in: list)) {
+            subtitle: Self.offerSubtitle(selected, in: list, exactMatch: exactMatch)) {
             HStack(spacing: Theme.Spacing.sm) {
                 if list.count > 1 {
                     Menu {
@@ -164,9 +167,11 @@ struct IdentifyPhotoCard: View {
     }
 
     /// What the offer row says about the offer in the form. A price only the search saw
-    /// is flagged, since it wasn't checked on the shop's page and can be out of date.
-    static func offerSubtitle(_ selected: ShopOffer, in list: [ShopOffer]) -> String {
+    /// is flagged, since it wasn't checked on the shop's page and can be out of date. For
+    /// a photo that was only a close match, the shops sell the closest item found.
+    static func offerSubtitle(_ selected: ShopOffer, in list: [ShopOffer], exactMatch: Bool = true) -> String {
         guard selected.checked else { return "Price from search, may be out of date" }
+        guard exactMatch else { return "Close match, link added" }
         guard selected.best else { return "Link and price added" }
         // The best checked price, but the search saw a lower one that couldn't be checked.
         return list.contains { $0.price < selected.price }

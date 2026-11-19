@@ -48,7 +48,7 @@ async function identification(db: PGlite, resultStatus: string, status = "ok"): 
 async function claimOffers(db: PGlite, id: string): Promise<boolean> {
   const res = await db.query(
     `update public.ai_identify_requests set offers_status = 'pending'
-     where id = $1 and offers_status is null and status = 'ok' and result_status = 'identified'
+     where id = $1 and offers_status is null and status = 'ok' and result_status in ('identified', 'similar')
      returning id`,
     [id],
   );
@@ -97,12 +97,13 @@ Deno.test("each identified product gets exactly one shop search", async () => {
   await db.close();
 });
 
-Deno.test("only an identified product can be searched", async () => {
+Deno.test("only an identified product or a close match can be searched", async () => {
   const db = await freshDb();
-  for (const [resultStatus, status] of [["similar", "ok"], ["not_a_product", "not_product"], ["identified", "failed"]]) {
+  for (const [resultStatus, status] of [["unclear", "ok"], ["not_a_product", "not_product"], ["identified", "failed"]]) {
     const id = await identification(db, resultStatus, status);
     assertEquals(await claimOffers(db, id), false, `${resultStatus}/${status}`);
   }
+  assertEquals(await claimOffers(db, await identification(db, "similar")), true, "a close match");
   await db.close();
 });
 

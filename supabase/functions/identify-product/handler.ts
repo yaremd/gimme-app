@@ -6,9 +6,10 @@
 //   - signed in: the user's access token; monthly quota (free / Pro)
 //   - signed out: one free try per device, proven with an Apple DeviceCheck token
 //
-// An identified product also comes back with an `offersToken`. Posting it back
-// ({ offersToken, country, currency }) runs that photo's one shop search: a web
-// search for shops selling the product, with each price confirmed on the shop's page.
+// An identified product, or a close match ("similar"), also comes back with an
+// `offersToken`. Posting it back ({ offersToken, country, currency }) runs that
+// photo's one shop search: a web search for shops selling the product (or the closest
+// item to a close match), with each price checked on the shop's page where it can be.
 
 import { type DeviceCheckClient, type DeviceCheckEnvironment, InvalidDeviceToken } from "./devicecheck.ts";
 import {
@@ -117,7 +118,7 @@ export interface Deps {
   callModel(input: { imageBase64: string; mediaType: string; userText: string }): Promise<ModelCall>;
   /** Present when DeviceCheck secrets are set; without it signed-out callers must sign in. */
   deviceCheck?: DeviceCheckClient;
-  /** Shop search for identified products; without it results come back with no offersToken. */
+  /** Shop search for identified products and close matches; without it no result gets an offersToken. */
   offers?: OffersDeps;
   config: Config;
   now(): Date;
@@ -382,9 +383,10 @@ export async function handleIdentify(req: Request, deps: Deps): Promise<Response
     resultStatus: result.status,
   });
 
-  // Only a specific product is worth a shop search; "similar" keeps the plain search link.
+  // A specific product gets a shop search, and so does a close match: the search then
+  // looks for the closest item, and the app says it's a close match.
   let offersToken: string | undefined;
-  if (result.status === "identified" && deps.offers) {
+  if ((result.status === "identified" || result.status === "similar") && deps.offers) {
     try {
       offersToken = await signTicket(deps.offers.ticketKey, {
         requestId,
@@ -392,6 +394,7 @@ export async function handleIdentify(req: Request, deps: Deps): Promise<Response
         brand: result.brand,
         model: result.model,
         searchQuery: result.searchQuery || result.title,
+        similar: result.status === "similar",
         estimate: result.estimatedPrice,
         expiresAt: Math.floor(now.getTime() / 1000) + OFFERS_TICKET_TTL_SECONDS,
       });

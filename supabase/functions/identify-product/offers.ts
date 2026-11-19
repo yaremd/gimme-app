@@ -1,4 +1,4 @@
-// Shop offers for an identified product: the ticket that ties one shop search to
+// Shop offers for an identified product or a close match: the ticket that ties one shop search to
 // one identification, the prompt and tool for the web search, and the checks that
 // turn what the model reports into offers the app can show.
 // Kept free of runtime dependencies so tests can import it directly.
@@ -13,6 +13,11 @@ export interface OffersTicket {
   brand: string | null;
   model: string | null;
   searchQuery: string;
+  /**
+   * True when the photo was only a close match ("similar"): the exact product isn't
+   * known, so the search looks for the closest item. Absent on older tickets.
+   */
+  similar?: boolean;
   /** The identification's typical price range, used to drop offers for the wrong thing. */
   estimate: { low: number; high: number; currency: string } | null;
   /** Unix seconds. */
@@ -93,6 +98,7 @@ export async function verifyTicket(key: CryptoKey, token: string, nowSeconds: nu
     (t.brand === null || typeof t.brand === "string") &&
     (t.model === null || typeof t.model === "string") &&
     typeof t.searchQuery === "string" &&
+    (t.similar === undefined || typeof t.similar === "boolean") &&
     isEstimate(t.estimate) &&
     typeof t.expiresAt === "number";
   if (!valid) return null;
@@ -102,13 +108,14 @@ export async function verifyTicket(key: CryptoKey, token: string, nowSeconds: nu
 
 // MARK: - Prompt and tool
 
-export const OFFERS_SYSTEM_PROMPT = `You find where to buy one specific product for Gimme, a wishlist app. A friend will use the link to buy it as a gift, so the page has to sell exactly this product.
+export const OFFERS_SYSTEM_PROMPT = `You find where to buy a product for Gimme, a wishlist app. A friend will use the link to buy it as a gift, so the page has to sell exactly this product, or the closest match when the exact product isn't known.
 
 Search the web for shops that sell the product new and deliver to the user's country, then call report_offers once with what you found.
 
 For each offer:
 - url: the product page itself on the shop's own site. Not search results, category pages, price comparison sites, reviews, videos, forums or social media.
 - The page must sell the same product: same brand and model, and the same variant (colour, size, capacity) when one is given. Not accessories, bundles, refurbished or used items.
+- When the request says the exact product is unknown, the page must sell the closest match instead: the same kind of item, in the same colour, material and style. Never a different kind of item.
 - store: the shop's name as customers know it, such as "Currys" or "Best Buy".
 - price and currency: the current price for one item as the search results show it, as a number, with a three-letter currency code. Use null for both when you didn't see a price. Never fill one in from the typical price or a guess: it may be shown to the user.
 
@@ -146,6 +153,9 @@ export const REPORT_OFFERS_TOOL = {
 export function buildOffersUserText(ticket: OffersTicket, country: string | null, currency: string): string {
   const lines = [
     `Product: ${ticket.title}`,
+    ticket.similar
+      ? "Exact product: unknown. The photo shows an item like this, so find the closest match."
+      : null,
     ticket.brand ? `Brand: ${ticket.brand}` : null,
     ticket.model ? `Model: ${ticket.model}` : null,
     `Shopping search: ${ticket.searchQuery}`,

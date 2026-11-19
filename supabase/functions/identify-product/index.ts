@@ -17,12 +17,13 @@
 // Without them, signed-out users are simply asked to sign in.
 //
 // Shop search (POST { offersToken, country?, currency? } -> { offers }): a web search
-// for shops selling an identified product, each price confirmed with the
-// fetch-metadata function. Optional tuning: OFFERS_MODEL, OFFERS_EFFORT,
+// for shops selling an identified product or the closest item to a close match, each
+// price checked with the fetch-metadata function where the page allows. Optional tuning: OFFERS_MODEL, OFFERS_EFFORT,
 // OFFERS_MAX_SEARCHES. Tickets are signed with a key derived from
 // OFFERS_TICKET_SECRET, or from the service role key when that isn't set.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Pinned: esm.sh serves no Deno build of auth-js 2.119.2 (404), so "@2" stopped bundling.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.119.1";
 import Anthropic from "npm:@anthropic-ai/sdk@1.3.0";
 import { createDeviceCheckClient } from "./devicecheck.ts";
 import { handleIdentify, type Deps, type OffersDeps } from "./handler.ts";
@@ -93,7 +94,7 @@ const offers: OffersDeps | undefined = ticketKey && supabaseURL && anonKey
         .eq("id", requestId)
         .is("offers_status", null)
         .eq("status", "ok")
-        .eq("result_status", "identified")
+        .in("result_status", ["identified", "similar"])
         .select("id");
       if (error) throw error;
       return (data ?? []).length > 0;

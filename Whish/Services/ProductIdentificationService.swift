@@ -466,7 +466,8 @@ struct IdentifyPrefill: Equatable {
 /// Launch with `-mockIdentify identified` (or no_offers, search_prices, similar,
 /// not_product, quota, offline, trial, trial_used). `identified` also finds four shops a
 /// few seconds later, the cheapest only by its search price; `search_prices` finds only
-/// shops whose pages couldn't be checked; `no_offers` finds none. `trial` behaves like a
+/// shops whose pages couldn't be checked; `similar` finds close matches to its beanie;
+/// `no_offers` finds none. `trial` behaves like a
 /// signed-out device's one free try: it needs sign-in afterwards, until the app is
 /// reinstalled.
 struct MockProductIdentificationService: ProductIdentificationService {
@@ -494,6 +495,14 @@ struct MockProductIdentificationService: ProductIdentificationService {
                   title: nil, price: Decimal(string: "109.99")!, currency: "USD", best: false, checked: false),
     ]
 
+    /// Shops for `similar`'s beanie: the closest items, one only by its search price.
+    static let closeMatchOffers: [ShopOffer] = [
+        ShopOffer(store: "Uniqlo", url: URL(string: "https://www.example.com/uniqlo/wool-beanie")!,
+                  title: "Wool Blend Beanie", price: Decimal(string: "24.90")!, currency: "USD", best: true),
+        ShopOffer(store: "Target", url: URL(string: "https://www.example.com/target/grey-beanie")!,
+                  title: nil, price: Decimal(string: "19.99")!, currency: "USD", best: false, checked: false),
+    ]
+
     static let searchPriceOffers: [ShopOffer] = [
         ShopOffer(store: "Target", url: URL(string: "https://www.example.com/target/air-max-90")!,
                   title: nil, price: Decimal(string: "124.99")!, currency: "USD", best: true, checked: false),
@@ -506,6 +515,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
         switch scenario {
         case .noOffers: return []
         case .searchPrices: return Self.searchPriceOffers
+        case .similar: return Self.closeMatchOffers
         default: return Self.offers
         }
     }
@@ -546,7 +556,7 @@ struct MockProductIdentificationService: ProductIdentificationService {
                 color: "Grey", category: "Hats", description: "Ribbed knit beanie with a small brown leather patch.",
                 estimatedPrice: .init(low: 20, high: 35, currency: currency),
                 searchQuery: "grey wool beanie leather patch", confidence: 0.55
-            ), usage: usage)
+            ), usage: usage, offersToken: "mock-offers")
         case .notProduct:
             return .init(result: .init(
                 status: .notAProduct, title: "", brand: nil, model: nil, color: nil, category: "",

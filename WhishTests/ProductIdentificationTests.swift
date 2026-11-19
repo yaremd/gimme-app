@@ -530,6 +530,12 @@ struct ShopOfferTests {
                 == "Price from search, may be out of date")
         #expect(IdentifyPhotoCard.menuTitle(walmart).hasSuffix(" · Walmart · from search"))
         #expect(IdentifyPhotoCard.menuTitle(bestBuy).hasSuffix(" · BestBuy"))
+
+        // A photo that was only a close match: the shops sell the closest item found.
+        #expect(IdentifyPhotoCard.offerSubtitle(bestBuy, in: [bestBuy, gameStop], exactMatch: false)
+                == "Close match, link added")
+        #expect(IdentifyPhotoCard.offerSubtitle(walmart, in: [bestBuy, walmart], exactMatch: false)
+                == "Price from search, may be out of date")
     }
 }
 

@@ -14,6 +14,7 @@ import {
   startOfNextMonthUTC,
 } from "./handler.ts";
 import {
+  buildOffersUserText,
   makeTicketKey,
   type OffersTicket,
   type PageCheck,
@@ -555,7 +556,7 @@ Deno.test("a free try's identified product gets a ticket too", async () => {
   assertEquals(ticket?.requestId, "trial-1");
 });
 
-Deno.test("similar items, and setups without shop search, get no ticket", async () => {
+Deno.test("a close match gets a ticket that asks for the closest item", async () => {
   const { offers } = await makeOffers();
   const similar = makeDeps({
     offers,
@@ -563,7 +564,25 @@ Deno.test("similar items, and setups without shop search, get no ticket", async 
   });
   const similarBody = await (await handleIdentify(post({ image: IMAGE }), similar.deps)).json();
   assertEquals(similarBody.result.status, "similar");
-  assertEquals(similarBody.offersToken, undefined);
+  const ticket = await verifyTicket(offers.ticketKey, similarBody.offersToken, Math.floor(NOW.getTime() / 1000));
+  assertEquals(ticket?.similar, true);
+  assert(buildOffersUserText(ticket!, "GB", "GBP").includes("Exact product: unknown"));
+
+  const exact = makeDeps({ offers });
+  const exactBody = await (await handleIdentify(post({ image: IMAGE }), exact.deps)).json();
+  const exactTicket = await verifyTicket(offers.ticketKey, exactBody.offersToken, Math.floor(NOW.getTime() / 1000));
+  assertEquals(exactTicket?.similar, false);
+});
+
+Deno.test("not a product, and setups without shop search, get no ticket", async () => {
+  const { offers } = await makeOffers();
+  const notProduct = makeDeps({
+    offers,
+    model: { text: JSON.stringify({ ...goodModelOutput, status: "not_a_product" }) },
+  });
+  const notProductBody = await (await handleIdentify(post({ image: IMAGE }), notProduct.deps)).json();
+  assertEquals(notProductBody.result.status, "not_a_product");
+  assertEquals(notProductBody.offersToken, undefined);
 
   const noOffers = makeDeps();
   const noOffersBody = await (await handleIdentify(post({ image: IMAGE }), noOffers.deps)).json();

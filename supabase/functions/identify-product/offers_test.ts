@@ -57,6 +57,25 @@ Deno.test("the search request names the product, country and currency", () => {
   }
   const bare = buildOffersUserText({ ...ticket, brand: null, model: null, estimate: null }, null, "EUR");
   assert(!bare.includes("Brand:") && !bare.includes("Model:") && !bare.includes("country") && !bare.includes("Typical"));
+  assert(!text.includes("Exact product") && !bare.includes("Exact product"));
+});
+
+Deno.test("a close match asks for the closest item, and its ticket says so", async () => {
+  const closeMatch: OffersTicket = {
+    ...ticket,
+    title: "Grey wool beanie with leather patch",
+    brand: null,
+    model: null,
+    searchQuery: "grey wool beanie leather patch",
+    similar: true,
+  };
+  assert(buildOffersUserText(closeMatch, "US", "USD").includes(
+    "Exact product: unknown. The photo shows an item like this, so find the closest match.",
+  ));
+  const key = await makeTicketKey("secret-a");
+  assertEquals(await verifyTicket(key, await signTicket(key, closeMatch), NOW_SECONDS), closeMatch);
+  const badFlag = await signTicket(key, { ...closeMatch, similar: "yes" } as unknown as OffersTicket);
+  assertEquals(await verifyTicket(key, badFlag, NOW_SECONDS), null);
 });
 
 Deno.test("reported offers keep only shops' product pages, one per shop", () => {
