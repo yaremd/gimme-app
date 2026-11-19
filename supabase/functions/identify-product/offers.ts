@@ -258,12 +258,18 @@ export interface ShopOffer {
   best: boolean;
 }
 
-/** Why shop pages were left out, for the function log. Counts and currency codes only. */
+/**
+ * Why shop pages were left out, for the function log: counts, currency codes, and the
+ * shop's domain (no path) for pages without a readable price, to improve the link
+ * reader for those shops.
+ */
 export interface OfferDrops {
   /** The page couldn't be fetched or read (blocked, timed out, not HTML). */
   unreadable: number;
+  unreadableDomains: string[];
   /** The page showed no price the link reader could find. */
   noPrice: number;
+  noPriceDomains: string[];
   /** Priced in another currency, by currency code ("none" when the page gave none). */
   otherCurrency: Record<string, number>;
   /** Far from the typical price: usually an accessory, a bundle or the wrong model. */
@@ -280,15 +286,24 @@ export function pickOffers(
   checked: ReadonlyArray<{ reported: ReportedOffer; page: PageCheck | null }>,
   options: { currency: string; estimate: OffersTicket["estimate"]; max: number },
 ): { offers: ShopOffer[]; drops: OfferDrops } {
-  const drops: OfferDrops = { unreadable: 0, noPrice: 0, otherCurrency: {}, outOfRange: 0 };
+  const drops: OfferDrops = {
+    unreadable: 0,
+    unreadableDomains: [],
+    noPrice: 0,
+    noPriceDomains: [],
+    otherCurrency: {},
+    outOfRange: 0,
+  };
   const confirmed: Omit<ShopOffer, "best">[] = [];
   for (const { reported, page } of checked) {
     if (!page) {
       drops.unreadable++;
+      drops.unreadableDomains.push(shopDomain(reported.url));
       continue;
     }
     if (page.price === null || !Number.isFinite(page.price) || page.price <= 0) {
       drops.noPrice++;
+      drops.noPriceDomains.push(shopDomain(reported.url));
       continue;
     }
     const currency = (page.currency ?? reported.currency ?? "").trim().toUpperCase();
@@ -318,6 +333,15 @@ export function pickOffers(
   };
 }
 
+/** The host of an offer's link without "www." and without the path, e.g. "rozetka.com.ua". */
+function shopDomain(url: string): string {
+  try {
+    return shopKey(new URL(url).hostname.toLowerCase());
+  } catch {
+    return "invalid";
+  }
+}
+
 /** How many offers the model reported, before any were left out. */
 export function reportedCount(input: unknown): number {
   const offers = input && typeof input === "object" ? (input as { offers?: unknown }).offers : undefined;
@@ -325,8 +349,9 @@ export function reportedCount(input: unknown): number {
 }
 
 /**
- * One log line per shop search, to see why searches come back empty. Counts and
- * currency codes only: never links, shop names or what was searched for.
+ * One log line per shop search, to see why searches come back empty. Counts, currency
+ * codes, and the domains of shops whose pages had no readable price: never full links,
+ * product names or what was searched for.
  */
 export function describeOffersSearch(summary: {
   model: string;
@@ -350,7 +375,9 @@ export function describeOffersSearch(summary: {
     `suggested=${summary.suggested}`,
     `skipped=${summary.suggested - summary.shopPages}`,
     `unreadable=${summary.drops.unreadable}`,
+    `unreadable_domains=${summary.drops.unreadableDomains.join(",") || "-"}`,
     `no_price=${summary.drops.noPrice}`,
+    `no_price_domains=${summary.drops.noPriceDomains.join(",") || "-"}`,
     `other_currency=${otherCurrency}`,
     `out_of_range=${summary.drops.outOfRange}`,
     `found=${summary.found}`,

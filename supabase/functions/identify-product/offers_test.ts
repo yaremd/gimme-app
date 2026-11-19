@@ -115,7 +115,14 @@ Deno.test("offers are ranked by the price on their page", () => {
     { store: "D", url: "https://d.example/item", title: "D", price: 360, currency: "USD", best: false },
     { store: "A", url: "https://a.example/item", title: "A page", price: 389.5, currency: "USD", best: false },
   ]);
-  assertEquals(drops, { unreadable: 0, noPrice: 0, otherCurrency: {}, outOfRange: 0 });
+  assertEquals(drops, {
+    unreadable: 0,
+    unreadableDomains: [],
+    noPrice: 0,
+    noPriceDomains: [],
+    otherCurrency: {},
+    outOfRange: 0,
+  });
 });
 
 Deno.test("a page without a currency falls back to the one the search reported", () => {
@@ -150,7 +157,15 @@ Deno.test("offers with no confirmed price are dropped", () => {
     { reported: reported("Zero", 300, "USD"), page: { price: 0, currency: "USD", title: "x" } },
   ], { currency: "USD", estimate: null, max: 3 });
   assertEquals(offers, []);
-  assertEquals(drops, { unreadable: 1, noPrice: 2, otherCurrency: {}, outOfRange: 0 });
+  // Domains only, so the link reader can be improved for those shops; never the path.
+  assertEquals(drops, {
+    unreadable: 1,
+    unreadableDomains: ["blocked.example"],
+    noPrice: 2,
+    noPriceDomains: ["noprice.example", "zero.example"],
+    otherCurrency: {},
+    outOfRange: 0,
+  });
 });
 
 Deno.test("offers in other currencies are counted by currency", () => {
@@ -164,20 +179,28 @@ Deno.test("offers in other currencies are counted by currency", () => {
   assertEquals(drops.otherCurrency, { USD: 2, EUR: 1 });
 });
 
-Deno.test("the search log line has counts and currency codes only", () => {
+Deno.test("the search log line has counts, currency codes and shop domains only", () => {
   const line = describeOffersSearch({
     model: "claude-haiku-5-5",
     searches: 2,
     suggested: 5,
     shopPages: 3,
-    drops: { unreadable: 1, noPrice: 0, otherCurrency: { USD: 1, EUR: 1 }, outOfRange: 0 },
+    drops: {
+      unreadable: 1,
+      unreadableDomains: ["rozetka.com.ua"],
+      noPrice: 0,
+      noPriceDomains: [],
+      otherCurrency: { USD: 1, EUR: 1 },
+      outOfRange: 0,
+    },
     found: 1,
     latencyMs: 9129,
   });
   assertEquals(
     line,
-    "identify-product: offers model=claude-haiku-5-5 searches=2 suggested=5 skipped=2 unreadable=1 no_price=0 " +
-      "other_currency=EUR:1,USD:1 out_of_range=0 found=1 latency_ms=9129",
+    "identify-product: offers model=claude-haiku-5-5 searches=2 suggested=5 skipped=2 unreadable=1 " +
+      "unreadable_domains=rozetka.com.ua no_price=0 no_price_domains=- other_currency=EUR:1,USD:1 " +
+      "out_of_range=0 found=1 latency_ms=9129",
   );
   assertEquals(reportedCount({ offers: [{}, {}, {}] }), 3);
   assertEquals(reportedCount(null), 0);
